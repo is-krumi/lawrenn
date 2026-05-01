@@ -1,3 +1,4 @@
+import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -208,6 +209,7 @@ serve(async (req) => {
 
   } catch (err) {
     console.error("stripe-webhook error:", err);
+    await captureException(err, { function: "stripe-webhook" });
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 500, headers: { "Content-Type": "application/json" } }

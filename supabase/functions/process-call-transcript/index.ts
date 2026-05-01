@@ -337,6 +337,7 @@ ${transcript}`,
 
   } catch (err) {
     console.error("process-call-transcript error:", err);
+    await captureException(err, { function: "process-call-transcript" });
     return new Response(
       JSON.stringify({ error: err.message }),
       { status: 200 } // Return 200 so Retell doesn't keep retrying

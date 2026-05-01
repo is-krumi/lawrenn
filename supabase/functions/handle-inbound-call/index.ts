@@ -1,3 +1,4 @@
+import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -201,6 +202,7 @@ const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 
   } catch (err) {
     console.error("handle-inbound-call error:", err);
+    await captureException(err, { function: "handle-inbound-call" });
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
