@@ -1,6 +1,6 @@
-import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "../_shared/sentry.ts";
 
 const SUPABASE_URL          = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -47,9 +47,9 @@ function getTierFromPriceId(priceId: string): string {
   // Map your Stripe price IDs to tiers
   // Update these with your actual Stripe price IDs
   const tierMap: Record<string, string> = {
-    "price_starter": "starter",
-    "price_pro":     "pro",
-    "price_growth":  "growth",
+    "price_1TS7JgGrDNuNmu5HXkq374CI": "starter",
+    "price_1TS7KIGrDNuNmu5HCza80wPJ":     "pro",
+    "price_1TS7L1GrDNuNmu5HMpFnXDvb":  "growth",
   };
   return tierMap[priceId] ?? "pro";
 }
