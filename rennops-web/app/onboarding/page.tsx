@@ -138,7 +138,7 @@ export default function OnboardingStep1() {
       {/* Progress bar */}
       <div style={{ width: "100%", maxWidth: 520, marginBottom: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-          {["Business", "Services", "Team", "Phone"].map((step, i) => (
+{["Business", "Services", "Team", "Voice", "Phone"].map((step, i) => (
             <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%",
@@ -153,7 +153,7 @@ export default function OnboardingStep1() {
           ))}
         </div>
         <div style={{ height: 3, background: "rgba(0,0,0,0.06)", borderRadius: 2 }}>
-          <div style={{ height: "100%", width: "25%", background: "var(--cyan)", borderRadius: 2, transition: "width 0.3s" }} />
+          <div style={{ height: "100%", width: "20%", background: "var(--cyan)", borderRadius: 2, transition: "width 0.3s" }} />
         </div>
       </div>
 

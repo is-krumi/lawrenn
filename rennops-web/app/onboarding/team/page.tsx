@@ -54,6 +54,7 @@ export default function OnboardingStep3() {
   const [members, setMembers]               = useState<TeamMember[]>([newMember()]);
   const [expanded, setExpanded]             = useState<string | null>(null);
   const [useBusinessHours, setUseBizHours]  = useState(true);
+  const [isSolo, setIsSolo]                 = useState(false);
   const [loading, setLoading]               = useState(false);
   const [error, setError]                   = useState("");
 
@@ -125,36 +126,59 @@ export default function OnboardingStep3() {
   }
 
   async function handleNext() {
-    const invalid = members.filter(m => !m.name.trim());
-    if (invalid.length > 0) { setError("All team members need a name"); return; }
+    if (!isSolo) {
+      const invalid = members.filter(m => !m.name.trim());
+      if (invalid.length > 0) { setError("All team members need a name"); return; }
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      // Delete existing technicians for this business (clean slate)
+      // Delete existing technicians
       await supabase
         .from("technicians")
         .delete()
         .eq("business_id", businessId);
 
-      // Insert new team members
-      const rows = members.map(m => ({
-        business_id: businessId,
-        name:        m.name.trim(),
-        phone:       m.phone.trim() || null,
-        color:       m.color,
-        schedule:    useBusinessHours ? bizHours : m.schedule,
-        active:      true,
-      }));
+      if (!isSolo) {
+        // Insert team members
+        const rows = members.map(m => ({
+          business_id: businessId,
+          name:        m.name.trim(),
+          phone:       m.phone.trim() || null,
+          color:       m.color,
+          schedule:    useBusinessHours ? bizHours : m.schedule,
+          active:      true,
+        }));
 
-      const { error: insertError } = await supabase
-        .from("technicians")
-        .insert(rows);
+        const { error: insertError } = await supabase
+          .from("technicians")
+          .insert(rows);
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
+      } else {
+        // Solo — insert owner as the only technician using business hours
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: biz } = await supabase
+          .from("businesses")
+          .select("name, settings")
+          .eq("id", businessId)
+          .single();
 
-      router.push("/onboarding/phone");
+        await supabase
+          .from("technicians")
+          .insert({
+            business_id: businessId,
+            name:        biz?.name ?? "Owner",
+            phone:       null,
+            color:       "#0cc0df",
+            schedule:    bizHours,
+            active:      true,
+          });
+      }
+
+      router.push("/onboarding/persona");
 
     } catch (err: any) {
       setError(err.message ?? "Something went wrong. Please try again.");
@@ -181,7 +205,7 @@ export default function OnboardingStep3() {
       {/* Progress */}
       <div style={{ width: "100%", maxWidth: 560, marginBottom: "2rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-          {["Business", "Services", "Team", "Phone"].map((step, i) => (
+{["Business", "Services", "Team", "Voice", "Phone"].map((step, i) => (
             <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%",
@@ -196,7 +220,7 @@ export default function OnboardingStep3() {
           ))}
         </div>
         <div style={{ height: 3, background: "rgba(0,0,0,0.06)", borderRadius: 2 }}>
-          <div style={{ height: "100%", width: "75%", background: "#0cc0df", borderRadius: 2 }} />
+          <div style={{ height: "100%", width: "60%", background: "#0cc0df", borderRadius: 2 }} />
         </div>
       </div>
 
@@ -222,6 +246,29 @@ export default function OnboardingStep3() {
           </div>
         )}
 
+        {/* Solo toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: isSolo ? "rgba(12,192,223,0.06)" : "#F9FAFB", border: `1px solid ${isSolo ? "rgba(12,192,223,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 10, marginBottom: "1rem", transition: "all 0.2s" }}>
+          <div>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.15rem" }}>I work solo</p>
+            <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>No team members — just you</p>
+          </div>
+          <button onClick={() => setIsSolo(!isSolo)}
+            style={{
+              width: 44, height: 26, borderRadius: 13,
+              background: isSolo ? "#0cc0df" : "rgba(0,0,0,0.15)",
+              border: "none", cursor: "pointer",
+              position: "relative", transition: "background 0.2s", flexShrink: 0,
+            }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%", background: "white",
+              position: "absolute", top: 4,
+              left: isSolo ? 22 : 4,
+              transition: "left 0.2s",
+            }} />
+          </button>
+        </div>
+
+        {!isSolo && (<>
         {/* Use business hours toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, marginBottom: "1.5rem" }}>
           <div>
@@ -366,6 +413,7 @@ export default function OnboardingStep3() {
           onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(12,192,223,0.4)"}>
           + Add another team member
         </button>
+        </>)}
 
         {/* Back + Next */}
         <div style={{ display: "flex", gap: "0.75rem" }}>
