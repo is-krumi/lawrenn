@@ -46,6 +46,13 @@ export default function OnboardingStep4() {
                 .update({ twilio_number: twilioNumber.trim() || null })
                 .eq("id", businessId);
 
+            // Send call forwarding instructions email via Resend
+            await fetch("/api/send-welcome-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ business_id: businessId }),
+            });
+
             setDone(true);
             setTimeout(() => router.push("/dashboard"), 2000);
         } catch (err) {

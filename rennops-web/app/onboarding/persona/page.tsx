@@ -10,12 +10,12 @@ const supabase = createClient(
 );
 
 const VOICE_OPTIONS = [
-  { id: "EST9Ui6982FZPSi7gCHi", name: "Elise",  desc: "Warm & professional",  gender: "Female" },
-  { id: "7EzWGsX10sAS4c9m9cPf", name: "Jack",   desc: "Confident & direct",   gender: "Male"   },
-  { id: "DXFkLCBUTmvXpp2QwZjA", name: "Eryn",   desc: "Friendly & clear",     gender: "Female" },
-  { id: "SSfU0eLfP3qeuR4j2bwD", name: "Chris",  desc: "Calm & reassuring",    gender: "Male"   },
-  { id: "P7x743VjyZEOihNNygQ9", name: "Dakota", desc: "Neutral & modern",     gender: "Neutral"},
-  { id: "auq43ws1oslv0tO4BDa7", name: "Adam",   desc: "Deep & authoritative", gender: "Male"   },
+  { elevenLabsId: "EST9Ui6982FZPSi7gCHi", retellId: "custom_voice_b315a4ce2cf96a8aa40254b66e", name: "Elise",  desc: "Warm & professional",  gender: "Female" },
+  { elevenLabsId: "7EzWGsX10sAS4c9m9cPf", retellId: "custom_voice_d7e2825972e0d4be3afb8d0496", name: "Jack",   desc: "Confident & direct",   gender: "Male"   },
+  { elevenLabsId: "DXFkLCBUTmvXpp2QwZjA", retellId: "custom_voice_e4392e8220a2950e47b7a445e0", name: "Eryn",   desc: "Friendly & clear",     gender: "Female" },
+  { elevenLabsId: "SSfU0eLfP3qeuR4j2bwD", retellId: "custom_voice_b8c57bccee79e33aefdf5957f8", name: "Chris",  desc: "Calm & reassuring",    gender: "Male"   },
+  { elevenLabsId: "P7x743VjyZEOihNNygQ9", retellId: "custom_voice_ca067a4626b11f2ae8081159e5", name: "Dakota", desc: "Neutral & modern",     gender: "Neutral"},
+  { elevenLabsId: "auq43ws1oslv0tO4BDa7", retellId: "custom_voice_2c9b0e5a1f6c9a4fa965cde94e", name: "Adam",   desc: "Deep & authoritative", gender: "Male"   },
 ];
 
 export default function OnboardingPersona() {
@@ -25,7 +25,7 @@ export default function OnboardingPersona() {
   const [businessName, setBusinessName] = useState("");
   const [agentName, setAgentName]     = useState("Alex");
   const [greeting, setGreeting]       = useState("");
-  const [selectedVoice, setSelectedVoice] = useState(VOICE_OPTIONS[0].id);
+const [selectedVoice, setSelectedVoice] = useState(VOICE_OPTIONS[0]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audioUrl, setAudioUrl]       = useState<string | null>(null);
   const [loading, setLoading]         = useState(false);
@@ -58,7 +58,8 @@ export default function OnboardingPersona() {
         setGreeting(`Thanks for calling ${biz.name}, this is Alex — how can I help you today?`);
       }
       if (biz.settings?.ai_persona?.voice_id) {
-        setSelectedVoice(biz.settings.ai_persona.voice_id);
+        const match = VOICE_OPTIONS.find(v => v.retellId === biz.settings.ai_persona.voice_id);
+        if (match) setSelectedVoice(match);
       }
     }
     load();
@@ -78,7 +79,7 @@ async function handlePreview() {
 
   try {
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice.elevenLabsId}`,
       {
         method: "POST",
         headers: {
@@ -137,7 +138,7 @@ async function handlePreview() {
             ai_persona: {
               name:     agentName.trim(),
               greeting: greeting.trim(),
-              voice_id: selectedVoice,
+              voice_id: selectedVoice.retellId,
             },
           },
         })
@@ -258,17 +259,17 @@ async function handlePreview() {
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.5rem" }}>
             {VOICE_OPTIONS.map(voice => (
-              <button key={voice.id} onClick={() => { setSelectedVoice(voice.id); setAudioUrl(null); }}
+              <button key={voice.elevenLabsId} onClick={() => { setSelectedVoice(voice); setAudioUrl(null); }}
                 style={{
                   padding: "0.75rem 1rem",
-                  background: selectedVoice === voice.id ? "rgba(12,192,223,0.08)" : "#F9FAFB",
-                  border: `1.5px solid ${selectedVoice === voice.id ? "#0cc0df" : "rgba(0,0,0,0.1)"}`,
+                  background: selectedVoice.elevenLabsId === voice.elevenLabsId ? "rgba(12,192,223,0.08)" : "#F9FAFB",
+                  border: `1.5px solid ${selectedVoice.elevenLabsId === voice.elevenLabsId ? "#0cc0df" : "rgba(0,0,0,0.1)"}`,
                   borderRadius: 8,
                   cursor: "pointer",
                   textAlign: "left",
                   transition: "all 0.15s",
                 }}>
-                <div style={{ fontSize: "0.9rem", fontWeight: 600, color: selectedVoice === voice.id ? "#0cc0df" : "#0D1B2A", marginBottom: "0.15rem" }}>
+                <div style={{ fontSize: "0.9rem", fontWeight: 600, color: selectedVoice.elevenLabsId === voice.elevenLabsId ? "#0cc0df" : "#0D1B2A", marginBottom: "0.15rem" }}>
                   {voice.name}
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#6B7280" }}>{voice.desc} · {voice.gender}</div>

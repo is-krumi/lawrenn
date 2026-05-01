@@ -188,6 +188,8 @@ serve(async (req) => {
 
     // Step 1: Register the inbound call with Retell
     // This assigns the agent and returns a unique call_id
+const voiceId = business.settings?.ai_persona?.voice_id ?? "auq43ws1oslv0tO4BDa7";
+
 const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call", {
   method: "POST",
   headers: {
@@ -195,10 +197,17 @@ const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call
     "Content-Type":  "application/json",
   },
   body: JSON.stringify({
-    agent_id:  RETELL_AGENT_ID,
+    agent_id:    RETELL_AGENT_ID,
     from_number: fromNumber,
     to_number:   toNumber,
     direction:   "inbound",
+    retell_llm_dynamic_variables: {
+      business_id: business.id,
+    },
+    override_agent_config: {
+      voice_id: voiceId,
+      prompt:   systemPrompt,
+    },
     metadata: {
       business_id: business.id,
       call_sid:    callSid,

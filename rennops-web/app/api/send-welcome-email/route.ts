@@ -1,0 +1,171 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(request: Request) {
+  try {
+    const { business_id } = await request.json();
+
+    if (!business_id) {
+      return NextResponse.json({ error: "business_id required" }, { status: 400 });
+    }
+
+    // Fetch business details
+    const { data: business } = await supabase
+      .from("businesses")
+      .select("name, phone, twilio_number, timezone")
+      .eq("id", business_id)
+      .single();
+
+    if (!business) {
+      return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    }
+
+    // Fetch owner email from auth.users
+    const { data: { users } } = await supabase.auth.admin.listUsers();
+    const owner = users.find((u: any) =>
+      u.user_metadata?.business_id === business_id ||
+      u.id === (await supabase.from("businesses").select("owner_id").eq("id", business_id).single()).data?.owner_id
+    );
+
+    // Get owner email directly
+    const { data: ownerData } = await supabase
+      .from("businesses")
+      .select("owner_id")
+      .eq("id", business_id)
+      .single();
+
+    const { data: { user } } = await supabase.auth.admin.getUserById(ownerData?.owner_id ?? "");
+    const ownerEmail = user?.email;
+
+    if (!ownerEmail) {
+      return NextResponse.json({ error: "Owner email not found" }, { status: 404 });
+    }
+
+    const twilioNumber = business.twilio_number ?? "Being provisioned — check your dashboard";
+
+    // Send email via Resend
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({
+        from:    "RennOps <notifications@rennops.com>",
+        to:      ownerEmail,
+        subject: `You're all set — here's how to forward your calls`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body style="margin:0;padding:0;background:#F8FAFB;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+            <div style="max-width:560px;margin:40px auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+              
+              <!-- Header -->
+              <div style="background:#0D1B2A;padding:32px 40px;">
+                <div style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:white;letter-spacing:0.05em;">
+                  RENN<span style="color:#0cc0df;">OPS</span>
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div style="padding:40px;">
+                <h1 style="font-size:24px;font-weight:700;color:#0D1B2A;margin:0 0 8px;">
+                  Welcome to RennOps, ${business.name}! 🎉
+                </h1>
+                <p style="font-size:15px;color:#6B7280;line-height:1.7;margin:0 0 32px;">
+                  Your AI receptionist is configured and ready to answer calls. 
+                  The last step is to forward your existing business number to your RennOps number.
+                </p>
+
+                <!-- RennOps number box -->
+                <div style="background:#F0FAFE;border:1.5px solid rgba(12,192,223,0.25);border-radius:10px;padding:20px 24px;margin-bottom:32px;">
+                  <p style="font-size:11px;font-weight:700;color:#0cc0df;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 6px;">Your RennOps Number</p>
+                  <p style="font-size:28px;font-weight:700;color:#0D1B2A;margin:0 0 4px;letter-spacing:0.05em;">${twilioNumber}</p>
+                  <p style="font-size:13px;color:#6B7280;margin:0;">Forward your existing number to this number</p>
+                </div>
+
+                <!-- Steps -->
+                <h2 style="font-size:16px;font-weight:700;color:#0D1B2A;margin:0 0 16px;">How to set up call forwarding</h2>
+                
+                ${[
+                  { n: "1", t: "Call your carrier or log in online", b: "Contact AT&T, Verizon, T-Mobile, or whichever carrier you use." },
+                  { n: "2", t: "Enable call forwarding", b: `Forward all calls to your RennOps number: <strong>${twilioNumber}</strong>` },
+                  { n: "3", t: "Test it", b: "Call your existing business number. RennOps should answer within 2 rings." },
+                ].map(s => `
+                  <div style="display:flex;gap:16px;margin-bottom:16px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:rgba(12,192,223,0.1);border:1.5px solid rgba(12,192,223,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0cc0df;flex-shrink:0;text-align:center;line-height:28px;">${s.n}</div>
+                    <div>
+                      <p style="font-size:14px;font-weight:600;color:#0D1B2A;margin:0 0 3px;">${s.t}</p>
+                      <p style="font-size:13px;color:#6B7280;margin:0;line-height:1.5;">${s.b}</p>
+                    </div>
+                  </div>
+                `).join("")}
+
+                <!-- Carrier codes -->
+                <div style="background:#F9FAFB;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:16px 20px;margin:24px 0;">
+                  <p style="font-size:13px;font-weight:600;color:#374151;margin:0 0 12px;">Quick dial codes (dial from your phone):</p>
+                  <table style="width:100%;border-collapse:collapse;">
+                    ${[
+                      ["AT&T",     "*72"],
+                      ["Verizon",  "*72"],
+                      ["T-Mobile", "**21*"],
+                      ["Sprint",   "*72"],
+                    ].map(([carrier, code]) => `
+                      <tr>
+                        <td style="padding:5px 0;font-size:13px;color:#374151;font-weight:500;">${carrier}</td>
+                        <td style="padding:5px 0;font-size:13px;color:#0cc0df;font-weight:600;font-family:monospace;">${code} + ${twilioNumber} + #</td>
+                      </tr>
+                    `).join("")}
+                  </table>
+                </div>
+
+                <p style="font-size:14px;color:#6B7280;line-height:1.7;margin:24px 0 32px;">
+                  Once forwarding is active, every call to your existing number will be answered by your AI receptionist. 
+                  You can monitor all calls, bookings, and customers from your 
+                  <a href="https://rennops.com/dashboard" style="color:#0cc0df;font-weight:600;">RennOps dashboard</a>.
+                </p>
+
+                <a href="https://rennops.com/dashboard" style="display:inline-block;padding:14px 28px;background:#0cc0df;border-radius:8px;color:white;font-weight:700;font-size:15px;text-decoration:none;">
+                  Go to your dashboard →
+                </a>
+              </div>
+
+              <!-- Footer -->
+              <div style="padding:24px 40px;border-top:1px solid rgba(0,0,0,0.06);">
+                <p style="font-size:12px;color:#9CA3AF;margin:0;">
+                  Questions? Reply to this email or contact us at 
+                  <a href="mailto:hello@rennops.com" style="color:#0cc0df;">hello@rennops.com</a>
+                </p>
+                <p style="font-size:12px;color:#9CA3AF;margin:6px 0 0;">
+                  © 2026 RennOps. All rights reserved.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Resend error:", err);
+      return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+
+  } catch (err: any) {
+    console.error("send-welcome-email error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
