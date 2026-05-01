@@ -1,6 +1,6 @@
-import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "../_shared/sentry.ts";
 
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,9 +48,21 @@ async function getAvailableSlots(businessId: string): Promise<string[]> {
       const schedule = tech.schedule?.[dayName];
       if (!schedule?.start || !schedule?.end) continue;
 
-      const [sh, sm] = schedule.start.split(":").map(Number);
+      // Check business operating hours
+      const bizHours = business.settings?.operating_hours?.[dayName];
+      if (!bizHours?.start || !bizHours?.end) continue;
+
+      // Use the later of business open and tech start
+      const bizOpen        = parseInt(bizHours.start.split(":")[0]);
+      const bizClose       = parseInt(bizHours.end.split(":")[0]);
+      const techOpen       = parseInt(schedule.start.split(":")[0]);
+      const effectiveOpen  = Math.max(bizOpen, techOpen);
+      const effectiveClose = Math.min(bizClose, parseInt(schedule.end.split(":")[0]));
+
+      if (effectiveOpen >= effectiveClose) continue;
+
       const slotTime = new Date(date);
-      slotTime.setHours(sh, sm, 0, 0);
+      slotTime.setHours(effectiveOpen, 0, 0, 0);
 
       const conflict = bookedJobs?.some(j => {
         const jStart = new Date(j.slot_start);
@@ -84,6 +96,23 @@ function buildSystemPrompt(business: any, slots: string[]): string {
     ? `Available appointment slots: ${slots.join(" | ")}`
     : "We are currently fully booked — take the customer details and let them know the owner will call back.";
 
+  // Check if currently after hours
+  const now = new Date();
+  const hour = parseInt(now.toLocaleTimeString("en-US", {
+    hour: "2-digit", hour12: false, timeZone: business.timezone
+  }));
+  const days = ["sun","mon","tue","wed","thu","fri","sat"];
+  const dayKey = days[new Date().toLocaleDateString("en-US", { timeZone: business.timezone, weekday: "short" }).toLowerCase().slice(0,3) as unknown as number];
+  const operatingHours = business.settings?.operating_hours;
+  const todayHours = operatingHours?.[days[now.getDay()]];
+  const openHour  = todayHours?.start ? parseInt(todayHours.start.split(":")[0]) : 8;
+  const closeHour = todayHours?.end   ? parseInt(todayHours.end.split(":")[0])   : 17;
+  const isAfterHours = !todayHours?.start || hour < openHour || hour >= closeHour;
+
+  const afterHoursNote = isAfterHours
+    ? `IMPORTANT — IT IS CURRENTLY OUTSIDE BUSINESS HOURS: Do NOT offer specific appointment slots. Still greet the caller warmly and collect their name, phone number, service address, and what service they need. Then say "I have all your details — someone from our team will call you first thing tomorrow morning to get you scheduled." Confirm their callback number before ending the call.`
+    : "";
+
   return `You are ${agentName}, the AI receptionist for ${business.name}.
 
 ${greeting}
@@ -91,20 +120,23 @@ ${greeting}
 Your job is to:
 1. Greet the caller warmly and ask how you can help
 2. Find out what service they need (we offer: ${services})
-3. Get their full name, address, and preferred appointment time
-4. Offer one of these available slots: ${slotsText}
-5. Confirm the booking and let them know they will receive an SMS confirmation
+3. Get their full name and service address
+4. Call check_availability with the job_type to get real-time available slots
+5. Offer the slots returned and get the caller to confirm a specific day and time
+6. ${isAfterHours ? "Do NOT offer slots — collect their details and promise a morning callback" : "Confirm the booking and let them know they will receive an SMS confirmation"}
+
+${afterHoursNote}
 
 IMPORTANT RULES:
+- Always call check_availability before offering any appointment times — never make up slots
 - Never quote prices — say the owner will provide a quote when they arrive
-- If the caller says flood, gas leak, no heat, burst pipe, or emergency — say this sounds urgent let me get the owner on the line right away
-- If the caller says talk to a person or speak to someone — transfer immediately
+- If the caller says flood, gas leak, no heat, burst pipe, or emergency — say this sounds urgent let me get the owner on the line right away then immediately call transfer_to_owner
+- If the caller says talk to a person or speak to someone — immediately call transfer_to_owner
 - Always be friendly, concise, and professional
-- After hours: take their details and say the owner will call back first thing tomorrow
+- Only confirm a booking after the caller has agreed to a specific day AND time
 
 Business timezone: ${business.timezone}`;
 }
-
 serve(async (req) => {
   try {
     console.log("=== handle-inbound-call start ===");
@@ -156,6 +188,8 @@ serve(async (req) => {
 
     // Step 1: Register the inbound call with Retell
     // This assigns the agent and returns a unique call_id
+const voiceId = business.settings?.ai_persona?.voice_id ?? "auq43ws1oslv0tO4BDa7";
+
 const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call", {
   method: "POST",
   headers: {
@@ -163,10 +197,17 @@ const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call
     "Content-Type":  "application/json",
   },
   body: JSON.stringify({
-    agent_id:  RETELL_AGENT_ID,
+    agent_id:    RETELL_AGENT_ID,
     from_number: fromNumber,
     to_number:   toNumber,
     direction:   "inbound",
+    retell_llm_dynamic_variables: {
+      business_id: business.id,
+    },
+    override_agent_config: {
+      voice_id: voiceId,
+      prompt:   systemPrompt,
+    },
     metadata: {
       business_id: business.id,
       call_sid:    callSid,

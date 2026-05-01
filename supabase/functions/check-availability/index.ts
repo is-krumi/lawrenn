@@ -9,12 +9,42 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 serve(async (req) => {
   try {
-    const { business_id, job_type, preferred_date } = await req.json();
+    const body = await req.json();
+
+    // Retell sends call metadata with every function call
+    const job_type      = body.job_type ?? null;
+    const preferred_date = body.preferred_date ?? null;
+    const retell_call_id = body.call?.call_id ?? null;
+
+    console.log("check-availability called, job_type:", job_type, "retell_call_id:", retell_call_id);
+
+    // Look up business_id from our calls table using the Retell call_id
+    let business_id: string | null = null;
+
+    if (retell_call_id) {
+      const { data: callRecord } = await supabase
+        .from("calls")
+        .select("business_id")
+        .eq("twilio_call_sid", retell_call_id)
+        .maybeSingle();
+
+      business_id = callRecord?.business_id ?? null;
+      console.log("Found business_id from call record:", business_id);
+    }
+
+    // Fallback to direct business_id if passed
+    if (!business_id) {
+      business_id = body.business_id ?? null;
+    }
 
     if (!business_id) {
       return new Response(
-        JSON.stringify({ error: "business_id is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          available: false,
+          slots: [],
+          message: "I'm having trouble checking availability right now. Let me take your details and someone will call you back to confirm a time.",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -27,8 +57,12 @@ serve(async (req) => {
 
     if (!business) {
       return new Response(
-        JSON.stringify({ error: "Business not found" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          available: false,
+          slots: [],
+          message: "I'm unable to check availability right now. Let me take your details and someone will call you back.",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -44,15 +78,15 @@ serve(async (req) => {
         JSON.stringify({
           available: false,
           slots: [],
-          message: "No technicians available. The owner will call you back to schedule.",
+          message: "No technicians available right now. The owner will call you back to schedule.",
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // Get job duration from business settings (default 2 hours)
-    const services     = business.settings?.services ?? [];
-    const matchedSvc   = services.find((s: any) =>
+    const services    = business.settings?.services ?? [];
+    const matchedSvc  = services.find((s: any) =>
       s.name?.toLowerCase().includes((job_type ?? "").toLowerCase())
     );
     const durationMins = matchedSvc?.duration_mins ?? 120;
@@ -83,8 +117,8 @@ serve(async (req) => {
 
     // Iterate through days to find available windows
     for (let d = 0; d <= 7 && slots.length < 3; d++) {
-      const date    = new Date(startDate.getTime() + d * 24 * 60 * 60 * 1000);
-      const dayKey  = days[date.getDay()];
+      const date   = new Date(startDate.getTime() + d * 24 * 60 * 60 * 1000);
+      const dayKey = days[date.getDay()];
 
       for (const tech of technicians) {
         if (slots.length >= 3) break;
@@ -92,15 +126,23 @@ serve(async (req) => {
         const schedule = tech.schedule?.[dayKey];
         if (!schedule?.start || !schedule?.end) continue;
 
-        // Parse technician working hours
-        const [startH, startM] = schedule.start.split(":").map(Number);
-        const [endH,   endM]   = schedule.end.split(":").map(Number);
+        // Check business operating hours
+        const bizHours = business.settings?.operating_hours?.[dayKey];
+        if (!bizHours?.start || !bizHours?.end) continue;
+
+        const bizOpen        = parseInt(bizHours.start.split(":")[0]);
+        const bizClose       = parseInt(bizHours.end.split(":")[0]);
+        const techOpen       = parseInt(schedule.start.split(":")[0]);
+        const effectiveOpen  = Math.max(bizOpen, techOpen);
+        const effectiveClose = Math.min(bizClose, parseInt(schedule.end.split(":")[0]));
+
+        if (effectiveOpen >= effectiveClose) continue;
 
         const workStart = new Date(date);
-        workStart.setHours(startH, startM, 0, 0);
+        workStart.setHours(effectiveOpen, 0, 0, 0);
 
         const workEnd = new Date(date);
-        workEnd.setHours(endH, endM, 0, 0);
+        workEnd.setHours(effectiveClose, 0, 0, 0);
 
         // Skip if in the past
         if (workStart < now) continue;
@@ -154,7 +196,7 @@ serve(async (req) => {
         JSON.stringify({
           available: false,
           slots: [],
-          message: "We're fully booked for the next week. The owner will call you back to find a time that works.",
+          message: "We are fully booked for the next week. Let me take your details and the owner will call you back to find a time that works.",
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
@@ -173,8 +215,12 @@ serve(async (req) => {
     console.error("check-availability error:", err);
     await captureException(err, { function: "check-availability" });
     return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({
+        available: false,
+        slots: [],
+        message: "I'm having trouble checking availability right now. Let me take your details and someone will call you back.",
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
 });

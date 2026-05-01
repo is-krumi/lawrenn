@@ -1,27 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANTHROPIC_API_KEY    = Deno.env.get("ANTHROPIC_API_KEY")!;
+const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 async function parseTranscript(transcript: string): Promise<Record<string, any>> {
   const today = new Date().toISOString().split('T')[0]; // e.g. "2026-04-30"
-  
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "x-api-key":         ANTHROPIC_API_KEY,
+      "x-api-key": ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
-      "Content-Type":      "application/json",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model:      "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
       messages: [{
-        role:    "user",
+        role: "user",
         content: `Today's date is ${today}. Extract structured job data from this call transcript. Return ONLY a valid JSON object with no additional text or markdown.
 
 Required fields:
@@ -66,7 +66,7 @@ serve(async (req) => {
 
     // Retell wraps everything in an event object
     // Handle both direct call object and event wrapper
-    const event    = body.event;
+    const event = body.event;
     const callData = body.data ?? body.call ?? body;
 
     console.log("Event type:", event);
@@ -77,11 +77,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ skipped: true }), { status: 200 });
     }
 
-    const call_id              = callData.call_id;
-    const metadata             = callData.metadata;
-    const transcript           = callData.transcript;
-    const recording_url        = callData.recording_url;
-    const duration_ms          = callData.duration_ms;
+    const call_id = callData.call_id;
+    const metadata = callData.metadata;
+    const transcript = callData.transcript;
+    const recording_url = callData.recording_url;
+    const duration_ms = callData.duration_ms;
     const disconnection_reason = callData.disconnection_reason;
 
     console.log("call_id:", call_id);
@@ -90,7 +90,7 @@ serve(async (req) => {
     console.log("disconnection_reason:", disconnection_reason);
 
     const businessId = metadata?.business_id;
-    const callSid    = metadata?.call_sid;
+    const callSid = metadata?.call_sid;
 
     console.log("businessId:", businessId);
     console.log("callSid:", callSid);
@@ -119,9 +119,9 @@ serve(async (req) => {
           .from("calls")
           .update({
             transcript,
-            recording_url:    recording_url ?? null,
+            recording_url: recording_url ?? null,
             duration_seconds: Math.round((duration_ms ?? 0) / 1000),
-            outcome:          "missed",
+            outcome: "missed",
           })
           .eq("id", callRecord.id);
 
@@ -160,7 +160,7 @@ serve(async (req) => {
     // Determine outcome
     const outcome = parsed.outcome ?? (
       disconnection_reason === "agent_hangup" ? "booked" :
-      disconnection_reason === "user_hangup"  ? "missed" : "missed"
+        disconnection_reason === "user_hangup" ? "missed" : "missed"
     );
 
     const escalated = parsed.urgency === "urgent" || outcome === "escalated";
@@ -170,9 +170,9 @@ serve(async (req) => {
       .from("calls")
       .update({
         transcript,
-        recording_url:    recording_url ?? null,
+        recording_url: recording_url ?? null,
         duration_seconds: durationSeconds,
-        parsed_job:       parsed,
+        parsed_job: parsed,
         outcome,
         escalated,
       })
@@ -190,9 +190,9 @@ serve(async (req) => {
         .from("customers")
         .upsert({
           business_id: businessId,
-          phone:       callerPhone,
-          name:        parsed.customer_name ?? null,
-          address:     parsed.address ?? null,
+          phone: callerPhone,
+          name: parsed.customer_name ?? null,
+          address: parsed.address ?? null,
         }, { onConflict: "business_id,phone" })
         .select("id")
         .single();
@@ -221,19 +221,32 @@ serve(async (req) => {
       const { data: job, error: jobError } = await supabase
         .from("jobs")
         .insert({
-          business_id:   businessId,
-          customer_id:   customer?.id,
+          business_id: businessId,
+          customer_id: customer?.id,
           technician_id: technician?.id ?? null,
-          call_id:       callRecord.id,
-          type:          parsed.job_type ?? "General Service",
-          status:        "booked",
-          slot_start:    parsed.slot_start,
-          slot_end:      slotEnd,
-          notes:         parsed.notes ?? null,
-          source:        "voice_agent",
+          call_id: callRecord.id,
+          type: parsed.job_type ?? "General Service",
+          status: "booked",
+          slot_start: parsed.slot_start,
+          slot_end: slotEnd,
+          notes: parsed.notes ?? null,
+          source: "voice_agent",
         })
         .select("id")
         .single();
+
+      // Handle slot conflict (unique constraint violation)
+      if (jobError?.code === "23505") {
+        console.log("Slot conflict detected — slot already booked for this technician");
+        await supabase
+          .from("calls")
+          .update({ outcome: "missed" })
+          .eq("id", callRecord.id);
+        return new Response(
+          JSON.stringify({ error: "Slot conflict — customer will be contacted to reschedule" }),
+          { status: 200 }
+        );
+      }
 
       console.log("Job insert:", job?.id ?? "FAILED", jobError?.message ?? "");
 
@@ -247,10 +260,10 @@ serve(async (req) => {
 
         const slotDisplay = new Date(parsed.slot_start).toLocaleDateString("en-US", {
           weekday: "long",
-          month:   "short",
-          day:     "numeric",
-          hour:    "numeric",
-          minute:  "2-digit",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
           timeZone: business?.timezone ?? "America/New_York",
         });
 
@@ -258,26 +271,52 @@ serve(async (req) => {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
-            "Content-Type":  "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            type:        "booking_confirmation",
-            channel:     "sms",
+            type: "booking_confirmation",
+            channel: "sms",
             customer_id: customer.id,
-            job_id:      job.id,
+            job_id: job.id,
             business_id: businessId,
             template_data: {
               customerName: parsed.customer_name ?? "there",
               businessName: business?.name ?? "us",
-              jobType:      parsed.job_type ?? "service",
-              slotStart:    slotDisplay,
-              techName:     "",
-              reviewUrl:    "",
+              jobType: parsed.job_type ?? "service",
+              slotStart: slotDisplay,
+              techName: "",
+              reviewUrl: "",
             },
           }),
         });
 
         console.log("SMS send status:", smsRes.status);
+        // Notify owner via SMS about new booking
+        const { data: ownerBusiness } = await supabase
+          .from("businesses")
+          .select("phone, name")
+          .eq("id", businessId)
+          .single();
+
+        if (ownerBusiness?.phone) {
+          const ownerMsg = `New booking via RennOps: ${parsed.customer_name ?? "A customer"} booked a ${parsed.job_type ?? "service"} for ${slotDisplay}. Address: ${parsed.address ?? "not provided"}.`;
+
+          await fetch("https://api.twilio.com/2010-04-01/Accounts/" + Deno.env.get("TWILIO_ACCOUNT_SID") + "/Messages.json", {
+            method: "POST",
+            headers: {
+              "Authorization": "Basic " + btoa(Deno.env.get("TWILIO_ACCOUNT_SID")! + ":" + Deno.env.get("TWILIO_AUTH_TOKEN")!),
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              To:   ownerBusiness.phone,
+              From: Deno.env.get("TWILIO_FROM_NUMBER")!,
+              Body: ownerMsg,
+            }),
+          });
+
+          console.log("Owner notification SMS sent to:", ownerBusiness.phone);
+        }
+        
       }
     } else {
       console.log("Booking not confirmed. booking_confirmed:", parsed.booking_confirmed, "slot_start:", parsed.slot_start);
@@ -289,15 +328,15 @@ serve(async (req) => {
       const notesRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "x-api-key":         ANTHROPIC_API_KEY,
+          "x-api-key": ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
-          "Content-Type":      "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model:      "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 512,
           messages: [{
-            role:    "user",
+            role: "user",
             content: `Write a brief 2-3 sentence job summary for a trades business owner based on this call transcript.
 Cover: what the problem is, any specific details mentioned, and any follow-up needed.
 Plain text only, no bullet points.
@@ -309,7 +348,7 @@ ${transcript}`,
       });
 
       const notesData = await notesRes.json();
-      const aiNotes   = notesData.content?.[0]?.text ?? null;
+      const aiNotes = notesData.content?.[0]?.text ?? null;
       console.log("AI notes generated:", aiNotes?.slice(0, 100));
 
       if (aiNotes) {
