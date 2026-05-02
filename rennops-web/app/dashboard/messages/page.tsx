@@ -46,34 +46,35 @@ export default function MessagesPage() {
     if (bizLoading) return;
     if (!businessId) { router.push("/login"); return; }
 
+    const inboxChannel = supabase
+      .channel(`messages-inbox-${businessId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        const msg = payload.new as any;
+        // Update thread list
+        loadThreads(businessId!);
+        // Add to open thread if matches
+        setSelected(curr => {
+          if (curr && msg.customer_id === curr.customer_id) {
+            setMessages(prev => {
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+          }
+          return curr;
+        });
+      })
+      .subscribe();
+
     async function load() {
       await loadThreads(businessId!);
       setLoading(false);
-
-      // Realtime
-      supabase
-        .channel("messages-inbox")
-        .on("postgres_changes", {
-          event: "INSERT", schema: "public", table: "messages",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          const msg = payload.new as any;
-          // Update thread list
-          loadThreads(businessId!);
-          // Add to open thread if matches
-          setSelected(curr => {
-            if (curr && msg.customer_id === curr.customer_id) {
-              setMessages(prev => {
-                if (prev.some(m => m.id === msg.id)) return prev;
-                return [...prev, msg];
-              });
-            }
-            return curr;
-          });
-        })
-        .subscribe();
     }
     load();
+
+    return () => { supabase.removeChannel(inboxChannel); };
   }, [businessId, bizLoading, router]);
 
   // Auto scroll to bottom
