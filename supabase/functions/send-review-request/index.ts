@@ -1,6 +1,6 @@
-import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "../_shared/sentry.ts";
 
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -9,7 +9,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 serve(async (req) => {
   try {
-    const { job_id } = await req.json();
+    let job_id: string | null = null;
+
+    const text = await req.text();
+    console.log("Raw body received:", text);
+    try {
+      const body = JSON.parse(text);
+      job_id = body.job_id ?? null;
+    } catch {
+      console.error("Failed to parse body as JSON:", text);
+    }
+
+    console.log("job_id received:", job_id);
 
     if (!job_id) {
       return new Response(

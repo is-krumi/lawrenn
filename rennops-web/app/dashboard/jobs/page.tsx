@@ -66,6 +66,8 @@ export default function JobsPage() {
   const [view, setView]             = useState<"list" | "calendar">("list");
   const [showAddJob, setShowAddJob] = useState(false);
   const [updating, setUpdating]     = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState<string | null>(null);
+  const [confirmOverride, setConfirmOverride] = useState<{ jobId: string; status: string } | null>(null);
   const [services, setServices]     = useState<{name: string; duration_mins: number}[]>([]);
   const [technicians, setTechnicians] = useState<{id: string; name: string; color: string}[]>([]);
   const [customers, setCustomers]   = useState<{id: string; name: string; phone: string}[]>([]);
@@ -243,24 +245,39 @@ export default function JobsPage() {
     const updates: any = { status };
     if (status === "complete") updates.completed_at = new Date().toISOString();
 
-    await supabase.from("jobs").update(updates).eq("id", jobId);
+    try {
+      await supabase.from("jobs").update(updates).eq("id", jobId);
 
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...updates } : j));
-    if (selected?.id === jobId) setSelected(prev => ({ ...prev!, ...updates }));
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...updates } : j));
+      if (selected?.id === jobId) setSelected(prev => ({ ...prev!, ...updates }));
 
-    // Trigger review request if completed
-    if (status === "complete") {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-review-request`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          "Content-Type":  "application/json",
-        },
-        body: JSON.stringify({ job_id: jobId }),
-      });
+      if (status === "complete") {
+        try {
+          console.log("Triggering review request for job:", jobId);
+          const reviewRes = await fetch("/api/trigger-review-request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ job_id: jobId }),
+          });
+          const reviewData = await reviewRes.json();
+          console.log("Review request response:", reviewData);
+        } catch (reviewErr) {
+          console.error("Review request failed (non-critical):", reviewErr);
+        }
+      }
+    } finally {
+      setUpdating(false);
     }
+  }
 
-    setUpdating(false);
+  function handleStatusClick(jobId: string, status: string) {
+    if (selected?.status === "complete" && status !== "complete") {
+      setConfirmOverride({ jobId, status });
+    } else if (status === "complete") {
+      setConfirmComplete(jobId);
+    } else {
+      updateStatus(jobId, status);
+    }
   }
 
   async function updateAmount(jobId: string, amount: number) {
@@ -547,28 +564,92 @@ export default function JobsPage() {
               {/* Update status */}
               <div style={{ marginBottom: "1rem" }}>
                 <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Update status</p>
-                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                  {STATUSES.map(s => {
-                    const cfg = STATUS_CONFIG[s];
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+                    {STATUSES.filter(s => s !== "complete").map((s, i, arr) => {
+                      const cfg = STATUS_CONFIG[s];
+                      const isActive = selected.status === s;
+                      const showDivider = s === "canceled";
+                      return (
+                        <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                          {showDivider && <div style={{ width: 1, height: 32, background: "rgba(0,0,0,0.12)" }} />}
+                          <button onClick={() => handleStatusClick(selected.id, s)}
+                            disabled={updating || isActive}
+                            style={{
+                              padding: "0.35rem 0.75rem",
+                              background: isActive ? cfg.bg : "transparent",
+                              border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
+                              borderRadius: 100,
+                              color: isActive ? cfg.color : "#6B7280",
+                              fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600,
+                              cursor: updating || isActive ? "not-allowed" : "pointer",
+                              opacity: updating ? 0.6 : 1,
+                              transition: "all 0.15s",
+                            }}>
+                            {cfg.label}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(() => {
+                    const cfg = STATUS_CONFIG["complete"];
+                    const isActive = selected.status === "complete";
                     return (
-                      <button key={s} onClick={() => updateStatus(selected.id, s)}
-                        disabled={updating || selected.status === s}
+                      <button onClick={() => handleStatusClick(selected.id, "complete")}
+                        disabled={updating || isActive}
                         style={{
-                          padding: "0.35rem 0.75rem",
-                          background: selected.status === s ? cfg.bg : "transparent",
-                          border: `1.5px solid ${selected.status === s ? cfg.color : "rgba(0,0,0,0.1)"}`,
+                          padding: "0.35rem 1.5rem",
+                          alignSelf: "flex-start",
+                          background: isActive ? cfg.bg : "transparent",
+                          border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
                           borderRadius: 100,
-                          color: selected.status === s ? cfg.color : "#6B7280",
+                          color: isActive ? cfg.color : "#6B7280",
                           fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600,
-                          cursor: updating || selected.status === s ? "not-allowed" : "pointer",
+                          cursor: updating || isActive ? "not-allowed" : "pointer",
                           opacity: updating ? 0.6 : 1,
                           transition: "all 0.15s",
                         }}>
                         {cfg.label}
                       </button>
                     );
-                  })}
+                  })()}
                 </div>
+
+                {/* Confirm: mark as complete */}
+                {confirmComplete && (
+                  <div style={{ marginTop: "0.75rem", background: "rgba(16,185,129,0.07)", border: "1.5px solid #10B981", borderRadius: 10, padding: "0.85rem 1rem" }}>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#065F46", marginBottom: "0.6rem" }}>Mark job as complete?</p>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => { updateStatus(confirmComplete, "complete"); setConfirmComplete(null); }}
+                        style={{ padding: "0.4rem 1rem", background: "#10B981", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
+                        Yes, complete it
+                      </button>
+                      <button onClick={() => setConfirmComplete(null)}
+                        style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm: override completed job */}
+                {confirmOverride && (
+                  <div style={{ marginTop: "0.75rem", background: "rgba(245,158,11,0.07)", border: "1.5px solid #F59E0B", borderRadius: 10, padding: "0.85rem 1rem" }}>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#92400E", marginBottom: "0.25rem" }}>Job marked complete.</p>
+                    <p style={{ fontSize: "0.8rem", color: "#78350F", marginBottom: "0.6rem" }}>Are you sure you want to override the status?</p>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => { updateStatus(confirmOverride.jobId, confirmOverride.status); setConfirmOverride(null); }}
+                        style={{ padding: "0.4rem 1rem", background: "#F59E0B", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
+                        Yes, override
+                      </button>
+                      <button onClick={() => setConfirmOverride(null)}
+                        style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Job value */}

@@ -1,6 +1,6 @@
-import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "../_shared/sentry.ts";
 
 const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID")!;
 const TWILIO_AUTH_TOKEN  = Deno.env.get("TWILIO_AUTH_TOKEN")!;
@@ -123,9 +123,22 @@ serve(async (req) => {
 
     const template = getTemplate(type, template_data);
     let success = false;
+    let smsBody = template.sms;
 
     if (channel === "sms" && customer.phone) {
-      success = await sendSMS(customer.phone, template.sms);
+      // Append opt-out footer on the very first SMS to this customer
+      const { count } = await supabase
+        .from("notification_log")
+        .select("id", { count: "exact", head: true })
+        .eq("customer_id", customer_id)
+        .eq("channel", "sms");
+
+      const isFirstSMS = (count ?? 0) === 0;
+      smsBody = isFirstSMS
+        ? `${template.sms}\n\nReply STOP to opt out.`
+        : template.sms;
+
+      success = await sendSMS(customer.phone, smsBody);
     } else if (channel === "email" && customer.email) {
       success = await sendEmail(customer.email, template.subject, template.html);
     }
@@ -138,8 +151,28 @@ serve(async (req) => {
         customer_id,
         type,
         channel,
-        body: channel === "sms" ? template.sms : template.html,
+        body: channel === "sms" ? smsBody : template.html,
       });
+
+      // Also store in messages table for dashboard visibility
+      if (channel === "sms") {
+        const { data: biz } = await supabase
+          .from("businesses")
+          .select("twilio_number")
+          .eq("id", business_id)
+          .single();
+
+        await supabase.from("messages").insert({
+          business_id,
+          customer_id,
+          direction:   "outbound",
+          channel:     "sms",
+          body:        smsBody,
+          from_number: biz?.twilio_number ?? null,
+          to_number:   customer.phone,
+          read:        true,
+        });
+      }
     }
 
     return new Response(JSON.stringify({ success }), {
