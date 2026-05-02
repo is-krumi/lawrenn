@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import DashboardNav from "@/components/DashboardNav";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -240,31 +241,7 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      {/* Nav */}
-      <nav style={{ background: "white", borderBottom: "1px solid rgba(0,0,0,0.06)", padding: "0 2rem", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
-        <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none" }}>
-          RENN<span style={{ color: "#0cc0df" }}>OPS</span>
-        </a>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          {[["Dashboard", "/dashboard"], ["Jobs", "/dashboard/jobs"], ["Calls", "/dashboard/calls"], ["Customers", "/dashboard/customers"]].map(([label, href]) => (
-            <a key={label} href={href}
-              style={{ fontSize: "0.875rem", fontWeight: 500, color: href === "/dashboard" ? "#0cc0df" : "#6B7280", textDecoration: "none", transition: "color 0.2s" }}
-              onMouseEnter={e => e.currentTarget.style.color = "#0D1B2A"}
-              onMouseLeave={e => e.currentTarget.style.color = href === "/dashboard" ? "#0cc0df" : "#6B7280"}>
-              {label}
-            </a>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div style={{ fontSize: "0.85rem", color: "#6B7280", fontWeight: 500 }}>{business?.name}</div>
-          <button onClick={signOut}
-            style={{ padding: "0.4rem 0.9rem", background: "transparent", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 6, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.8rem", cursor: "pointer" }}>
-            Sign out
-          </button>
-        </div>
-      </nav>
+      <DashboardNav businessName={business?.name} />
 
       {/* Main content */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 2rem" }}>
