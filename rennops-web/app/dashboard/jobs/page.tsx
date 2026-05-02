@@ -182,6 +182,22 @@ export default function JobsPage() {
     if (bizLoading) return;
     if (!businessId) { router.push("/login"); return; }
 
+    // Channel must be created synchronously before any awaits
+    const jobsChannel = supabase
+      .channel("jobs-page")
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "jobs",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setJobs(prev => [payload.new as Job, ...prev]);
+        } else if (payload.eventType === "UPDATE") {
+          setJobs(prev => prev.map(j => j.id === payload.new.id ? { ...j, ...payload.new as Job } : j));
+          setSelected(prev => prev?.id === payload.new.id ? { ...prev, ...payload.new as Job } : prev);
+        }
+      })
+      .subscribe();
+
     async function load() {
       const { data } = await supabase
         .from("jobs")
@@ -216,24 +232,10 @@ export default function JobsPage() {
 
       setCustomers((custsData as any) ?? []);
       setLoading(false);
-
-      // Realtime
-      supabase
-        .channel("jobs-page")
-        .on("postgres_changes", {
-          event: "*", schema: "public", table: "jobs",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          if (payload.eventType === "INSERT") {
-            setJobs(prev => [payload.new as Job, ...prev]);
-          } else if (payload.eventType === "UPDATE") {
-            setJobs(prev => prev.map(j => j.id === payload.new.id ? { ...j, ...payload.new as Job } : j));
-            if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Job }));
-          }
-        })
-        .subscribe();
     }
     load();
+
+    return () => { supabase.removeChannel(jobsChannel); };
   }, [businessId, bizLoading, router]);
 
   async function updateStatus(jobId: string, status: string) {
