@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNav from "@/components/DashboardNav";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,7 +43,7 @@ interface Call {
 export default function Dashboard() {
   const router = useRouter();
 
-  const [business, setBusiness]     = useState<Business | null>(null);
+  const { businessId, businessName, loading: bizLoading } = useBusiness();
   const [jobs, setJobs]             = useState<Job[]>([]);
   const [calls, setCalls]           = useState<Call[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -56,19 +57,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (bizLoading) return;
+    if (!businessId) { router.push("/login"); return; }
+
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id, name, subscription_tier, subscription_status")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz) { router.push("/onboarding"); return; }
-      setBusiness(biz);
-
       // Fetch today's and upcoming jobs
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -82,7 +74,7 @@ export default function Dashboard() {
           customers (name, phone),
           technicians (name, color)
         `)
-        .eq("business_id", biz.id)
+        .eq("business_id", businessId)
         .gte("slot_start", todayStart.toISOString())
         .lte("slot_start", weekEnd.toISOString())
         .order("slot_start", { ascending: true })
@@ -97,7 +89,7 @@ export default function Dashboard() {
           id, caller_phone, outcome, duration_seconds, created_at, transcript,
           customers (name)
         `)
-        .eq("business_id", biz.id)
+        .eq("business_id", businessId)
         .order("created_at", { ascending: false })
         .limit(6);
 
@@ -111,7 +103,7 @@ export default function Dashboard() {
     event:  "INSERT",
     schema: "public",
     table:  "calls",
-    filter: `business_id=eq.${biz.id}`,
+    filter: `business_id=eq.${businessId}`,
   }, (payload) => {
     console.log("New call received:", payload);
     setCalls(prev => [payload.new as Call, ...prev].slice(0, 6));
@@ -120,7 +112,7 @@ export default function Dashboard() {
     event:  "UPDATE",
     schema: "public",
     table:  "calls",
-    filter: `business_id=eq.${biz.id}`,
+    filter: `business_id=eq.${businessId}`,
   }, (payload) => {
     console.log("Call updated:", payload);
     setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
@@ -135,7 +127,7 @@ export default function Dashboard() {
     event:  "*",
     schema: "public",
     table:  "jobs",
-    filter: `business_id=eq.${biz.id}`,
+    filter: `business_id=eq.${businessId}`,
   }, (payload) => {
     console.log("Job change received:", payload);
   })
@@ -152,7 +144,7 @@ export default function Dashboard() {
     let cleanup: (() => void) | undefined;
     load().then(fn => { cleanup = fn; });
     return () => { cleanup?.(); };
-  }, [router]);
+  }, [businessId, bizLoading, router]);
 
   // Stats
   const todayJobs    = jobs.filter(j => {
@@ -241,7 +233,7 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <DashboardNav businessName={business?.name} />
+      <DashboardNav />
 
       {/* Main content */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 2rem" }}>
@@ -252,7 +244,7 @@ export default function Dashboard() {
             {greeting} 👋
           </h1>
           <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>
-            Here's what's happening with {business?.name} today.
+            Here's what's happening with {businessName} today.
           </p>
         </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNav from "@/components/DashboardNav";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,6 +25,7 @@ interface Business {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { businessId, loading: bizLoading } = useBusiness();
 
   const [business, setBusiness]     = useState<Business | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -39,14 +41,14 @@ export default function SettingsPage() {
   const [travelBuffer, setTravelBuffer] = useState(30);
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+    if (bizLoading) return;
+    if (!businessId) { router.push("/login"); return; }
 
+    async function load() {
       const { data: biz } = await supabase
         .from("businesses")
         .select("*")
-        .eq("owner_id", user.id)
+        .eq("id", businessId)
         .single();
 
       if (!biz) { router.push("/onboarding"); return; }
@@ -60,7 +62,7 @@ export default function SettingsPage() {
       setLoading(false);
     }
     load();
-  }, [router]);
+  }, [businessId, bizLoading, router]);
 
   async function handleSave() {
     if (!business) return;
@@ -120,7 +122,7 @@ export default function SettingsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-      <DashboardNav businessName={business?.name} />
+      <DashboardNav />
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem" }}>
         <div style={{ marginBottom: "2rem" }}>

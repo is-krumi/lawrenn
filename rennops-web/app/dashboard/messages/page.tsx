@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNav from "@/components/DashboardNav";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,9 +31,8 @@ interface Message {
 
 export default function MessagesPage() {
   const router = useRouter();
+  const { businessId, twilioNumber, loading: bizLoading } = useBusiness();
 
-  const [businessId, setBusinessId]   = useState<string | null>(null);
-  const [twilioNumber, setTwilioNumber] = useState<string | null>(null);
   const [threads, setThreads]         = useState<Thread[]>([]);
   const [messages, setMessages]       = useState<Message[]>([]);
   const [selected, setSelected]       = useState<Thread | null>(null);
@@ -43,21 +43,11 @@ export default function MessagesPage() {
   const messagesEndRef                = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (bizLoading) return;
+    if (!businessId) { router.push("/login"); return; }
+
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id, twilio_number")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz) { router.push("/onboarding"); return; }
-      setBusinessId(biz.id);
-      setTwilioNumber(biz.twilio_number);
-
-      await loadThreads(biz.id);
+      await loadThreads(businessId!);
       setLoading(false);
 
       // Realtime
@@ -65,11 +55,11 @@ export default function MessagesPage() {
         .channel("messages-inbox")
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "messages",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           const msg = payload.new as any;
           // Update thread list
-          loadThreads(biz.id);
+          loadThreads(businessId!);
           // Add to open thread if matches
           setSelected(curr => {
             if (curr && msg.customer_id === curr.customer_id) {
@@ -84,7 +74,7 @@ export default function MessagesPage() {
         .subscribe();
     }
     load();
-  }, [router]);
+  }, [businessId, bizLoading, router]);
 
   // Auto scroll to bottom
   useEffect(() => {

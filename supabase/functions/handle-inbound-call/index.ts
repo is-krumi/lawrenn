@@ -226,6 +226,12 @@ const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call
     const { call_id } = JSON.parse(registerText);
     console.log("Retell call_id:", call_id);
 
+    // Store Retell call_id on the call record
+    await supabase
+      .from("calls")
+      .update({ retell_call_id: call_id })
+      .eq("twilio_call_sid", callSid);
+
     // Step 2: Return TwiML that connects Twilio audio to Retell
     // The call_id in the URL tells Retell which registered call this is
 const twiml = `<?xml version="1.0" encoding="UTF-8"?>

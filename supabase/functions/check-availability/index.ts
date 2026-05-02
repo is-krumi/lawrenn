@@ -1,6 +1,6 @@
-import { captureException } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { captureException } from "../_shared/sentry.ts";
 
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,7 +25,7 @@ serve(async (req) => {
       const { data: callRecord } = await supabase
         .from("calls")
         .select("business_id")
-        .eq("twilio_call_sid", retell_call_id)
+        .eq("retell_call_id", retell_call_id)
         .maybeSingle();
 
       business_id = callRecord?.business_id ?? null;

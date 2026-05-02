@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNav from "@/components/DashboardNav";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,9 +27,8 @@ interface Customer {
 
 export default function CustomersPage() {
   const router = useRouter();
+  const { businessId, twilioNumber, loading: bizLoading } = useBusiness();
 
-  const [businessId, setBusinessId] = useState<string | null>(null);
-  const [twilioNumber, setTwilioNumber] = useState<string | null>(null);
   const [customers, setCustomers]   = useState<Customer[]>([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -40,20 +40,10 @@ export default function CustomersPage() {
   const [sending, setSending]       = useState(false);
 
   useEffect(() => {
+    if (bizLoading) return;
+    if (!businessId) { router.push("/login"); return; }
+
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id, twilio_number")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz) { router.push("/onboarding"); return; }
-      setBusinessId(biz.id);
-      setTwilioNumber(biz.twilio_number);
-
       const { data } = await supabase
         .from("customers")
         .select(`
@@ -61,7 +51,7 @@ export default function CustomersPage() {
           dissatisfied, sms_opted_out, created_at,
           jobs (id, type, status, amount, created_at)
         `)
-        .eq("business_id", biz.id)
+        .eq("business_id", businessId)
         .order("created_at", { ascending: false });
 
       setCustomers((data as any) ?? []);
@@ -72,13 +62,13 @@ export default function CustomersPage() {
         .channel("customers-page")
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "customers",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           setCustomers(prev => [{ ...payload.new as Customer, jobs: [] }, ...prev]);
         })
         .on("postgres_changes", {
           event: "UPDATE", schema: "public", table: "customers",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           setCustomers(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Customer } : c));
           if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Customer }));
@@ -89,7 +79,7 @@ export default function CustomersPage() {
         .channel("messages-realtime")
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "messages",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           const msg = payload.new as any;
           // Only add to thread if it's for the selected customer
@@ -107,7 +97,7 @@ export default function CustomersPage() {
         .subscribe();
     }
     load();
-  }, [router]);
+  }, [businessId, bizLoading, router]);
 
   async function selectCustomer(c: Customer) {
     setSelected(c);
