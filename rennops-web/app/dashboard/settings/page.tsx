@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
+  const [saveError, setSaveError]   = useState("");
 
   // Form state
   const [agentName, setAgentName]       = useState("");
@@ -64,8 +65,9 @@ export default function SettingsPage() {
   async function handleSave() {
     if (!business) return;
     setSaving(true);
+    setSaveError("");
 
-    await supabase
+    const { error } = await supabase
       .from("businesses")
       .update({
         ai_sms_replies: aiSmsReplies,
@@ -81,6 +83,12 @@ export default function SettingsPage() {
         },
       })
       .eq("id", business.id);
+
+    if (error) {
+      setSaveError(error.message ?? "Failed to save settings");
+      setSaving(false);
+      return;
+    }
 
     setSaving(false);
     setSaved(true);
@@ -203,6 +211,12 @@ export default function SettingsPage() {
           style={{ width: "100%", padding: "0.9rem", background: saving ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
           {saving ? "Saving..." : saved ? "✓ Saved!" : "Save settings"}
         </button>
+
+        {saveError && (
+          <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#EF4444", marginTop: "0.6rem" }}>
+            {saveError}
+          </p>
+        )}
 
         <p style={{ textAlign: "center", fontSize: "0.78rem", color: "#9CA3AF", marginTop: "0.75rem" }}>
           Changes take effect immediately on the next call or message
