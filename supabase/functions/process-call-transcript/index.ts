@@ -34,6 +34,10 @@ Required fields:
 - slot_end (ISO 8601 datetime string, 2 hours after slot_start, null if slot_start is null)
 - notes (string: any additional details mentioned)
 - outcome (string: "booked", "escalated", "missed", "no_answer", or "voicemail")
+  - missed = call never connected or went to voicemail
+  - no_answer = agent answered but caller hung up without engaging
+  - booked = booking confirmed
+  - escalated = urgency keyword triggered
 - booking_confirmed (boolean: true ONLY if caller agreed to a specific day AND time)
 
 Transcript:
@@ -158,10 +162,12 @@ serve(async (req) => {
     console.log("Parsed job data:", JSON.stringify(parsed));
 
     // Determine outcome
-    const outcome = parsed.outcome ?? (
-      disconnection_reason === "agent_hangup" ? "booked" :
-        disconnection_reason === "user_hangup" ? "missed" : "missed"
-    );
+    const outcome = parsed.outcome ?? (() => {
+      if (disconnection_reason === "agent_hangup") return "booked";
+      if (durationSeconds < 10) return "missed"; // Never really connected
+      if (durationSeconds < 30) return "no_answer"; // Connected but very short
+      return "missed"; // Claude couldn't determine — default
+    })();
 
     const escalated = parsed.urgency === "urgent" || outcome === "escalated";
 
