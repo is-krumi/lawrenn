@@ -43,6 +43,44 @@ export default function CustomersPage() {
     if (bizLoading) return;
     if (!businessId) { router.push("/login"); return; }
 
+    const customersChannel = supabase
+      .channel(`customers-page-${businessId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "customers",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        setCustomers(prev => [{ ...payload.new as Customer, jobs: [] }, ...prev]);
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "customers",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        setCustomers(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Customer } : c));
+        if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Customer }));
+      })
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel(`customers-messages-${businessId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "messages",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        const msg = payload.new as any;
+        // Only add to thread if it's for the selected customer
+        setSelected(curr => {
+          if (curr && msg.customer_id === curr.id) {
+            setMessages(prev => {
+              // Only add if not already in the list
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+          }
+          return curr;
+        });
+      })
+      .subscribe();
+
     async function load() {
       const { data } = await supabase
         .from("customers")
@@ -56,47 +94,13 @@ export default function CustomersPage() {
 
       setCustomers((data as any) ?? []);
       setLoading(false);
-
-      // Realtime
-      supabase
-        .channel("customers-page")
-        .on("postgres_changes", {
-          event: "INSERT", schema: "public", table: "customers",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          setCustomers(prev => [{ ...payload.new as Customer, jobs: [] }, ...prev]);
-        })
-        .on("postgres_changes", {
-          event: "UPDATE", schema: "public", table: "customers",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          setCustomers(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Customer } : c));
-          if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Customer }));
-        })
-        .subscribe();
-
-      supabase
-        .channel("messages-realtime")
-        .on("postgres_changes", {
-          event: "INSERT", schema: "public", table: "messages",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          const msg = payload.new as any;
-          // Only add to thread if it's for the selected customer
-          setSelected(curr => {
-            if (curr && msg.customer_id === curr.id) {
-              setMessages(prev => {
-                // Only add if not already in the list
-                if (prev.some(m => m.id === msg.id)) return prev;
-                return [...prev, msg];
-              });
-            }
-            return curr;
-          });
-        })
-        .subscribe();
     }
     load();
+
+    return () => {
+      supabase.removeChannel(customersChannel);
+      supabase.removeChannel(messagesChannel);
+    };
   }, [businessId, bizLoading, router]);
 
   async function selectCustomer(c: Customer) {
