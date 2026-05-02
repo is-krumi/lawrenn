@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNav from "@/components/DashboardNav";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,12 +31,14 @@ const OUTCOME_CONFIG: Record<string, { label: string; color: string; icon: strin
   no_answer:   { label: "No answer",  color: "#6B7280", icon: "📞" },
   voicemail:   { label: "Voicemail",  color: "#8B5CF6", icon: "📬" },
   in_progress: { label: "In progress",color: "#0cc0df", icon: "🔄" },
+  callback_requested: { label: "Callback", color: "#8B5CF6", icon: "📋" },
+
 };
 
 export default function CallsPage() {
   const router = useRouter();
+  const { businessId, loading: bizLoading } = useBusiness();
 
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [calls, setCalls]           = useState<Call[]>([]);
   const [loading, setLoading]       = useState(true);
   const [filter, setFilter]         = useState("all");
@@ -44,19 +47,11 @@ export default function CallsPage() {
   const PAGE_SIZE = 20;
 
   useEffect(() => {
+    if (bizLoading) return;
+    if (!businessId) { router.push("/login"); return; }
+
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz) { router.push("/onboarding"); return; }
-      setBusinessId(biz.id);
-      await fetchCalls(biz.id, filter, 0);
+      await fetchCalls(businessId!, filter, 0);
       setLoading(false);
 
       // Realtime
@@ -64,13 +59,13 @@ export default function CallsPage() {
         .channel("calls-page")
         .on("postgres_changes", {
           event: "INSERT", schema: "public", table: "calls",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           setCalls(prev => [payload.new as Call, ...prev]);
         })
         .on("postgres_changes", {
           event: "UPDATE", schema: "public", table: "calls",
-          filter: `business_id=eq.${biz.id}`,
+          filter: `business_id=eq.${businessId}`,
         }, (payload) => {
           setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
           if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Call }));
@@ -78,7 +73,7 @@ export default function CallsPage() {
         .subscribe();
     }
     load();
-  }, [router]);
+  }, [businessId, bizLoading, router]);
 
   async function fetchCalls(bizId: string, outcomeFilter: string, pageNum: number) {
     let query = supabase

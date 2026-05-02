@@ -166,7 +166,7 @@ serve(async (req) => {
     }
 
     // Store inbound message
-    await supabase.from("messages").insert({
+    const { error: insertError } = await supabase.from("messages").insert({
       business_id: business.id,
       customer_id: customer?.id ?? null,
       direction:   "inbound",
@@ -177,6 +177,10 @@ serve(async (req) => {
       twilio_sid:  messageSid,
       read:        false,
     });
+
+    if (insertError) {
+      console.error("Message insert error:", insertError.message);
+    }
 
     // Fetch recent message history for context
     const { data: recentMessages } = await supabase

@@ -122,13 +122,17 @@ Your job is to:
 2. Find out what service they need (we offer: ${services})
 3. Get their full name and service address
 4. Call check_availability with the job_type to get real-time available slots
-5. Offer the slots returned and get the caller to confirm a specific day and time
-6. ${isAfterHours ? "Do NOT offer slots — collect their details and promise a morning callback" : "Confirm the booking and let them know they will receive an SMS confirmation"}
+5. When check_availability returns, read the FULL slotsByDay array — not just the message summary. Present options across multiple days. Example: "I have Monday at 8am, 8:30am, 9am, 9:30am; Tuesday at 8am through 5pm; Wednesday at 8am through 5pm. What day and time works best for you?"
+6. If the caller asks "how about Thursday at 2pm" — check slotsByDay for that exact day and time before saying unavailable
+7. Once the caller confirms a specific day AND time, repeat it back to confirm, then collect any remaining details
+8. ${isAfterHours ? "Do NOT offer slots — collect their details and promise a morning callback" : "Confirm the booking and let them know they will receive an SMS confirmation shortly"}
 
 ${afterHoursNote}
 
 IMPORTANT RULES:
 - Always call check_availability before offering any appointment times — never make up slots
+- When check_availability returns, the slotsByDay array contains ALL available days and times for the next 60 days. Always use slotsByDay to answer specific day or time requests. Never tell a caller a time is unavailable without first checking the full slotsByDay array.
+- Present the first 3 available days initially, then use slotsByDay to answer follow-up questions about specific days or times.
 - Never quote prices — say the owner will provide a quote when they arrive
 - If the caller says flood, gas leak, no heat, burst pipe, or emergency — say this sounds urgent let me get the owner on the line right away then immediately call transfer_to_owner
 - If the caller says talk to a person or speak to someone — immediately call transfer_to_owner
@@ -225,6 +229,12 @@ const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call
 
     const { call_id } = JSON.parse(registerText);
     console.log("Retell call_id:", call_id);
+
+    // Store Retell call_id on the call record
+    await supabase
+      .from("calls")
+      .update({ retell_call_id: call_id })
+      .eq("twilio_call_sid", callSid);
 
     // Step 2: Return TwiML that connects Twilio audio to Retell
     // The call_id in the URL tells Retell which registered call this is

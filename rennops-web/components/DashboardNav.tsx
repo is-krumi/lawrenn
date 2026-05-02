@@ -3,73 +3,52 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
+import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Props {
-  businessName?: string;
-}
-
-export default function DashboardNav({ businessName }: Props) {
+export default function DashboardNav() {
   const pathname  = usePathname();
   const router    = useRouter();
+  const { businessId, businessName } = useBusiness();
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
+    if (!businessId) return;
+
     let isMounted = true;
-    let unreadChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    async function loadUnread() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !isMounted) return;
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz || !isMounted) return;
-
+    async function fetchCount() {
       const { count } = await supabase
         .from("messages")
         .select("id", { count: "exact", head: true })
-        .eq("business_id", biz.id)
+        .eq("business_id", businessId)
         .eq("direction", "inbound")
         .eq("read", false);
-
       if (isMounted) setUnread(count ?? 0);
-
-      // Realtime unread count
-      unreadChannel = supabase
-        .channel(`nav-unread-${biz.id}`)
-        .on("postgres_changes", {
-          event: "*", schema: "public", table: "messages",
-          filter: `business_id=eq.${biz.id}`,
-        }, async () => {
-          const { count: newCount } = await supabase
-            .from("messages")
-            .select("id", { count: "exact", head: true })
-            .eq("business_id", biz.id)
-            .eq("direction", "inbound")
-            .eq("read", false);
-          if (isMounted) setUnread(newCount ?? 0);
-        })
-        .subscribe();
     }
 
-    loadUnread();
+    // Fetch initial count
+    fetchCount();
+
+    // Subscribe synchronously — all .on() calls must happen before .subscribe()
+    const unreadChannel = supabase
+      .channel(`nav-unread-${businessId}`)
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "messages",
+        filter: `business_id=eq.${businessId}`,
+      }, () => { fetchCount(); })
+      .subscribe();
 
     return () => {
       isMounted = false;
-      if (unreadChannel) {
-        supabase.removeChannel(unreadChannel);
-      }
+      supabase.removeChannel(unreadChannel);
     };
-  }, []);
+  }, [businessId]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -98,15 +77,15 @@ export default function DashboardNav({ businessName }: Props) {
       top: 0,
       zIndex: 100,
     }}>
-      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none" }}>
+      <Link href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none" }}>
         RENN<span style={{ color: "#0cc0df" }}>OPS</span>
-      </a>
+      </Link>
 
       <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
         {links.map(({ label, href }) => {
           const active = pathname === href;
           return (
-            <a key={href} href={href}
+            <Link key={href} href={href} prefetch={true}
               style={{ fontSize: "0.875rem", fontWeight: 500, color: active ? "#0cc0df" : "#6B7280", textDecoration: "none", position: "relative", transition: "color 0.2s" }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.color = "#0D1B2A"; }}
               onMouseLeave={e => { if (!active) e.currentTarget.style.color = "#6B7280"; }}>
@@ -122,7 +101,7 @@ export default function DashboardNav({ businessName }: Props) {
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
-            </a>
+            </Link>
           );
         })}
       </div>

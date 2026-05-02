@@ -22,7 +22,7 @@ async function parseTranscript(transcript: string): Promise<Record<string, any>>
       max_tokens: 1024,
       messages: [{
         role: "user",
-        content: `Today's date is ${today}. Extract structured job data from this call transcript. Return ONLY a valid JSON object with no additional text or markdown.
+content: `Today's date is ${today}. Extract structured job data from this call transcript. Return ONLY a valid JSON object with no additional text or markdown.
 
 Required fields:
 - customer_name (string or null)
@@ -33,12 +33,14 @@ Required fields:
 - slot_start (ISO 8601 datetime string using today's date ${today} as reference to calculate the correct date — if they say "Monday" find the next Monday from today, null only if no day or time was mentioned at all)
 - slot_end (ISO 8601 datetime string, 2 hours after slot_start, null if slot_start is null)
 - notes (string: any additional details mentioned)
-- outcome (string: "booked", "escalated", "missed", "no_answer", or "voicemail")
-  - missed = call never connected or went to voicemail
-  - no_answer = agent answered but caller hung up without engaging
-  - booked = booking confirmed
-  - escalated = urgency keyword triggered
-- booking_confirmed (boolean: true ONLY if caller agreed to a specific day AND time)
+- outcome (string: one of the following)
+  - "booked" = caller agreed to a SPECIFIC day AND time slot
+  - "callback_requested" = caller provided details but no time was confirmed — team will call back
+  - "escalated" = ONLY if caller used emergency keywords: flood, gas leak, no heat, burst pipe, emergency
+  - "no_answer" = agent answered but caller hung up immediately without providing any details
+  - "missed" = call never connected, dropped, or went to voicemail
+  - "voicemail" = caller left a voicemail message
+- booking_confirmed (boolean: true ONLY if caller agreed to a specific day AND time — false if team will call back to confirm)
 
 Transcript:
 ${transcript}`,
@@ -169,7 +171,7 @@ serve(async (req) => {
       return "missed"; // Claude couldn't determine — default
     })();
 
-    const escalated = parsed.urgency === "urgent" || outcome === "escalated";
+const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
 
     // Update call record
     const { error: updateError } = await supabase
