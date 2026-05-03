@@ -7,6 +7,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const TWILIO_ACCOUNT_SID   = Deno.env.get("TWILIO_ACCOUNT_SID")!;
 const TWILIO_AUTH_TOKEN    = Deno.env.get("TWILIO_AUTH_TOKEN")!;
 const ANTHROPIC_API_KEY    = Deno.env.get("ANTHROPIC_API_KEY")!;
+const OPENAI_API_KEY       = Deno.env.get("OPENAI_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -22,6 +23,41 @@ async function sendSMS(to: string, from: string, body: string) {
       body: new URLSearchParams({ To: to, From: from, Body: body }),
     }
   );
+}
+
+async function generateAndStoreEmbedding(
+  businessId: string,
+  sourceId: string,
+  content: string
+) {
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: content,
+      }),
+    });
+
+    const data = await res.json();
+    const embedding = data.data?.[0]?.embedding;
+
+    if (embedding) {
+      await supabase.from("embeddings").insert({
+        business_id: businessId,
+        source_type: "message",
+        source_id:   sourceId,
+        content,
+        embedding:   JSON.stringify(embedding),
+      });
+    }
+  } catch (err) {
+    console.error("Message embedding failed (non-critical):", err);
+  }
 }
 
 async function generateAIReply(
@@ -182,6 +218,26 @@ serve(async (req) => {
       console.error("Message insert error:", insertError.message);
     }
 
+    // Embed inbound message
+    if (!insertError) {
+      const { data: insertedMsg } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("business_id", business.id)
+        .eq("twilio_sid", messageSid)
+        .single();
+
+      if (insertedMsg) {
+        const msgContent = `
+Inbound SMS from ${customer?.name ?? fromNumber}:
+"${body}"
+Customer: ${customer?.name ?? "Unknown"}
+Phone: ${fromNumber}
+        `.trim();
+        await generateAndStoreEmbedding(business.id, insertedMsg.id, msgContent);
+      }
+    }
+
     // Fetch recent message history for context
     const { data: recentMessages } = await supabase
       .from("messages")
@@ -215,7 +271,7 @@ serve(async (req) => {
       await sendSMS(fromNumber, toNumber, aiReply);
 
       // Store outbound message
-      await supabase.from("messages").insert({
+      const { data: outboundMsg } = await supabase.from("messages").insert({
         business_id: business.id,
         customer_id: customer?.id ?? null,
         direction:   "outbound",
@@ -223,7 +279,20 @@ serve(async (req) => {
         body:        aiReply,
         from_number: toNumber,
         to_number:   fromNumber,
-      });
+      })
+      .select("id")
+      .single();
+
+      // Embed outbound message
+      if (outboundMsg) {
+        const outboundContent = `
+Outbound SMS to ${customer?.name ?? fromNumber}:
+"${aiReply}"
+Customer: ${customer?.name ?? "Unknown"}
+Phone: ${fromNumber}
+        `.trim();
+        await generateAndStoreEmbedding(business.id, outboundMsg.id, outboundContent);
+      }
 
       console.log("AI reply sent:", aiReply);
     } else if (!aiRepliesEnabled) {

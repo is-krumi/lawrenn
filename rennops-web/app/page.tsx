@@ -33,13 +33,76 @@ const faqs: FaqItem[] = [
 ];
 
 // ── Components ─────────────────────────────────────────────────────────────
-function Nav({ onDemo, onTrial }: { onDemo: () => void; onTrial: () => void }) {
+const NAV_PRODUCTS = [
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+    ),
+    name: "AI Receptionist",    desc: "Answer every call, book every job",        href: "#how",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+    name: "Live Dispatch",      desc: "Real-time scheduling and job management",  href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    ),
+    name: "Outbound Sequences", desc: "Automated quote follow-up that closes",    href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    ),
+    name: "Review Engine",      desc: "Turn completed jobs into 5-star reviews",  href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+    ),
+    name: "Smart Messaging",    desc: "AI-powered two-way SMS",                   href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    ),
+    name: "Call Intelligence",  desc: "Transcripts, insights, and AI summaries",  href: "#features",
+  },
+];
+
+function Nav({ onTrial }: { onDemo?: () => void; onTrial: () => void }) {
   const [scrolled, setScrolled] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const productsRef = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    function onOutsideClick(e: MouseEvent) {
+      if (productsRef.current && !productsRef.current.contains(e.target as Node)) {
+        setProductsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutsideClick);
+    return () => document.removeEventListener("mousedown", onOutsideClick);
   }, []);
 
   return (
@@ -57,7 +120,47 @@ function Nav({ onDemo, onTrial }: { onDemo: () => void; onTrial: () => void }) {
       </a>
 
       <ul style={{ display: "flex", alignItems: "center", gap: "2rem", listStyle: "none" }}>
-        {[["#how", "How it works"], ["#features", "Features"], ["#pricing", "Pricing"], ["#faq", "FAQ"]].map(([href, label]) => (
+        {/* Products dropdown */}
+        <li ref={productsRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setProductsOpen(o => !o)}
+            style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", color: "rgba(13,27,42,0.65)", fontSize: "0.9rem", fontWeight: 500, fontFamily: "'DM Sans'", padding: 0, transition: "color 0.2s" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "var(--navy)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(13,27,42,0.65)")}
+          >
+            Products
+            <svg width="12" height="12" viewBox="0 0 12 12" style={{ opacity: 0.5, transform: productsOpen ? "rotate(180deg)" : "", transition: "transform 0.2s" }}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+            </svg>
+          </button>
+
+          {productsOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 12px)", left: "50%", transform: "translateX(-50%)",
+              background: "#F9FAFB", border: "1px solid rgba(13,27,42,0.09)", borderRadius: 12,
+              boxShadow: "0 8px 32px rgba(13,27,42,0.12)", padding: "0.4rem",
+              minWidth: 560, zIndex: 200,
+              display: "grid", gridTemplateColumns: "1fr 1fr",
+            }}>
+              {NAV_PRODUCTS.map(({ icon, name, desc, href }) => (
+                <a key={name} href={href} onClick={() => setProductsOpen(false)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: 8, textDecoration: "none", transition: "background 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#F9FAFB"; (e.currentTarget.firstElementChild as HTMLElement).style.background = "rgba(12,192,223,0.45)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; (e.currentTarget.firstElementChild as HTMLElement).style.background = "#E5E7EB"; }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 8, background: "#E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}>
+                    {icon}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem" }}>{name}</p>
+                    <p style={{ fontSize: "0.75rem", color: "#6B7280" }}>{desc}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </li>
+
+        {[["#how", "How it works"], ["#pricing", "Pricing"], ["#faq", "FAQ"]].map(([href, label]) => (
           <li key={href}>
             <a href={href} style={{ color: "rgba(13,27,42,0.65)", textDecoration: "none", fontSize: "0.9rem", fontWeight: 500, transition: "color 0.2s" }}
               onMouseEnter={e => (e.currentTarget.style.color = "var(--navy)")}
@@ -69,16 +172,14 @@ function Nav({ onDemo, onTrial }: { onDemo: () => void; onTrial: () => void }) {
       </ul>
 
       <div style={{ display: "flex", gap: "0.75rem" }}>
-        <button onClick={onDemo} style={{ padding: "0.55rem 1.2rem", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "rgba(13,27,42,0.75)", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(13,27,42,0.06)"; e.currentTarget.style.color = "var(--navy)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(13,27,42,0.75)"; }}>
+        <a href="/demo" style={{ padding: "0.55rem 1.2rem", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "rgba(13,27,42,0.75)", fontSize: "0.875rem", fontWeight: 600, fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none", display: "inline-block" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(13,27,42,0.06)"; (e.currentTarget as HTMLAnchorElement).style.color = "var(--navy)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; (e.currentTarget as HTMLAnchorElement).style.color = "rgba(13,27,42,0.75)"; }}>
           Book a demo
-        </button>
-        <button onClick={onTrial} style={{ padding: "0.55rem 1.2rem", background: "var(--cyan)", border: "none", borderRadius: 6, color: "var(--navy)", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "var(--cyan-dark)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(12,192,223,0.3)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "var(--cyan)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-          Start free trial
-        </button>
+        </a>
+        <a href="/login" style={{ padding: "0.55rem 1.2rem", background: "var(--cyan)", border: "none", borderRadius: 6, color: "var(--navy)", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none" }}>
+          Log in
+        </a>
       </div>
     </nav>
   );
@@ -210,10 +311,10 @@ function SubmitBtn({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
-function SuccessMsg({ icon, title, body }: { icon: string; title: string; body: string }) {
+function SuccessMsg({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
-      <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>{icon}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "1rem" }}>{icon}</div>
       <h4 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", marginBottom: "0.5rem" }}>{title}</h4>
       <p style={{ color: "rgba(13,27,42,0.5)", fontSize: "0.9rem" }}>{body}</p>
     </div>
@@ -388,7 +489,7 @@ export default function Home() {
 
   return (
     <>
-      <Nav onDemo={() => setShowDemo(true)} onTrial={() => setShowTrial(true)} />
+      <Nav onTrial={() => setShowTrial(true)} />
 
       {/* ── HERO ── */}
       <section
@@ -405,7 +506,7 @@ export default function Home() {
         {/* Badge */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "rgba(12,192,223,0.1)", border: "1px solid rgba(12,192,223,0.25)", borderRadius: 100, padding: "0.4rem 1rem", fontSize: "0.78rem", fontWeight: 600, color: "var(--cyan)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1.5rem", width: "fit-content" }}>
           <span style={{ width: 6, height: 6, background: "var(--cyan)", borderRadius: "50%", animation: "pulse 2s infinite" }} />
-          AI-powered phone receptionist
+          The AI that runs the business side so you can focus on the work.
         </div>
 
         <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }`}</style>
@@ -426,17 +527,17 @@ export default function Home() {
             onMouseLeave={e => { e.currentTarget.style.background = "var(--cyan)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
             Start 14-day free trial →
           </button>
-          <button onClick={() => setShowDemo(true)} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.9rem 2rem", background: "transparent", border: "1.5px solid rgba(13,27,42,0.2)", borderRadius: 8, color: "var(--navy)", fontSize: "1rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(13,27,42,0.5)"; e.currentTarget.style.background = "rgba(13,27,42,0.04)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,27,42,0.2)"; e.currentTarget.style.background = "transparent"; }}>
+          <a href="/demo" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.9rem 2rem", background: "transparent", border: "1.5px solid rgba(13,27,42,0.2)", borderRadius: 8, color: "var(--navy)", fontSize: "1rem", fontWeight: 600, fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(13,27,42,0.5)"; (e.currentTarget as HTMLAnchorElement).style.background = "rgba(13,27,42,0.04)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(13,27,42,0.2)"; (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}>
             Watch a live demo
-          </button>
+          </a>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", color: "rgba(13,27,42,0.35)", fontSize: "0.85rem", flexWrap: "wrap" }}>
           {["No credit card required", "Setup in under 20 minutes", "Keep your existing number"].map(t => (
             <span key={t} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ color: "var(--cyan)" }}>✓</span> {t}
+              <span style={{ color: "var(--cyan)" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> {t}
             </span>
           ))}
         </div>
@@ -491,13 +592,25 @@ export default function Home() {
               <p style={{ fontFamily: "'DM Mono'", fontSize: "0.7rem", color: "rgba(13,27,42,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "1.25rem" }}>Live activity feed</p>
 
               {[
-                { icon: "📞", color: "rgba(16,185,129,0.12)", title: "AC Repair — Mike Johnson", sub: "123 Oak St · Friday May 2 at 10 AM", badge: "Booked", bc: "#10b981", bbg: "rgba(16,185,129,0.12)" },
-                { icon: "💬", color: "rgba(12,192,223,0.12)", title: "Electrical Panel — Sara Chen", sub: "Quote sent · Follow-up scheduled", badge: "Quote out", bc: "var(--cyan)", bbg: "rgba(12,192,223,0.12)" },
-                { icon: "⭐", color: "rgba(245,158,11,0.12)", title: "Review request sent", sub: "Tom Breslin · Service complete", badge: "Sent", bc: "#f59e0b", bbg: "rgba(245,158,11,0.12)" },
-                { icon: "🔧", color: "rgba(99,102,241,0.12)", title: "Drain Repair — Maria Lopez", sub: "James en route · ETA 25 min", badge: "In progress", bc: "#818cf8", bbg: "rgba(99,102,241,0.12)" },
+                {
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+                  color: "rgba(16,185,129,0.12)", title: "AC Repair — Mike Johnson", sub: "123 Oak St · Friday May 2 at 10 AM", badge: "Booked", bc: "#10b981", bbg: "rgba(16,185,129,0.12)"
+                },
+                {
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+                  color: "rgba(12,192,223,0.12)", title: "Electrical Panel — Sara Chen", sub: "Quote sent · Follow-up scheduled", badge: "Quote out", bc: "var(--cyan)", bbg: "rgba(12,192,223,0.12)"
+                },
+                {
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+                  color: "rgba(245,158,11,0.12)", title: "Review request sent", sub: "Tom Breslin · Service complete", badge: "Sent", bc: "#f59e0b", bbg: "rgba(245,158,11,0.12)"
+                },
+                {
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>,
+                  color: "rgba(99,102,241,0.12)", title: "Drain Repair — Maria Lopez", sub: "James en route · ETA 25 min", badge: "In progress", bc: "#818cf8", bbg: "rgba(99,102,241,0.12)"
+                },
               ].map(({ icon, color, title, sub, badge, bc, bbg }, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.9rem 1rem", background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: "0.75rem" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>{icon}</div>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontSize: "0.875rem", display: "block", marginBottom: "0.1rem" }}>{title}</strong>
                     <span style={{ fontSize: "0.75rem", color: "rgba(13,27,42,0.4)" }}>{sub}</span>
@@ -523,18 +636,36 @@ export default function Home() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
           {[
-            { icon: "📞", title: "AI Voice Receptionist", body: "Answers every inbound call in under 2 seconds. Conducts a natural intake conversation, checks real-time availability, and confirms the booking.", tag: "24/7 · No missed calls" },
-            { icon: "📅", title: "Smart Job Booking", body: "Reads your team's real schedule and books jobs without conflicts. Prevents double-booking automatically.", tag: "Real-time availability" },
-            { icon: "💬", title: "Quote Follow-Up Automation", body: "Sends a 4-touch follow-up sequence after every quote. SMS at 24hrs, email at 72hrs. Stops the moment the customer responds.", tag: "+35% close rate" },
-            { icon: "⭐", title: "Review Request Engine", body: "Automatically sends a review request after every completed job — personalized with the technician's name.", tag: "Compound growth" },
-            { icon: "📊", title: "Owner Dashboard", body: "Real-time view of every job, call, quote, and customer. See exactly how much revenue RennOps captured for you.", tag: "Mobile + web" },
-            { icon: "📱", title: "Customer Notifications", body: "Automated reminders, en-route alerts, and completion notifications. Reduces no-shows by 60%.", tag: "SMS + email" },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+              title: "AI Voice Receptionist", body: "Answers every inbound call in under 2 seconds. Conducts a natural intake conversation, checks real-time availability, and confirms the booking.", tag: "24/7 · No missed calls"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+              title: "Smart Job Booking", body: "Reads your team's real schedule and books jobs without conflicts. Prevents double-booking automatically.", tag: "Real-time availability"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+              title: "Quote Follow-Up Automation", body: "Sends a 4-touch follow-up sequence after every quote. SMS at 24hrs, email at 72hrs. Stops the moment the customer responds.", tag: "+35% close rate"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+              title: "Review Request Engine", body: "Automatically sends a review request after every completed job — personalized with the technician's name.", tag: "Compound growth"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+              title: "Owner Dashboard", body: "Real-time view of every job, call, quote, and customer. See exactly how much revenue RennOps captured for you.", tag: "Mobile + web"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+              title: "Customer Notifications", body: "Automated reminders, en-route alerts, and completion notifications. Reduces no-shows by 60%.", tag: "SMS + email"
+            },
           ].map(({ icon, title, body, tag }, i) => (
             <SL key={i} delay={(i % 3) * 0.1}>
               <div style={{ background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.75rem", height: "100%", transition: "all 0.3s", cursor: "default" }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(12,192,223,0.3)"; e.currentTarget.style.transform = "translateY(-4px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = ""; }}>
-                <div style={{ width: 44, height: 44, background: "rgba(12,192,223,0.1)", border: "1px solid rgba(12,192,223,0.2)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", marginBottom: "1.25rem" }}>{icon}</div>
+                <div style={{ width: 44, height: 44, background: "rgba(12,192,223,0.1)", border: "1px solid rgba(12,192,223,0.2)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1.25rem" }}>{icon}</div>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{title}</h3>
                 <p style={{ fontSize: "0.875rem", color: "rgba(13,27,42,0.5)", lineHeight: 1.65, marginBottom: "1rem" }}>{body}</p>
                 <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--cyan)", fontFamily: "'DM Mono'", letterSpacing: "0.08em", textTransform: "uppercase" }}>{tag}</span>
@@ -557,7 +688,7 @@ export default function Home() {
             </p>
             {["RennOps answers every call — you stop losing customers", "Most businesses see 16x ROI in month one", "Capturing one extra job per week pays for the year"].map((b, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", fontSize: "0.9rem", color: "rgba(13,27,42,0.7)", marginBottom: "0.75rem" }}>
-                <span style={{ color: "var(--cyan)", fontWeight: 700, flexShrink: 0 }}>→</span> {b}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> {b}
               </div>
             ))}
           </SL>
@@ -589,7 +720,7 @@ export default function Home() {
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "2rem" }}>
                   {features.map(f => (
                     <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", fontSize: "0.875rem", color: "rgba(13,27,42,0.7)" }}>
-                      <span style={{ color: "var(--cyan)", fontWeight: 700, flexShrink: 0 }}>✓</span> {f}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><polyline points="20 6 9 17 4 12"/></svg> {f}
                     </li>
                   ))}
                 </ul>
@@ -612,13 +743,17 @@ export default function Home() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", marginTop: "4rem" }}>
           {[
-            { stars: "★★★★★", text: "I was missing 4-5 calls a day when I was on jobs. First month with RennOps I captured 11 jobs I would've lost. Paid for itself in week one.", name: "Mike D.", role: "Owner, D&R Services · Buffalo, NY" },
-            { stars: "★★★★★", text: "The quote follow-up alone is worth the price. I used to send a quote and forget about it. Now they close automatically. My close rate went from 40% to 67%.", name: "Carlos M.", role: "Owner, Apex Services · Houston, TX" },
-            { stars: "★★★★★", text: "I went from 12 Google reviews to 89 in 3 months without doing anything. The requests go out automatically. My inbound call volume literally doubled.", name: "Sarah K.", role: "Owner, Bright Co · Phoenix, AZ" },
-          ].map(({ stars, text, name, role }, i) => (
+            { text: "I was missing 4-5 calls a day when I was on jobs. First month with RennOps I captured 11 jobs I would've lost. Paid for itself in week one.", name: "Mike D.", role: "Owner, D&R Services · Buffalo, NY" },
+            { text: "The quote follow-up alone is worth the price. I used to send a quote and forget about it. Now they close automatically. My close rate went from 40% to 67%.", name: "Carlos M.", role: "Owner, Apex Services · Houston, TX" },
+            { text: "I went from 12 Google reviews to 89 in 3 months without doing anything. The requests go out automatically. My inbound call volume literally doubled.", name: "Sarah K.", role: "Owner, Bright Co · Phoenix, AZ" },
+          ].map(({ text, name, role }, i) => (
             <SL key={i} delay={i * 0.1}>
               <div style={{ background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.75rem" }}>
-                <div style={{ color: "var(--cyan)", fontSize: "0.9rem", marginBottom: "1rem", letterSpacing: "0.1em" }}>{stars}</div>
+                <div style={{ display: "flex", gap: "0.2rem", marginBottom: "1rem" }}>
+                  {Array.from({ length: 5 }).map((_, s) => (
+                    <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  ))}
+                </div>
                 <p style={{ fontSize: "0.95rem", color: "rgba(13,27,42,0.75)", lineHeight: 1.7, marginBottom: "1.25rem", fontStyle: "italic" }}>&ldquo;{text}&rdquo;</p>
                 <strong style={{ fontSize: "0.9rem", display: "block" }}>{name}</strong>
                 <span style={{ fontSize: "0.8rem", color: "rgba(13,27,42,0.4)" }}>{role}</span>
@@ -654,11 +789,11 @@ export default function Home() {
                 onMouseLeave={e => { e.currentTarget.style.background = "var(--cyan)"; e.currentTarget.style.transform = ""; }}>
                 Start free trial — 14 days free
               </button>
-              <button onClick={() => setShowDemo(true)} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.9rem 2rem", background: "transparent", border: "1.5px solid rgba(13,27,42,0.2)", borderRadius: 8, color: "var(--navy)", fontSize: "1rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(13,27,42,0.5)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,27,42,0.2)"; }}>
+              <a href="/demo" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.9rem 2rem", background: "transparent", border: "1.5px solid rgba(13,27,42,0.2)", borderRadius: 8, color: "var(--navy)", fontSize: "1rem", fontWeight: 600, fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(13,27,42,0.5)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(13,27,42,0.2)"; }}>
                 Book a live demo
-              </button>
+              </a>
             </div>
             <p style={{ marginTop: "1.25rem", fontSize: "0.8rem", color: "rgba(13,27,42,0.3)" }}>Questions? Email us at hello@rennops.com</p>
           </div>
@@ -715,7 +850,7 @@ export default function Home() {
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>
             </>
           ) : (
-            <SuccessMsg icon="✅" title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
+            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>} title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
           )}
         </Modal>
       )}
@@ -736,7 +871,7 @@ export default function Home() {
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>We&apos;ll confirm within 2 hours</p>
             </>
           ) : (
-            <SuccessMsg icon="📅" title="DEMO BOOKED!" body="We'll confirm your time within 2 hours. Check your email for the calendar invite." />
+            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="DEMO BOOKED!" body="We'll confirm your time within 2 hours. Check your email for the calendar invite." />
           )}
         </Modal>
       )}

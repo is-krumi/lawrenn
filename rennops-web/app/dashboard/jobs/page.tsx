@@ -28,6 +28,7 @@ interface Job {
   created_at: string;
   customers: { id: string; name: string; phone: string; address: string } | null;
   technicians: { name: string; color: string } | null;
+  technician_id: string | null;
 }
 
 const STATUSES = ["booked", "in_progress", "complete", "invoiced", "canceled"];
@@ -205,7 +206,7 @@ export default function JobsPage() {
         .from("jobs")
         .select(`
           id, type, status, slot_start, slot_end, amount, source,
-          notes, ai_notes, created_at,
+          notes, ai_notes, created_at, technician_id,
           customers (id, name, phone, address),
           technicians (name, color)
         `)
@@ -379,7 +380,7 @@ export default function JobsPage() {
           .from("jobs")
           .select(`
             id, type, status, slot_start, slot_end, amount, source,
-            notes, ai_notes, created_at,
+            notes, ai_notes, created_at, technician_id,
             customers (id, name, phone, address),
             technicians (name, color)
           `)
@@ -683,6 +684,26 @@ export default function JobsPage() {
                   <p style={{ fontSize: "0.85rem", color: "#6B7280", lineHeight: 1.6 }}>{selected.notes}</p>
                 </div>
               )}
+
+              {/* Assign technician */}
+              <div style={{ marginBottom: "1rem" }}>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Assigned to</p>
+                <select
+                  value={selected.technician_id ?? ""}
+                  onChange={async e => {
+                    const techId = e.target.value || null;
+                    await supabase.from("jobs").update({ technician_id: techId }).eq("id", selected.id);
+                    const tech = technicians.find(t => t.id === techId);
+                    setJobs(prev => prev.map(j => j.id === selected.id ? { ...j, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : j));
+                    setSelected(prev => prev ? { ...prev, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : null);
+                  }}
+                  style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}>
+                  <option value="">Unassigned</option>
+                  {technicians.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Source badge */}
               <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
