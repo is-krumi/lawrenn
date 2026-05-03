@@ -8,6 +8,7 @@ const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER")!;
 const RESEND_API_KEY     = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL       = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const OPENAI_API_KEY     = Deno.env.get("OPENAI_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -42,6 +43,41 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     }),
   });
   return res.ok;
+}
+
+async function generateAndStoreEmbedding(
+  businessId: string,
+  sourceId: string,
+  content: string
+) {
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: content,
+      }),
+    });
+
+    const data = await res.json();
+    const embedding = data.data?.[0]?.embedding;
+
+    if (embedding) {
+      await supabase.from("embeddings").insert({
+        business_id: businessId,
+        source_type: "message",
+        source_id:   sourceId,
+        content,
+        embedding:   JSON.stringify(embedding),
+      });
+    }
+  } catch (err) {
+    console.error("Notification embedding failed (non-critical):", err);
+  }
 }
 
 // ── Message templates ─────────────────────────────────────────────────────────
@@ -145,14 +181,18 @@ serve(async (req) => {
 
     // Log notification
     if (success) {
-      await supabase.from("notification_log").insert({
-        business_id,
-        job_id:      job_id ?? null,
-        customer_id,
-        type,
-        channel,
-        body: channel === "sms" ? smsBody : template.html,
-      });
+      const { data: logEntry } = await supabase
+        .from("notification_log")
+        .insert({
+          business_id,
+          job_id:      job_id ?? null,
+          customer_id,
+          type,
+          channel,
+          body: channel === "sms" ? smsBody : template.html,
+        })
+        .select("id")
+        .single();
 
       // Also store in messages table for dashboard visibility
       if (channel === "sms") {
@@ -162,16 +202,32 @@ serve(async (req) => {
           .eq("id", business_id)
           .single();
 
-        await supabase.from("messages").insert({
-          business_id,
-          customer_id,
-          direction:   "outbound",
-          channel:     "sms",
-          body:        smsBody,
-          from_number: biz?.twilio_number ?? null,
-          to_number:   customer.phone,
-          read:        true,
-        });
+        const { data: msgEntry } = await supabase
+          .from("messages")
+          .insert({
+            business_id,
+            customer_id,
+            direction:   "outbound",
+            channel:     "sms",
+            body:        smsBody,
+            from_number: biz?.twilio_number ?? null,
+            to_number:   customer.phone,
+            read:        true,
+          })
+          .select("id")
+          .single();
+
+        // Embed the outbound notification
+        if (msgEntry) {
+          const embeddingContent = `
+Outbound ${type} SMS to ${template_data.customerName ?? "customer"}:
+"${smsBody}"
+Type: ${type}
+Customer phone: ${customer.phone}
+          `.trim();
+
+          await generateAndStoreEmbedding(business_id, msgEntry.id, embeddingContent);
+        }
       }
     }
 

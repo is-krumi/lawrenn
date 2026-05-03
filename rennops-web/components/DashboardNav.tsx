@@ -61,6 +61,8 @@ export default function DashboardNav() {
     { label: "Calls",      href: "/dashboard/calls" },
     { label: "Customers",  href: "/dashboard/customers" },
     { label: "Messages",   href: "/dashboard/messages" },
+    { label: "Intelligence", href: "/dashboard/intelligence" },
+    { label: "Team",       href: "/dashboard/team" },
     { label: "Settings",   href: "/dashboard/settings" },
   ];
 

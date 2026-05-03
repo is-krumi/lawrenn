@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+const OPENAI_API_KEY     = Deno.env.get("OPENAI_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -374,6 +375,54 @@ ${transcript}`,
             .update({ ai_notes: aiNotes })
             .eq("id", latestJob.id);
         }
+      }
+    }
+
+    // Generate and store embedding for RAG
+    if (transcript && transcript.length > 100) {
+      try {
+        console.log("Generating embedding for transcript...");
+
+        // Build content to embed — include parsed job data for richer search
+        const embeddingContent = `
+Call transcript:
+${transcript}
+
+Job details:
+- Customer: ${parsed.customer_name ?? "Unknown"}
+- Service: ${parsed.job_type ?? "Unknown"}
+- Address: ${parsed.address ?? "Unknown"}
+- Outcome: ${parsed.outcome ?? "Unknown"}
+- Notes: ${parsed.notes ?? "None"}
+        `.trim();
+
+        const embeddingRes = await fetch("https://api.openai.com/v1/embeddings", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type":  "application/json",
+          },
+          body: JSON.stringify({
+            model: "text-embedding-3-small",
+            input: embeddingContent,
+          }),
+        });
+
+        const embeddingData = await embeddingRes.json();
+        const embedding = embeddingData.data?.[0]?.embedding;
+
+        if (embedding) {
+          await supabase.from("embeddings").insert({
+            business_id: businessId,
+            source_type: "call",
+            source_id:   callRecord.id,
+            content:     embeddingContent,
+            embedding:   JSON.stringify(embedding),
+          });
+          console.log("Call embedding stored successfully");
+        }
+      } catch (embeddingErr) {
+        console.error("Embedding generation failed (non-critical):", embeddingErr);
       }
     }
 
