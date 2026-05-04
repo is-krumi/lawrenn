@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -235,8 +234,6 @@ export default function MessagesPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <DashboardNav />
-
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem", height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
 
         <div style={{ marginBottom: "1.5rem" }}>
@@ -346,12 +343,13 @@ export default function MessagesPage() {
                         maxWidth: "70%",
                         padding: "0.6rem 0.9rem",
                         borderRadius: msg.direction === "outbound" ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-                        background: msg.direction === "outbound" ? "#0D1B2A" : "#F3F4F6",
+                        background: msg.direction === "outbound" ? "#E8F4FD" : "#F3F4F6",
+                        border: msg.direction === "outbound" ? "1px solid rgba(12,192,223,0.2)" : "none",
                       }}>
-                        <p style={{ fontSize: "0.875rem", color: msg.direction === "outbound" ? "white" : "#0D1B2A", lineHeight: 1.5, margin: 0 }}>
+                        <p style={{ fontSize: "0.875rem", color: "#0D1B2A", lineHeight: 1.5, margin: 0 }}>
                           {msg.body}
                         </p>
-                        <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "rgba(255,255,255,0.45)" : "#9CA3AF", marginTop: "0.25rem", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
+                        <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "#6B7280" : "#9CA3AF", marginTop: "0.25rem", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
                           {new Date(msg.sent_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                         </p>
                       </div>

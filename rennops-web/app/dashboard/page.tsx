@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -95,55 +94,31 @@ export default function Dashboard() {
 
       setCalls((callsData as any) ?? []);
       setLoading(false);
-
-      // Realtime subscriptions
-    const callsSub = supabase
-  .channel("realtime-calls")
-  .on("postgres_changes", {
-    event:  "INSERT",
-    schema: "public",
-    table:  "calls",
-    filter: `business_id=eq.${businessId}`,
-  }, (payload) => {
-    console.log("New call received:", payload);
-    setCalls(prev => [payload.new as Call, ...prev].slice(0, 6));
-  })
-  .on("postgres_changes", {
-    event:  "UPDATE",
-    schema: "public",
-    table:  "calls",
-    filter: `business_id=eq.${businessId}`,
-  }, (payload) => {
-    console.log("Call updated:", payload);
-    setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
-  })
-  .subscribe((status) => {
-    console.log("Calls subscription status:", status);
-  });
-
-     const jobsSub = supabase
-  .channel("realtime-jobs")
-  .on("postgres_changes", {
-    event:  "*",
-    schema: "public",
-    table:  "jobs",
-    filter: `business_id=eq.${businessId}`,
-  }, (payload) => {
-    console.log("Job change received:", payload);
-  })
-  .subscribe((status) => {
-    console.log("Jobs subscription status:", status);
-  });
-
-      return () => {
-        supabase.removeChannel(callsSub);
-        supabase.removeChannel(jobsSub);
-      };
     }
+    load();
 
-    let cleanup: (() => void) | undefined;
-    load().then(fn => { cleanup = fn; });
-    return () => { cleanup?.(); };
+    // Realtime subscriptions
+    const callsSub = supabase
+      .channel(`dashboard-calls-${businessId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, (payload) => {
+        setCalls(prev => [payload.new as Call, ...prev].slice(0, 6));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, (payload) => {
+        setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
+      })
+      .subscribe();
+
+    const jobsSub = supabase
+      .channel(`dashboard-jobs-${businessId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `business_id=eq.${businessId}` }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(callsSub);
+      supabase.removeChannel(jobsSub);
+    };
   }, [businessId, bizLoading, router]);
 
   // Stats
@@ -233,15 +208,13 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <DashboardNav />
-
       {/* Main content */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 2rem" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "2rem" }}>
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>
-            {greeting} 👋
+            {greeting}
           </h1>
           <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>
             Here's what's happening with {businessName} today.
@@ -282,7 +255,9 @@ export default function Dashboard() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {jobs.slice(0, 5).map(job => (
-                  <div key={job.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8 }}>
+                  <div key={job.id} onClick={() => router.push(`/dashboard/jobs?job=${job.id}`)} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F0FAFE")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#F9FAFB")}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: job.technicians?.color ?? "#0cc0df", flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -322,7 +297,9 @@ export default function Dashboard() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {calls.map(call => (
-                  <div key={call.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8 }}>
+                  <div key={call.id} onClick={() => router.push(`/dashboard/calls?call=${call.id}`)} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F0FAFE")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#F9FAFB")}>
                     <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${outcomeColor(call.outcome)}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
                       {call.outcome === "booked" ? "📅" : call.outcome === "missed" ? "📵" : call.outcome === "escalated" ? "⚡" : "📞"}
                     </div>

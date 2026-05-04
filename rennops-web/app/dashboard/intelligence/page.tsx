@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -193,14 +192,12 @@ export default function IntelligencePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
-      <DashboardNav />
-
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "2rem 1.5rem", flex: 1, display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box" as const }}>
 
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
           <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", margin: 0 }}>
-            Renn Intelligence
+            <span style={{ color: "#0cc0df" }}>Renn</span> Intelligence
           </h1>
           <p style={{ color: "#9CA3AF", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>
             Ask anything about your calls, messages, and customer conversations
@@ -225,7 +222,7 @@ export default function IntelligencePage() {
                       </svg>
                     </div>
                     <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.25rem", letterSpacing: "0.04em", color: "#0D1B2A", margin: "0 0 0.4rem" }}>
-                      ASK YOUR CALL DATA
+                      ASK YOUR BUSINESS DATA
                     </h3>
                     <p style={{ fontSize: "0.86rem", color: "#9CA3AF", maxWidth: 360, lineHeight: 1.6, margin: "0 auto" }}>
                       Ask about your calls, customers, and bookings. I will search through your data and give you real answers.
@@ -272,11 +269,11 @@ export default function IntelligencePage() {
                         <div style={{
                           padding: "0.7rem 1rem",
                           borderRadius: msg.role === "user" ? "14px 3px 14px 14px" : "3px 14px 14px 14px",
-                          background: msg.role === "user" ? "#0D1B2A" : "#FAFAFA",
-                          border: msg.role === "assistant" ? "1px solid rgba(0,0,0,0.06)" : "none",
+                          background: msg.role === "user" ? "#E8F4FD" : "#FAFAFA",
+                          border: msg.role === "assistant" ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(12,192,223,0.2)",
                         }}>
                           {msg.role === "user" ? (
-                            <p style={{ fontSize: "0.875rem", color: "white", lineHeight: 1.6, margin: 0 }}>
+                            <p style={{ fontSize: "0.875rem", color: "#0D1B2A", lineHeight: 1.6, margin: 0 }}>
                               {msg.content}
                             </p>
                           ) : (

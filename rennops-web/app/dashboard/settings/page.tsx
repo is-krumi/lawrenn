@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -126,8 +125,6 @@ export default function SettingsPage() {
 
     return (
         <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-            <DashboardNav />
-
             <div style={{ maxWidth: 720, margin: "0 auto", padding: "2rem" }}>
                 <div style={{ marginBottom: "2rem" }}>
                     <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>Settings</h1>

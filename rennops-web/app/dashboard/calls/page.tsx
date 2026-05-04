@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -37,6 +36,7 @@ const OUTCOME_CONFIG: Record<string, { label: string; color: string; icon: strin
 
 export default function CallsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { businessId, loading: bizLoading } = useBusiness();
 
   const [calls, setCalls]           = useState<Call[]>([]);
@@ -46,6 +46,38 @@ export default function CallsPage() {
   const [page, setPage]             = useState(0);
   const PAGE_SIZE = 20;
 
+  const [col1Width, setCol1Width] = useState(320);
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    setCol1Width(Math.max(220, Math.min(700, dragRef.current.startW + dx)));
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    dragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [onMouseMove, onMouseUp]);
+
+  function startDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startW: col1Width };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
   useEffect(() => {
     if (bizLoading) return;
     if (!businessId) { router.push("/login"); return; }
@@ -54,25 +86,37 @@ export default function CallsPage() {
       await fetchCalls(businessId!, filter, 0);
       setLoading(false);
 
-      // Realtime
-      supabase
-        .channel("calls-page")
-        .on("postgres_changes", {
-          event: "INSERT", schema: "public", table: "calls",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          setCalls(prev => [payload.new as Call, ...prev]);
-        })
-        .on("postgres_changes", {
-          event: "UPDATE", schema: "public", table: "calls",
-          filter: `business_id=eq.${businessId}`,
-        }, (payload) => {
-          setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
-          if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Call }));
-        })
-        .subscribe();
+      const callId = searchParams.get("call");
+      if (callId) {
+        const { data } = await supabase.from("calls").select(`
+          id, caller_phone, outcome, duration_seconds, created_at,
+          transcript, recording_url, escalated, parsed_job,
+          customers (name, phone)
+        `).eq("id", callId).single();
+        if (data) setSelected(data as any);
+      }
     }
     load();
+
+    // Realtime
+    const channel = supabase
+      .channel(`calls-page-${businessId}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "calls",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        setCalls(prev => [payload.new as Call, ...prev]);
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "calls",
+        filter: `business_id=eq.${businessId}`,
+      }, (payload) => {
+        setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
+        if (selected?.id === payload.new.id) setSelected(prev => ({ ...prev!, ...payload.new as Call }));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [businessId, bizLoading, router]);
 
   async function fetchCalls(bizId: string, outcomeFilter: string, pageNum: number) {
@@ -145,9 +189,7 @@ export default function CallsPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <DashboardNav />
-
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem" }}>
+      <div style={{ maxWidth: selected ? 1500 : 1100, margin: "0 auto", padding: "2rem", transition: "max-width 0.2s" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
@@ -182,10 +224,10 @@ export default function CallsPage() {
         </div>
 
         {/* Split view */}
-        <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
+        <div ref={containerRef} style={{ display: selected ? "flex" : "block", gap: 0, alignItems: "flex-start" }}>
 
           {/* Calls list */}
-          <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ width: selected ? col1Width : "100%", flexShrink: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, overflow: "hidden" }}>
             {calls.length === 0 ? (
               <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
                 <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📞</p>
@@ -246,9 +288,19 @@ export default function CallsPage() {
             )}
           </div>
 
+          {selected && (
+            <div
+              onMouseDown={startDrag}
+              onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.15)"; }}
+              onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}
+              style={{ width: 16, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "stretch" }}>
+              <div style={{ width: 4, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+            </div>
+          )}
+
           {/* Call detail panel */}
           {selected && (
-            <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
+            <div style={{ flex: 1, minWidth: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
                 <div>
                   <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0D1B2A", marginBottom: "0.25rem" }}>

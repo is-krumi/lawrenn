@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import { useBusiness } from "@/context/BusinessContext";
 
 const supabase = createClient(
@@ -38,6 +37,44 @@ export default function CustomersPage() {
   const [messages, setMessages]     = useState<any[]>([]);
   const [replyText, setReplyText]   = useState("");
   const [sending, setSending]       = useState(false);
+
+  // Column widths (px). col1 = list, col2 = detail, col3 = messages (remainder)
+  const [col1Width, setCol1Width] = useState(280);
+  const [col2Width, setCol2Width] = useState(360);
+  const dragRef = useRef<{ which: 1 | 2; startX: number; startW: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    if (dragRef.current.which === 1) {
+      setCol1Width(Math.max(200, Math.min(500, dragRef.current.startW + dx)));
+    } else {
+      setCol2Width(Math.max(240, Math.min(600, dragRef.current.startW + dx)));
+    }
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    dragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [onMouseMove, onMouseUp]);
+
+  function startDrag(which: 1 | 2, e: React.MouseEvent, startW: number) {
+    e.preventDefault();
+    dragRef.current = { which, startX: e.clientX, startW };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
 
   useEffect(() => {
     if (bizLoading) return;
@@ -226,9 +263,7 @@ async function sendReply() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
 
-      <DashboardNav />
-
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem" }}>
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "2rem" }}>
 
         <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
@@ -252,10 +287,10 @@ async function sendReply() {
         </div>
 
         {/* Split view */}
-        <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
+        <div ref={containerRef} style={{ display: selected ? "flex" : "block", gap: 0, alignItems: "flex-start" }}>
 
           {/* Customer list */}
-          <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ width: selected ? col1Width : "100%", flexShrink: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, overflow: "hidden" }}>
             {filtered.length === 0 ? (
               <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
                 <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>👥</p>
@@ -313,7 +348,20 @@ async function sendReply() {
 
           {/* Customer detail panel */}
           {selected && (
-            <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
+            <>
+              {/* Drag handle 1 */}
+              <div
+                onMouseDown={e => startDrag(1, e, col1Width)}
+                onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.15)"; }}
+                onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}
+                style={{
+                  width: 16, flexShrink: 0, cursor: "col-resize",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  alignSelf: "stretch",
+                }}>
+                <div style={{ width: 4, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+              </div>
+            <div style={{ width: col2Width, flexShrink: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", position: "sticky", top: 72 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #0cc0df, #0D1B2A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "1.1rem" }}>
@@ -383,56 +431,6 @@ async function sendReply() {
                 <p style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: "0.25rem" }}>Auto-saves on blur</p>
               </div>
 
-              {/* SMS Thread */}
-              <div style={{ marginBottom: "1rem" }}>
-                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>
-                  Messages {messages.length > 0 && `(${messages.length})`}
-                </p>
-
-                {messages.length === 0 ? (
-                  <p style={{ fontSize: "0.82rem", color: "#9CA3AF", fontStyle: "italic" }}>No messages yet</p>
-                ) : (
-                  <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "0.75rem", padding: "0.5rem", background: "#F9FAFB", borderRadius: 8 }}>
-                    {messages.map((msg: any) => (
-                      <div key={msg.id} style={{ display: "flex", justifyContent: msg.direction === "outbound" ? "flex-end" : "flex-start" }}>
-                        <div style={{
-                          maxWidth: "80%",
-                          padding: "0.5rem 0.75rem",
-                          borderRadius: msg.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
-                          background: msg.direction === "outbound" ? "#0D1B2A" : "white",
-                          border: msg.direction === "inbound" ? "1px solid rgba(0,0,0,0.08)" : "none",
-                        }}>
-                          <p style={{ fontSize: "0.82rem", color: msg.direction === "outbound" ? "white" : "#374151", lineHeight: 1.5, margin: 0 }}>
-                            {msg.body}
-                          </p>
-                          <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "rgba(255,255,255,0.5)" : "#9CA3AF", marginTop: "0.2rem", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
-                            {new Date(msg.sent_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Reply input */}
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <input
-                    type="text"
-                    placeholder="Type a reply..."
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") sendReply(); }}
-                    style={{ flex: 1, padding: "0.6rem 0.8rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}
-                    onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
-                    onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
-                  />
-                  <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                    style={{ padding: "0.6rem 1rem", background: sending || !replyText.trim() ? "rgba(12,192,223,0.4)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-                    {sending ? "..." : "Send"}
-                  </button>
-                </div>
-              </div>
-
               {/* Flags */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -494,6 +492,80 @@ async function sendReply() {
                 </div>
               </div>
             </div>
+            </>
+          )}
+
+          {/* Messages column */}
+          {selected && (
+            <>
+              {/* Drag handle 2 */}
+              <div
+                onMouseDown={e => startDrag(2, e, col2Width)}
+                onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.15)"; }}
+                onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}
+                style={{
+                  width: 16, flexShrink: 0, cursor: "col-resize",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  alignSelf: "stretch",
+                }}>
+                <div style={{ width: 4, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+              </div>
+            <div style={{ flex: 1, minWidth: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, display: "flex", flexDirection: "column", position: "sticky", top: 72, maxHeight: "calc(100vh - 120px)", overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.06)", flexShrink: 0 }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#0D1B2A", margin: "0 0 0.1rem" }}>
+                  Messages{messages.length > 0 && <span style={{ fontWeight: 400, color: "#9CA3AF" }}> ({messages.length})</span>}
+                </p>
+                <p style={{ fontSize: "0.75rem", color: "#9CA3AF", margin: 0 }}>{selected.phone}</p>
+              </div>
+
+              {/* Messages list */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {messages.length === 0 ? (
+                  <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 0" }}>
+                    <p style={{ fontSize: "0.82rem", color: "#9CA3AF", fontStyle: "italic" }}>No messages yet</p>
+                  </div>
+                ) : (
+                  messages.map((msg: any) => (
+                    <div key={msg.id} style={{ display: "flex", justifyContent: msg.direction === "outbound" ? "flex-end" : "flex-start" }}>
+                      <div style={{
+                        maxWidth: "82%",
+                        padding: "0.55rem 0.8rem",
+                        borderRadius: msg.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
+                        background: msg.direction === "outbound" ? "#E8F4FD" : "#F9FAFB",
+                        border: msg.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "1px solid rgba(12,192,223,0.2)",
+                      }}>
+                        <p style={{ fontSize: "0.85rem", color: msg.direction === "outbound" ? "#0D1B2A" : "#374151", lineHeight: 1.5, margin: 0 }}>
+                          {msg.body}
+                        </p>
+                        <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "#6B7280" : "#9CA3AF", marginTop: "0.25rem", margin: "0.25rem 0 0", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
+                          {new Date(msg.sent_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Reply input */}
+              <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.5rem", flexShrink: 0, background: "white" }}>
+                <input
+                  type="text"
+                  placeholder="Type a reply..."
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") sendReply(); }}
+                  style={{ flex: 1, padding: "0.6rem 0.85rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.09)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}
+                  onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                  onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)"}
+                />
+                <button onClick={sendReply} disabled={sending || !replyText.trim()}
+                  style={{ padding: "0.6rem 1rem", background: sending || !replyText.trim() ? "#E5E7EB" : "#0D1B2A", border: "none", borderRadius: 8, color: sending || !replyText.trim() ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
+                  {sending ? "..." : "Send"}
+                </button>
+              </div>
+            </div>
+            </>
           )}
         </div>
       </div>

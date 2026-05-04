@@ -37,50 +37,50 @@ const NAV_PRODUCTS = [
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
       </svg>
     ),
-    name: "AI Receptionist",    desc: "Answer every call, book every job",        href: "#how",
+    name: "AI Receptionist", desc: "Answer every call, book every job", href: "#how",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
-    name: "Live Dispatch",      desc: "Real-time scheduling and job management",  href: "#features",
+    name: "Live Dispatch", desc: "Real-time scheduling and job management", href: "#features",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
-    name: "Outbound Sequences", desc: "Automated quote follow-up that closes",    href: "#features",
+    name: "Outbound Sequences", desc: "Automated quote follow-up that closes", href: "#features",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
-    name: "Review Engine",      desc: "Turn completed jobs into 5-star reviews",  href: "#features",
+    name: "Review Engine", desc: "Turn completed jobs into 5-star reviews", href: "#features",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
       </svg>
     ),
-    name: "Smart Messaging",    desc: "AI-powered two-way SMS",                   href: "#features",
+    name: "Smart Messaging", desc: "AI-powered two-way SMS", href: "#features",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
     ),
-    name: "Call Intelligence",  desc: "Transcripts, insights, and AI summaries",  href: "#features",
+    name: "Call Intelligence", desc: "Transcripts, insights, and AI summaries", href: "#features",
   },
 ];
 
@@ -130,7 +130,7 @@ function Nav({ onTrial }: { onDemo?: () => void; onTrial: () => void }) {
           >
             Products
             <svg width="12" height="12" viewBox="0 0 12 12" style={{ opacity: 0.5, transform: productsOpen ? "rotate(180deg)" : "", transition: "transform 0.2s" }}>
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
             </svg>
           </button>
 
@@ -537,7 +537,7 @@ export default function Home() {
         <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", color: "rgba(13,27,42,0.35)", fontSize: "0.85rem", flexWrap: "wrap" }}>
           {["No credit card required", "Setup in under 20 minutes", "Keep your existing number"].map(t => (
             <span key={t} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ color: "var(--cyan)" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> {t}
+              <span style={{ color: "var(--cyan)" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg></span> {t}
             </span>
           ))}
         </div>
@@ -593,19 +593,19 @@ export default function Home() {
 
               {[
                 {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>,
                   color: "rgba(16,185,129,0.12)", title: "AC Repair — Mike Johnson", sub: "123 Oak St · Friday May 2 at 10 AM", badge: "Booked", bc: "#10b981", bbg: "rgba(16,185,129,0.12)"
                 },
                 {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>,
                   color: "rgba(12,192,223,0.12)", title: "Electrical Panel — Sara Chen", sub: "Quote sent · Follow-up scheduled", badge: "Quote out", bc: "var(--cyan)", bbg: "rgba(12,192,223,0.12)"
                 },
                 {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
                   color: "rgba(245,158,11,0.12)", title: "Review request sent", sub: "Tom Breslin · Service complete", badge: "Sent", bc: "#f59e0b", bbg: "rgba(245,158,11,0.12)"
                 },
                 {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>,
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>,
                   color: "rgba(99,102,241,0.12)", title: "Drain Repair — Maria Lopez", sub: "James en route · ETA 25 min", badge: "In progress", bc: "#818cf8", bbg: "rgba(99,102,241,0.12)"
                 },
               ].map(({ icon, color, title, sub, badge, bc, bbg }, i) => (
@@ -637,27 +637,27 @@ export default function Home() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
           {[
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>,
               title: "AI Voice Receptionist", body: "Answers every inbound call in under 2 seconds. Conducts a natural intake conversation, checks real-time availability, and confirms the booking.", tag: "24/7 · No missed calls"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
               title: "Smart Job Booking", body: "Reads your team's real schedule and books jobs without conflicts. Prevents double-booking automatically.", tag: "Real-time availability"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
               title: "Quote Follow-Up Automation", body: "Sends a 4-touch follow-up sequence after every quote. SMS at 24hrs, email at 72hrs. Stops the moment the customer responds.", tag: "+35% close rate"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
               title: "Review Request Engine", body: "Automatically sends a review request after every completed job — personalized with the technician's name.", tag: "Compound growth"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>,
               title: "Owner Dashboard", body: "Real-time view of every job, call, quote, and customer. See exactly how much revenue RennOps captured for you.", tag: "Mobile + web"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>,
               title: "Customer Notifications", body: "Automated reminders, en-route alerts, and completion notifications. Reduces no-shows by 60%.", tag: "SMS + email"
             },
           ].map(({ icon, title, body, tag }, i) => (
@@ -688,7 +688,7 @@ export default function Home() {
             </p>
             {["RennOps answers every call — you stop losing customers", "Most businesses see 16x ROI in month one", "Capturing one extra job per week pays for the year"].map((b, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", fontSize: "0.9rem", color: "rgba(13,27,42,0.7)", marginBottom: "0.75rem" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> {b}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> {b}
               </div>
             ))}
           </SL>
@@ -720,7 +720,7 @@ export default function Home() {
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "2rem" }}>
                   {features.map(f => (
                     <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", fontSize: "0.875rem", color: "rgba(13,27,42,0.7)" }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><polyline points="20 6 9 17 4 12"/></svg> {f}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><polyline points="20 6 9 17 4 12" /></svg> {f}
                     </li>
                   ))}
                 </ul>
@@ -751,7 +751,7 @@ export default function Home() {
               <div style={{ background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.75rem" }}>
                 <div style={{ display: "flex", gap: "0.2rem", marginBottom: "1rem" }}>
                   {Array.from({ length: 5 }).map((_, s) => (
-                    <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <svg key={s} width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                   ))}
                 </div>
                 <p style={{ fontSize: "0.95rem", color: "rgba(13,27,42,0.75)", lineHeight: 1.7, marginBottom: "1.25rem", fontStyle: "italic" }}>&ldquo;{text}&rdquo;</p>
@@ -813,19 +813,18 @@ export default function Home() {
           {[
             { title: "Product", links: [["#how", "How it works"], ["#features", "Features"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] },
             { title: "Company", links: [["#", "About"], ["#", "Blog"], ["mailto:hello@rennops.com", "Contact"]] },
-            { title: "Legal", links: [["#", "Privacy Policy"], ["#", "Terms of Service"]] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(13,27,42,0.35)", marginBottom: "1rem" }}>{title}</h4>
-              {links.map(([href, label]) => (
-                <a key={label} href={href} style={{ display: "block", color: "rgba(13,27,42,0.55)", textDecoration: "none", fontSize: "0.875rem", marginBottom: "0.6rem", transition: "color 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.color = "var(--navy)"}
-                  onMouseLeave={e => e.currentTarget.style.color = "rgba(13,27,42,0.55)"}>
-                  {label}
-                </a>
-              ))}
-            </div>
-          ))}
+            { title: "Legal", links: [["/privacy", "Privacy Policy"], ["/terms", "Terms of Service"]] },].map(({ title, links }) => (
+              <div key={title}>
+                <h4 style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(13,27,42,0.35)", marginBottom: "1rem" }}>{title}</h4>
+                {links.map(([href, label]) => (
+                  <a key={label} href={href} style={{ display: "block", color: "rgba(13,27,42,0.55)", textDecoration: "none", fontSize: "0.875rem", marginBottom: "0.6rem", transition: "color 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "var(--navy)"}
+                    onMouseLeave={e => e.currentTarget.style.color = "rgba(13,27,42,0.55)"}>
+                    {label}
+                  </a>
+                ))}
+              </div>
+            ))}
         </div>
       </footer>
 
@@ -850,7 +849,7 @@ export default function Home() {
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>
             </>
           ) : (
-            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>} title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
+            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>} title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
           )}
         </Modal>
       )}
@@ -871,7 +870,7 @@ export default function Home() {
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>We&apos;ll confirm within 2 hours</p>
             </>
           ) : (
-            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="DEMO BOOKED!" body="We'll confirm your time within 2 hours. Check your email for the calendar invite." />
+            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>} title="DEMO BOOKED!" body="We'll confirm your time within 2 hours. Check your email for the calendar invite." />
           )}
         </Modal>
       )}

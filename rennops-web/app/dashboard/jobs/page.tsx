@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import DashboardNav from "@/components/DashboardNav";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -56,6 +55,7 @@ const inputSt: CSSProperties = {
 
 export default function JobsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const calendarWrapRef = useRef<HTMLDivElement | null>(null);
   const hoverCellRef = useRef<HTMLDivElement | null>(null);
   const { businessId, settings, loading: bizLoading } = useBusiness();
@@ -235,6 +235,17 @@ export default function JobsPage() {
 
       setCustomers((custsData as any) ?? []);
       setLoading(false);
+
+      const jobId = searchParams.get("job");
+      if (jobId) {
+        const { data } = await supabase.from("jobs").select(`
+          id, type, status, slot_start, slot_end, amount, source,
+          notes, ai_notes, created_at, technician_id,
+          customers (id, name, phone, address),
+          technicians (name, color)
+        `).eq("id", jobId).single();
+        if (data) setSelected(data as any);
+      }
     }
     load();
 
@@ -434,8 +445,6 @@ export default function JobsPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-
-      <DashboardNav />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem" }}>
 
