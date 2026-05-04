@@ -64,16 +64,22 @@ function UnsubscribeContent() {
             </>
           ) : (
             <>
-              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📧</div>
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>�</div>
               <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.75rem" }}>
-                UNSUBSCRIBE
+                BEFORE YOU GO
               </h1>
               <p style={{ color: "#6B7280", fontSize: "0.95rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
-                Use the unsubscribe link in your email to be removed from our list. If you need help, contact us directly.
+                We were emailing to let you know how to increase your business revenue. Sorry if it bothered you.
               </p>
-              <a href="mailto:hello@rennops.com?subject=Unsubscribe request" style={{ display: "inline-block", padding: "0.75rem 1.5rem", background: "#0cc0df", borderRadius: 8, color: "white", textDecoration: "none", fontWeight: 700, fontSize: "0.9rem" }}>
-                Email us to unsubscribe
-              </a>
+              {email ? (
+                <a href={`/api/unsubscribe?email=${encodeURIComponent(email)}`} style={{ display: "inline-block", padding: "0.75rem 1.5rem", background: "#0D1B2A", borderRadius: 8, color: "white", textDecoration: "none", fontWeight: 700, fontSize: "0.9rem" }}>
+                  Click to unsubscribe :/
+                </a>
+              ) : (
+                <p style={{ color: "#EF4444", fontSize: "0.875rem" }}>
+                  Invalid unsubscribe link — please use the link from your email.
+                </p>
+              )}
             </>
           )}
         </div>
