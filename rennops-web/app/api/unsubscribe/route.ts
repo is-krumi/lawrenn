@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL1!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY1!
   );
 
   try {
@@ -15,8 +15,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/unsubscribe?error=missing", request.url));
     }
 
-    // 2. Update the leads table — mark as unsubscribed and change status
-    await supabase
+    // Update the leads table — mark as unsubscribed and change status
+    const { error, count } = await supabase
       .from("leads")
       .update({
         unsubscribed: true,
@@ -24,6 +24,13 @@ export async function GET(request: Request) {
         status: "unsubscribed",
       })
       .eq("owner_email", email);
+
+    if (error) {
+      console.error("Supabase update error:", error);
+      return NextResponse.redirect(new URL("/unsubscribe?error=true", request.url));
+    }
+
+    console.log(`Unsubscribed ${email}, rows affected: ${count}`);
 
     return NextResponse.redirect(
       new URL(
