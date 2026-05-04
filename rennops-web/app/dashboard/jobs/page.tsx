@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useRef, type CSSProperties, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import FullCalendar from "@fullcalendar/react";
@@ -53,7 +53,7 @@ const inputSt: CSSProperties = {
   boxSizing: "border-box",
 };
 
-export default function JobsPage() {
+function JobsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const calendarWrapRef = useRef<HTMLDivElement | null>(null);
@@ -907,5 +907,13 @@ export default function JobsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense>
+      <JobsPageInner />
+    </Suspense>
   );
 }

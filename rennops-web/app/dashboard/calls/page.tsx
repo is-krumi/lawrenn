@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useBusiness } from "@/context/BusinessContext";
@@ -34,7 +34,7 @@ const OUTCOME_CONFIG: Record<string, { label: string; color: string; icon: strin
 
 };
 
-export default function CallsPage() {
+function CallsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { businessId, loading: bizLoading } = useBusiness();
@@ -351,5 +351,13 @@ export default function CallsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CallsPage() {
+  return (
+    <Suspense>
+      <CallsPageInner />
+    </Suspense>
   );
 }
