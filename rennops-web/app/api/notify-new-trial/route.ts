@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
     const { business_name, owner_email, plan } = await request.json();
 
+    // ── Save lead to marketing DB ─────────────────────────────────────────
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL1!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY1!
+    );
+    await supabase.from("leads").insert({
+      email:         owner_email,
+      business_name: business_name,
+      source:        "trial-modal",
+      plan:          plan ?? "Pro",
+      status:        "silver",
+    });
+
+    // ── Twilio SMS ────────────────────────────────────────────────────────
     const accountSid  = process.env.TWILIO_ACCOUNT_SID!;
     const authToken   = process.env.TWILIO_AUTH_TOKEN!;
     const notifyPhone = process.env.DEMO_NOTIFY_PHONE!;
 
-    await fetch(
+    const smsRes = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
       {
         method: "POST",
@@ -23,9 +38,13 @@ export async function POST(request: Request) {
         }),
       }
     );
+    if (!smsRes.ok) {
+      const smsErr = await smsRes.text();
+      console.error("Twilio SMS error:", smsErr);
+    }
 
-    // Also send email via Resend
-    await fetch("https://api.resend.com/emails", {
+    // ── Resend email ──────────────────────────────────────────────────────
+    const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
@@ -44,6 +63,10 @@ export async function POST(request: Request) {
         `,
       }),
     });
+    if (!emailRes.ok) {
+      const emailErr = await emailRes.text();
+      console.error("Resend email error:", emailErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
