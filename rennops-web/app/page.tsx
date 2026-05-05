@@ -657,15 +657,19 @@ export default function Home() {
 
   async function submitTrial() {
     setTrialDone(true);
-    fetch("/api/notify-new-trial", {
+    const res = await fetch("/api/notify-new-trial", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        business_name: trialBiz  || "(not provided)",
+        business_name: trialBiz   || "(not provided)",
         owner_email:   trialEmail || "(not provided)",
         plan: "Pro",
       }),
-    }).catch(() => {});
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("notify-new-trial failed:", body);
+    }
   }
   const [demoDone, setDemoDone] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
