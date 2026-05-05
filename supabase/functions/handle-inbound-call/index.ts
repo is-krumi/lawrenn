@@ -87,6 +87,24 @@ async function getAvailableSlots(businessId: string): Promise<string[]> {
 }
 
 function buildSystemPrompt(business: any, slots: string[]): string {
+  if (business.system_prompt) {
+    // Build services string from database
+    const services = Array.isArray(business.settings?.services)
+      ? business.settings.services.map((s: any) =>
+          `- ${s.name ?? s}${s.description ? `: ${s.description}` : ""}`
+        ).join("\n")
+      : "general services";
+
+    const slotsText = slots.length > 0
+      ? slots.map((s: any) => s.display ?? s).join(" | ")
+      : "call check_availability to get real-time available slots";
+
+    return business.system_prompt
+      .replace("{{services}}", services)
+      .replace("{{slots}}", slotsText);
+  }
+
+  // Fall back to dynamically generated prompt
   const services  = Array.isArray(business.settings?.services)
     ? business.settings.services.map((s: any) => s.name ?? s).join(", ")
     : "general services";
@@ -155,7 +173,7 @@ serve(async (req) => {
     // Look up business by Twilio number
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, name, settings, timezone, subscription_status")
+      .select("id, name, settings, timezone, subscription_status, system_prompt")
       .eq("twilio_number", toNumber)
       .single();
 
@@ -189,10 +207,35 @@ serve(async (req) => {
 
     // Build dynamic system prompt
     const systemPrompt = buildSystemPrompt(business, slots);
+    console.log("system_prompt from DB:", business.system_prompt ? "SET (custom)" : "NULL (using fallback)");
+    console.log("business.settings.services:", JSON.stringify(business.settings?.services ?? null));
+    console.log("Prompt first 300 chars:", systemPrompt.slice(0, 300));
+    console.log("Services from DB:", business.settings?.services);
+    console.log("Final prompt preview:", systemPrompt.slice(0, 500));
+    console.log("Services placeholder replaced:", !systemPrompt.includes("{{services}}"));
+    console.log("Prompt length:", systemPrompt.length);
 
     // Step 1: Register the inbound call with Retell
     // This assigns the agent and returns a unique call_id
 const voiceId = business.settings?.ai_persona?.voice_id ?? "auq43ws1oslv0tO4BDa7";
+
+const registerPayload = {
+  agent_id:    RETELL_AGENT_ID,
+  from_number: fromNumber,
+  to_number:   toNumber,
+  direction:   "inbound",
+  retell_llm_dynamic_variables: {
+    business_id:   business.id,
+    system_prompt: systemPrompt,
+    begin_message: `Thanks for calling ${business.name}! This is ${business.settings?.ai_persona?.name ?? "Alex"} — how can I help you today?`,
+  },
+  metadata: {
+    business_id: business.id,
+    call_sid:    callSid,
+  },
+};
+
+console.log("Register payload (no prompt):", JSON.stringify({ ...registerPayload, retell_llm_dynamic_variables: { business_id: business.id } }));
 
 const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call", {
   method: "POST",
@@ -200,23 +243,7 @@ const registerRes = await fetch("https://api.retellai.com/v2/register-phone-call
     "Authorization": `Bearer ${RETELL_API_KEY}`,
     "Content-Type":  "application/json",
   },
-  body: JSON.stringify({
-    agent_id:    RETELL_AGENT_ID,
-    from_number: fromNumber,
-    to_number:   toNumber,
-    direction:   "inbound",
-    retell_llm_dynamic_variables: {
-      business_id: business.id,
-    },
-    override_agent_config: {
-      voice_id: voiceId,
-      prompt:   systemPrompt,
-    },
-    metadata: {
-      business_id: business.id,
-      call_sid:    callSid,
-    },
-  }),
+  body: JSON.stringify(registerPayload),
 });
 
     const registerText = await registerRes.text();
