@@ -288,11 +288,13 @@ function Modal({ title, sub, onClose, children }: { title: string; sub: string; 
   );
 }
 
-function FormInput({ label, type = "text", placeholder }: { label: string; type?: string; placeholder: string }) {
+function FormInput({ label, type = "text", placeholder, onChange }: { label: string; type?: string; placeholder: string; onChange?: (v: string) => void }) {
   return (
     <div style={{ marginBottom: "1rem" }}>
       <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "rgba(13,27,42,0.6)", marginBottom: "0.4rem" }}>{label}</label>
-      <input type={type} placeholder={placeholder} style={{ width: "100%", background: "rgba(13,27,42,0.05)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
+      <input type={type} placeholder={placeholder}
+        onChange={onChange ? e => onChange(e.target.value) : undefined}
+        style={{ width: "100%", background: "rgba(13,27,42,0.05)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
         onFocus={e => e.currentTarget.style.borderColor = "var(--cyan)"}
         onBlur={e => e.currentTarget.style.borderColor = "var(--border)"} />
     </div>
@@ -649,7 +651,22 @@ function LiveFeed() {
 export default function Home() {
   const [showTrial, setShowTrial] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
-  const [trialDone, setTrialDone] = useState(false);
+  const [trialDone, setTrialDone]   = useState(false);
+  const [trialEmail, setTrialEmail] = useState("");
+  const [trialBiz,   setTrialBiz]   = useState("");
+
+  async function submitTrial() {
+    setTrialDone(true);
+    fetch("/api/notify-new-trial", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        business_name: trialBiz  || "(not provided)",
+        owner_email:   trialEmail || "(not provided)",
+        plan: "Pro",
+      }),
+    }).catch(() => {});
+  }
   const [demoDone, setDemoDone] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const HERO_GRID_SIZE = 112;
@@ -1005,17 +1022,18 @@ export default function Home() {
 
       {/* ── TRIAL MODAL ── */}
       {showTrial && (
-        <Modal title="START YOUR FREE TRIAL" sub="14 days free. No credit card required. Up and running in 20 minutes." onClose={() => { setShowTrial(false); setTrialDone(false); }}>
+        <Modal title="START YOUR FREE TRIAL" sub="14 days free. No credit card required. Up and running in 20 minutes." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialEmail(""); setTrialBiz(""); }}>
           {!trialDone ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <FormInput label="First name" placeholder="Mike" />
                 <FormInput label="Last name" placeholder="Johnson" />
               </div>
-              <FormInput label="Business email" type="email" placeholder="mike@yourbusiness.com" />
+              <FormInput label="Business email" type="email" placeholder="mike@yourbusiness.com" onChange={setTrialEmail} />
+              <FormInput label="Business name" placeholder="ABC Plumbing" onChange={setTrialBiz} />
               <FormInput label="Business phone" type="tel" placeholder="+1 (716) 555-0100" />
               <FormSelect label="Business type" options={["HVAC", "Plumbing", "Electrical", "Roofing", "Pest Control", "Pool Service", "Landscaping", "Cleaning", "Other"]} />
-              <SubmitBtn label="Start free trial →" onClick={() => setTrialDone(true)} />
+              <SubmitBtn label="Start free trial →" onClick={submitTrial} />
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>
             </>
           ) : (
