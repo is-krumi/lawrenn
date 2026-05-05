@@ -150,10 +150,30 @@ export async function POST(request: Request) {
         body: new URLSearchParams({
           To:   process.env.DEMO_NOTIFY_PHONE ?? "",
           From: "+18666581538",
-          Body: `🎯 New demo booked! ${name} from ${business ?? "unknown"} — ${slotDisplay}. Email: ${email}`,
+          Body: `🎯 New demo booked! ${name} from ${business ?? "unknown"} — ${slotDisplay}. Email: ${email}. Meet: ${meetLink}`,
         }),
       }
     );
+
+    // Send Meet link to booker via SMS if they provided a phone number
+    if (phone) {
+      const firstName = name.split(" ")[0];
+      await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64"),
+            "Content-Type":  "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To:   phone,
+            From: "+18666581538",
+            Body: `Hi ${firstName}! Your RennOps demo is confirmed for ${slotDisplay} ET. Join here: ${meetLink}`,
+          }),
+        }
+      );
+    }
 
     return NextResponse.json({ success: true, meetLink });
 

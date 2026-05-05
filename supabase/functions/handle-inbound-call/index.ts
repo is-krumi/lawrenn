@@ -224,11 +224,12 @@ const registerPayload = {
   from_number: fromNumber,
   to_number:   toNumber,
   direction:   "inbound",
-  retell_llm_dynamic_variables: {
-    business_id:   business.id,
-    system_prompt: systemPrompt,
-    begin_message: `Thanks for calling ${business.name}! This is ${business.settings?.ai_persona?.name ?? "Alex"} — how can I help you today?`,
-  },
+retell_llm_dynamic_variables: {
+  business_id:   business.id,
+  system_prompt: systemPrompt,
+  begin_message: business.settings?.ai_persona?.begin_message 
+    ?? `Thanks for calling ${business.name}! This is ${business.settings?.ai_persona?.name ?? "Alex"} — how can I help you today?`,
+},
   metadata: {
     business_id: business.id,
     call_sid:    callSid,
