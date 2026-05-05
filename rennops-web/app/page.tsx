@@ -129,7 +129,7 @@ function Nav({ onTrial }: { onDemo?: () => void; onTrial: () => void }) {
         RENN<span style={{ color: "var(--cyan)" }}>OPS</span>
       </a>
 
-      <ul style={{ display: "flex", alignItems: "center", gap: "2rem", listStyle: "none" }}>
+      <ul className="lp-nav-links" style={{ alignItems: "center", gap: "2rem", listStyle: "none" }}>
         {/* Products dropdown */}
         <li ref={productsRef} style={{ position: "relative" }}>
           <button
@@ -680,7 +680,8 @@ export default function Home() {
       {/* ── HERO ── */}
       <section
         ref={heroRef}
-        style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "120px 5% 80px", overflow: "hidden" }}
+        className="lp-hero"
+        style={{ position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden" }}
       >
 
         {/* Grid background */}
@@ -730,7 +731,7 @@ export default function Home() {
       </section>
 
       {/* ── STATS ── */}
-      <div style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "2.5rem 5%", background: "rgba(13,27,42,0.02)", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "2rem" }}>
+      <div className="lp-stats" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "2.5rem 5%", background: "rgba(13,27,42,0.02)", gap: "2rem" }}>
         {[
           { num: "30%", label: "of calls missed by the average service business" },
           { num: "$800", label: "average value of each missed job or appointment" },
@@ -755,7 +756,7 @@ export default function Home() {
         <SL>{sectionTitle(["SET IT UP ONCE.", "IT WORKS FOREVER."])}</SL>
         <SL><p style={{ fontSize: "1.05rem", color: "rgba(13,27,42,0.55)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Forward your calls to RennOps. The AI does the rest — 24 hours a day, 7 days a week.</p></SL>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+        <div className="lp-how">
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {[
               { n: "01", t: "Customer calls your number", d: "You keep your existing phone number and carrier. Calls forward to RennOps in seconds — setup takes 5 minutes." },
@@ -803,7 +804,7 @@ export default function Home() {
         <SL>{sectionTitle(["EVERYTHING YOUR", "BUSINESS NEEDS."])}</SL>
         <SL><p style={{ fontSize: "1.05rem", color: "rgba(13,27,42,0.55)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Built specifically for service businesses. Not a generic CRM with AI bolted on.</p></SL>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
+        <div className="lp-features">
           {[
             {
               icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>,
@@ -846,7 +847,7 @@ export default function Home() {
 
       {/* ── ROI ── */}
       <section id="roi" style={{ padding: "6rem 5%", background: "rgba(13,27,42,0.015)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+        <div className="lp-roi">
           <SL>
             {sectionLabel("ROI Calculator")}
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3.2rem)", letterSpacing: "0.02em", lineHeight: 1.05, marginBottom: "1.25rem" }}>
@@ -871,7 +872,7 @@ export default function Home() {
         <SL>{sectionTitle(["SIMPLE PRICING.", "SERIOUS ROI."])}</SL>
         <SL><p style={{ fontSize: "1.05rem", color: "rgba(13,27,42,0.55)", maxWidth: 480, margin: "0 auto 4rem" }}>No setup fees. No contracts. Cancel anytime. 14-day free trial on all plans.</p></SL>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", textAlign: "left" }}>
+        <div className="lp-pricing">
           {[
             { tier: "Starter", price: 199, desc: "AI phone receptionist for solo operators. Answer every call, book every job.", features: ["AI voice receptionist — 500 min/mo", "Smart job booking engine", "Booking confirmation SMS", "Up to 2 team members", "Owner dashboard (mobile + web)", "24/7 call answering"], featured: false },
             { tier: "Pro", price: 299, desc: "Everything in Starter plus the automation stack that closes quotes and grows reviews.", features: ["AI voice receptionist — 1,500 min/mo", "Quote follow-up automation (4-touch)", "Review request engine", "Customer notification system", "Up to 5 team members", "AI-generated call notes", "Revenue analytics"], featured: true },
@@ -910,7 +911,7 @@ export default function Home() {
         <SL>{sectionLabel("Social proof")}</SL>
         <SL>{sectionTitle(["BUSINESSES THAT", "SWITCHED."])}</SL>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", marginTop: "4rem" }}>
+        <div className="lp-testimonials">
           {[
             { text: "I was missing 4-5 calls a day when I was on jobs. First month with RennOps I captured 11 jobs I would've lost. Paid for itself in week one.", name: "Mike D.", role: "Owner, D&R Services · Buffalo, NY" },
             { text: "The quote follow-up alone is worth the price. I used to send a quote and forget about it. Now they close automatically. My close rate went from 40% to 67%.", name: "Carlos M.", role: "Owner, Apex Services · Houston, TX" },
@@ -970,7 +971,7 @@ export default function Home() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "3rem 5%", display: "grid", gridTemplateColumns: "1fr auto", gap: "2rem", alignItems: "start" }}>
+      <footer className="lp-footer" style={{ borderTop: "1px solid var(--border)", padding: "3rem 5%" }}>
         <div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
             RENN<span style={{ color: "var(--cyan)" }}>OPS</span>
@@ -978,7 +979,7 @@ export default function Home() {
           <p style={{ fontSize: "0.85rem", color: "rgba(13,27,42,0.35)", maxWidth: 260, lineHeight: 1.6 }}>The AI operating system for service businesses.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "3rem" }}>
+        <div className="lp-footer-links">
           {[
             { title: "Product", links: [["#how", "How it works"], ["#features", "Features"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] },
             { title: "Company", links: [["#", "About"], ["#", "Blog"], ["mailto:hello@rennops.com", "Contact"]] },
@@ -997,7 +998,7 @@ export default function Home() {
         </div>
       </footer>
 
-      <div style={{ borderTop: "1px solid var(--border)", padding: "1.25rem 5%", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", color: "rgba(13,27,42,0.25)" }}>
+      <div className="lp-bottom-bar" style={{ borderTop: "1px solid var(--border)", padding: "1.25rem 5%", fontSize: "0.8rem", color: "rgba(13,27,42,0.25)" }}>
         <span>© 2026 RennOps. All rights reserved.</span>
         <span>Built for service businesses.</span>
       </div>
