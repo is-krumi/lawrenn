@@ -158,10 +158,10 @@ export default function TeamPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "2rem" }}>
+<div className="team-wrap" style={{ maxWidth: 800, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "2rem" }}>
+        <div className="team-header">
           <div>
             <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>Team</h1>
             <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>{technicians.filter(t => t.active).length} active team members</p>
@@ -221,7 +221,7 @@ export default function TeamPage() {
                   <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "1.25rem" }}>
 
                     {/* Name + phone */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
+                    <div className="team-field-grid">
                       <div>
                         <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "0.35rem" }}>Name</label>
                         <input type="text" defaultValue={tech.name}
@@ -253,7 +253,7 @@ export default function TeamPage() {
                       <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "0.75rem" }}>Schedule</label>
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                         {DAYS.map(day => (
-                          <div key={day} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                          <div key={day} className="team-sched-row">
                             <button onClick={() => updateScheduleDay(tech.id, day, tech.schedule?.[day] ? null : { start: "08:00", end: "17:00" })}
                               style={{ width: 36, height: 22, borderRadius: 11, background: tech.schedule?.[day] ? "#0cc0df" : "rgba(0,0,0,0.1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
                               <div style={{ width: 14, height: 14, borderRadius: "50%", background: "white", position: "absolute", top: 4, left: tech.schedule?.[day] ? 18 : 4, transition: "left 0.2s" }} />
@@ -262,7 +262,7 @@ export default function TeamPage() {
                               {DAY_LABELS[day]}
                             </span>
                             {tech.schedule?.[day] ? (
-                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                              <div className="team-sched-times">
                                 <input type="time" defaultValue={tech.schedule[day]!.start}
                                   onBlur={e => updateScheduleDay(tech.id, day, { start: e.target.value, end: tech.schedule[day]!.end })}
                                   style={{ padding: "0.25rem 0.4rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.8rem", outline: "none" }} />
@@ -281,7 +281,7 @@ export default function TeamPage() {
 
                     {/* Delete */}
                     {deleteConfirm === tech.id ? (
-                      <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "0.75rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div className="team-del-confirm">
                         <p style={{ fontSize: "0.875rem", color: "#991B1B", fontWeight: 600 }}>Remove {tech.name} from your team?</p>
                         <div style={{ display: "flex", gap: "0.5rem" }}>
                           <button onClick={() => setDeleteConfirm(null)}
@@ -315,7 +315,7 @@ export default function TeamPage() {
             <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.25rem" }}>ADD TEAM MEMBER</h3>
             <p style={{ fontSize: "0.85rem", color: "#6B7280", marginBottom: "1.5rem" }}>Add a new member to your team</p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }} className="team-field-grid">
               <div>
                 <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Name *</label>
                 <input type="text" placeholder="James" value={newMember.name}
@@ -346,7 +346,7 @@ export default function TeamPage() {
               <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.75rem" }}>Schedule</label>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                 {DAYS.map(day => (
-                  <div key={day} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div key={day} className="team-sched-row">
                     <button onClick={() => setNewMember(prev => ({
                       ...prev,
                       schedule: { ...prev.schedule, [day]: prev.schedule[day] ? null : { start: "08:00", end: "17:00" } }
@@ -356,7 +356,7 @@ export default function TeamPage() {
                     </button>
                     <span style={{ width: 32, fontSize: "0.82rem", fontWeight: 500, color: newMember.schedule[day] ? "#0D1B2A" : "#9CA3AF" }}>{DAY_LABELS[day]}</span>
                     {newMember.schedule[day] ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <div className="team-sched-times">
                         <input type="time" value={newMember.schedule[day]!.start}
                           onChange={e => setNewMember(prev => ({ ...prev, schedule: { ...prev.schedule, [day]: { start: e.target.value, end: prev.schedule[day]!.end } } }))}
                           style={{ padding: "0.25rem 0.4rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.8rem", outline: "none" }} />
@@ -373,7 +373,7 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "0.75rem" }}>
+            <div className="team-modal-btns">
               <button onClick={() => setShowAdd(false)}
                 style={{ flex: 1, padding: "0.85rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
                 Cancel

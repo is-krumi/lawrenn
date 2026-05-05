@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import _l1  from "@/assets/logos/1.png";
+import _l2  from "@/assets/logos/2.png";
+import _l3  from "@/assets/logos/3.png";
+import _l4  from "@/assets/logos/4.png";
+import _l5  from "@/assets/logos/5.png";
+import _l6  from "@/assets/logos/6.png";
+import _l7  from "@/assets/logos/7.png";
+import _l8  from "@/assets/logos/8.png";
+import _l9  from "@/assets/logos/9.png";
+import _l10 from "@/assets/logos/10.png";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface FaqItem {
@@ -459,6 +469,182 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
   );
 }
 
+// ── LogoScroller ──────────────────────────────────────────────────────────
+type ScrollCard =
+  | { type: "logo";   src: string; name: string }
+  | { type: "review"; src: string; name: string; reviewer: string; role: string; text: string };
+
+const SCROLL_CARDS: ScrollCard[] = [
+  { type: "review", src: _l1.src,  name: "PeakFlow Plumbing",    reviewer: "Jake M.",    role: "Owner",           text: "Cut missed calls by 60% the first week. I wake up to booked jobs every morning now." },
+  { type: "logo",   src: _l2.src,  name: "Trustbuild Home Repair" },
+  { type: "review", src: _l3.src,  name: "ArcticAir HVAC",       reviewer: "Sandra T.",  role: "Operations Mgr.", text: "Handles our overflow better than any receptionist we've ever hired. Zero training needed." },
+  { type: "review", src: _l5.src,  name: "SparkHouse Electric",  reviewer: "Chris R.",   role: "Dispatcher",      text: "Books straight into our calendar. I genuinely stopped worrying about after-hours calls." },
+  { type: "logo",   src: _l6.src,  name: "Clearpipe Plumbing" },
+  { type: "review", src: _l7.src,  name: "Aqua Rooter",     reviewer: "Maria L.",   role: "Office Manager",  text: "Feels like we hired a full-time agent for the price of a coffee a day. Unreal value." },
+  { type: "logo",   src: _l8.src,  name: "Bluepeak Climate" },
+  { type: "review", src: _l9.src,  name: "Arctic Airflow",          reviewer: "Tom B.",     role: "Owner",           text: "Revenue is up 22% since we set it up. Works weekends when we're fully off the clock." },
+  { type: "logo",   src: _l10.src, name: "Summit Comfort" },
+];
+
+function LogoScroller() {
+  const doubled = [...SCROLL_CARDS, ...SCROLL_CARDS];
+  const BG = "#0D1B2A";
+  const CARD = "#112233";
+  const BORDER = "rgba(255,255,255,0.07)";
+  return (
+    <div style={{ overflow: "hidden", padding: "3rem 0", background: BG, position: "relative" }}>
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 140, background: `linear-gradient(to right, ${BG}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 140, background: `linear-gradient(to left, ${BG}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
+      <div style={{ display: "flex", alignItems: "stretch", gap: "1rem", width: "max-content", animation: "marquee 42s linear infinite" }}>
+        {doubled.map((card, i) =>
+          card.type === "logo" ? (
+            <div key={i} className="scroller-card" style={{ width: 160, flexShrink: 0, background: CARD, borderRadius: 14, border: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.8rem", padding: "1.5rem 1.25rem" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={card.src} alt={card.name} style={{ width: 96, height: 48, objectFit: "contain", objectPosition: "center" }} />
+              <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.3 }}>{card.name}</span>
+            </div>
+          ) : (
+            <div key={i} className="scroller-card" style={{ width: 264, flexShrink: 0, background: CARD, borderRadius: 14, border: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "1.25rem 1.4rem" }}>
+              <div>
+                <div style={{ color: "#F59E0B", fontSize: "0.85rem", marginBottom: "0.6rem", letterSpacing: "0.06em" }}>★★★★★</div>
+                <p style={{ fontSize: "0.8rem", lineHeight: 1.6, color: "rgba(255,255,255,0.62)", fontStyle: "italic", margin: 0 }}>&ldquo;{card.text}&rdquo;</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginTop: "1rem", paddingTop: "0.85rem", borderTop: `1px solid ${BORDER}` }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={card.src} alt={card.name} style={{ width: 36, height: 20, objectFit: "contain", objectPosition: "left center", flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "rgba(255,255,255,0.88)", lineHeight: 1.2 }}>{(card as Extract<ScrollCard, { type: "review" }>).reviewer}</div>
+                  <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>{(card as Extract<ScrollCard, { type: "review" }>).role} &middot; {card.name}</div>
+                </div>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── LiveFeed ───────────────────────────────────────────────────────────────
+const FEED_ITEMS = [
+  {
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>,
+    color: "rgba(16,185,129,0.12)", title: "AC Repair — Mike Johnson", sub: "123 Oak St · Friday May 2 at 10 AM",
+    badge: "Booked", bc: "#10b981", bbg: "rgba(16,185,129,0.12)",
+    detail: "AI answered in 1.4s, collected job details, and confirmed a technician slot — all without you lifting a finger.",
+    ago: "2 min ago",
+  },
+  {
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>,
+    color: "rgba(12,192,223,0.12)", title: "Electrical Panel — Sara Chen", sub: "Quote sent · Follow-up scheduled",
+    badge: "Quote out", bc: "var(--cyan)", bbg: "rgba(12,192,223,0.12)",
+    detail: "Automated follow-up sequence activated. SMS reminder sends in 24hrs, email at 72hrs.",
+    ago: "9 min ago",
+  },
+  {
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
+    color: "rgba(245,158,11,0.12)", title: "Review request sent", sub: "Tom Breslin · Service complete",
+    badge: "Sent", bc: "#f59e0b", bbg: "rgba(245,158,11,0.12)",
+    detail: "Job marked complete. Review request SMS delivered. 5-star Google review received 18 min later.",
+    ago: "31 min ago",
+  },
+  {
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>,
+    color: "rgba(99,102,241,0.12)", title: "Drain Repair — Maria Lopez", sub: "James en route · ETA 25 min",
+    badge: "In progress", bc: "#818cf8", bbg: "rgba(99,102,241,0.12)",
+    detail: "Customer notified with technician name and ETA. En-route SMS sent automatically.",
+    ago: "44 min ago",
+  },
+];
+
+function LiveFeed() {
+  const [active, setActive] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActive(prev => (prev + 1) % FEED_ITEMS.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let start = 0;
+    const target = 4200;
+    const step = Math.ceil(target / 60);
+    const timer = setInterval(() => {
+      start = Math.min(start + step, target);
+      setRevenue(start);
+      if (start >= target) clearInterval(timer);
+    }, 24);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div style={{ background: "white", border: "1px solid var(--border)", borderRadius: 16, padding: "1.75rem", position: "relative", overflow: "hidden", boxShadow: "0 4px 32px rgba(0,0,0,0.06)" }}>
+      <div style={{ position: "absolute", top: "-50%", right: "-20%", width: 280, height: 280, background: "radial-gradient(circle, rgba(12,192,223,0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 3px rgba(16,185,129,0.2)", display: "inline-block", animation: "pulse 2s infinite" }} />
+        <p style={{ fontFamily: "'DM Mono'", fontSize: "0.7rem", color: "rgba(13,27,42,0.4)", letterSpacing: "0.1em", textTransform: "uppercase", margin: 0 }}>Live activity feed</p>
+      </div>
+
+      {/* Items */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+        {FEED_ITEMS.map(({ icon, color, title, sub, badge, bc, bbg, detail, ago }, i) => {
+          const isActive = active === i;
+          return (
+            <div
+              key={i}
+              onClick={() => setActive(i)}
+              style={{
+                padding: "0.85rem 1rem",
+                background: isActive ? "rgba(12,192,223,0.04)" : "rgba(13,27,42,0.02)",
+                border: `1px solid ${isActive ? "rgba(12,192,223,0.3)" : "var(--border)"}`,
+                borderRadius: 10,
+                cursor: "pointer",
+                transition: "all 0.25s",
+              }}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(13,27,42,0.04)"; e.currentTarget.style.borderColor = "rgba(13,27,42,0.12)"; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "rgba(13,27,42,0.02)"; e.currentTarget.style.borderColor = "var(--border)"; } }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontSize: "0.845rem", display: "block", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</strong>
+                  <span style={{ fontSize: "0.73rem", color: "rgba(13,27,42,0.4)" }}>{sub}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem", flexShrink: 0 }}>
+                  <span style={{ fontSize: "0.68rem", fontWeight: 600, padding: "0.2rem 0.55rem", borderRadius: 100, background: bbg, color: bc, whiteSpace: "nowrap" }}>{badge}</span>
+                  <span style={{ fontSize: "0.65rem", color: "rgba(13,27,42,0.3)" }}>{ago}</span>
+                </div>
+              </div>
+              {isActive && (
+                <div style={{ marginTop: "0.7rem", paddingTop: "0.7rem", borderTop: "1px solid rgba(12,192,223,0.15)", fontSize: "0.78rem", color: "rgba(13,27,42,0.55)", lineHeight: 1.6 }}>
+                  {detail}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: "0.78rem", color: "rgba(13,27,42,0.35)" }}>Revenue captured by AI this week</span>
+        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "var(--cyan)", letterSpacing: "0.05em" }}>${revenue.toLocaleString()}</span>
+      </div>
+
+      {/* Dot indicators */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "0.45rem", marginTop: "1rem" }}>
+        {FEED_ITEMS.map((_, i) => (
+          <button key={i} onClick={() => setActive(i)} style={{ width: active === i ? 20 : 6, height: 6, borderRadius: 3, background: active === i ? "var(--cyan)" : "rgba(13,27,42,0.12)", border: "none", cursor: "pointer", transition: "all 0.25s", padding: 0 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function Home() {
   const [showTrial, setShowTrial] = useState(false);
@@ -560,6 +746,9 @@ export default function Home() {
         ))}
       </div>
 
+      {/* ── LOGO SCROLLER ── */}
+      <LogoScroller />
+
       {/* ── HOW IT WORKS ── */}
       <section id="how" style={{ padding: "6rem 5%", background: "rgba(13,27,42,0.015)" }}>
         <SL>{sectionLabel("How it works")}</SL>
@@ -567,7 +756,7 @@ export default function Home() {
         <SL><p style={{ fontSize: "1.05rem", color: "rgba(13,27,42,0.55)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Forward your calls to RennOps. The AI does the rest — 24 hours a day, 7 days a week.</p></SL>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {[
               { n: "01", t: "Customer calls your number", d: "You keep your existing phone number and carrier. Calls forward to RennOps in seconds — setup takes 5 minutes." },
               { n: "02", t: "AI answers and books the job", d: "Your AI receptionist collects details, checks technician availability, and confirms a specific time slot." },
@@ -575,11 +764,27 @@ export default function Home() {
               { n: "04", t: "You see everything in your dashboard", d: "Every call, booking, quote, and customer record syncs to your dashboard in real time." },
             ].map(({ n, t, d }, i) => (
               <SL key={i} delay={i * 0.1}>
-                <div style={{ display: "flex", gap: "1.5rem", padding: "1.75rem 0", borderBottom: "1px solid var(--border)", ...(i === 0 ? { borderTop: "1px solid var(--border)" } : {}) }}>
-                  <div style={{ fontFamily: "'Bebas Neue'", fontSize: "2.5rem", color: "rgba(13,27,42,0.08)", lineHeight: 1, minWidth: 48 }}>{n}</div>
+                <div style={{
+                  display: "flex", gap: "1.25rem", alignItems: "flex-start",
+                  padding: "1.25rem 1.5rem",
+                  background: "white",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(12,192,223,0.4)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(12,192,223,0.08)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}>
+                  <div style={{
+                    minWidth: 40, height: 40,
+                    borderRadius: 10,
+                    background: "rgba(12,192,223,0.08)",
+                    border: "1px solid rgba(12,192,223,0.2)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "'Bebas Neue'", fontSize: "1rem", color: "var(--cyan)", letterSpacing: "0.05em",
+                  }}>{n}</div>
                   <div>
-                    <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.4rem" }}>{t}</h3>
-                    <p style={{ fontSize: "0.875rem", color: "rgba(13,27,42,0.5)", lineHeight: 1.6 }}>{d}</p>
+                    <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.3rem", color: "var(--ink)" }}>{t}</h3>
+                    <p style={{ fontSize: "0.85rem", color: "rgba(13,27,42,0.5)", lineHeight: 1.65, margin: 0 }}>{d}</p>
                   </div>
                 </div>
               </SL>
@@ -587,43 +792,7 @@ export default function Home() {
           </div>
 
           <SL>
-            <div style={{ background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 16, padding: "2rem", position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: "-50%", right: "-20%", width: 280, height: 280, background: "radial-gradient(circle, rgba(12,192,223,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-              <p style={{ fontFamily: "'DM Mono'", fontSize: "0.7rem", color: "rgba(13,27,42,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "1.25rem" }}>Live activity feed</p>
-
-              {[
-                {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>,
-                  color: "rgba(16,185,129,0.12)", title: "AC Repair — Mike Johnson", sub: "123 Oak St · Friday May 2 at 10 AM", badge: "Booked", bc: "#10b981", bbg: "rgba(16,185,129,0.12)"
-                },
-                {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>,
-                  color: "rgba(12,192,223,0.12)", title: "Electrical Panel — Sara Chen", sub: "Quote sent · Follow-up scheduled", badge: "Quote out", bc: "var(--cyan)", bbg: "rgba(12,192,223,0.12)"
-                },
-                {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
-                  color: "rgba(245,158,11,0.12)", title: "Review request sent", sub: "Tom Breslin · Service complete", badge: "Sent", bc: "#f59e0b", bbg: "rgba(245,158,11,0.12)"
-                },
-                {
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>,
-                  color: "rgba(99,102,241,0.12)", title: "Drain Repair — Maria Lopez", sub: "James en route · ETA 25 min", badge: "In progress", bc: "#818cf8", bbg: "rgba(99,102,241,0.12)"
-                },
-              ].map(({ icon, color, title, sub, badge, bc, bbg }, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "0.9rem 1rem", background: "rgba(13,27,42,0.03)", border: "1px solid var(--border)", borderRadius: 10, marginBottom: "0.75rem" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: "0.875rem", display: "block", marginBottom: "0.1rem" }}>{title}</strong>
-                    <span style={{ fontSize: "0.75rem", color: "rgba(13,27,42,0.4)" }}>{sub}</span>
-                  </div>
-                  <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem", borderRadius: 100, background: bbg, color: bc, whiteSpace: "nowrap" }}>{badge}</span>
-                </div>
-              ))}
-
-              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.78rem", color: "rgba(13,27,42,0.3)" }}>Revenue captured by AI this week</span>
-                <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "var(--cyan)", letterSpacing: "0.05em" }}>$4,200</span>
-              </div>
-            </div>
+            <LiveFeed />
           </SL>
         </div>
       </section>
