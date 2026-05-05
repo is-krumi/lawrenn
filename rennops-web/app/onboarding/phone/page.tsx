@@ -12,11 +12,13 @@ const supabase = createClient(
 export default function OnboardingStep4() {
     const router = useRouter();
 
-    const [businessId, setBusinessId] = useState<string | null>(null);
-    const [bizPhone, setBizPhone] = useState("");
+    const [businessId, setBusinessId]   = useState<string | null>(null);
+    const [businessName, setBusinessName] = useState("");
+    const [ownerEmail, setOwnerEmail]     = useState("");
+    const [bizPhone, setBizPhone]         = useState("");
     const [twilioNumber, setTwilioNumber] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [done, setDone] = useState(false);
+    const [loading, setLoading]           = useState(false);
+    const [done, setDone]                 = useState(false);
 
     useEffect(() => {
         async function load() {
@@ -25,13 +27,15 @@ export default function OnboardingStep4() {
 
             const { data: biz } = await supabase
                 .from("businesses")
-                .select("id, phone, twilio_number")
+                .select("id, name, phone, twilio_number")
                 .eq("owner_id", user.id)
                 .single();
 
             if (!biz) { router.push("/onboarding"); return; }
 
             setBusinessId(biz.id);
+            setBusinessName((biz as any).name ?? "");
+            setOwnerEmail(user.email ?? "");
             setBizPhone(biz.phone ?? "");
             setTwilioNumber(biz.twilio_number ?? "");
         }
@@ -54,6 +58,18 @@ export default function OnboardingStep4() {
             });
 
             setDone(true);
+
+            // Notify of new trial (non-critical)
+            fetch("/api/notify-new-trial", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    business_name: businessName,
+                    owner_email:   ownerEmail,
+                    plan:          "Pro",
+                }),
+            }).catch(() => {});
+
             setTimeout(() => router.push("/dashboard"), 2000);
         } catch (err) {
             console.error(err);
