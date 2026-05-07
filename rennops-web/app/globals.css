@@ -122,3 +122,14 @@ body {
   .team-del-confirm { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   .team-modal-btns  { flex-direction: column; }
 }
+
+/* ── Demo page responsive ── */
+.demo-outer      { max-width: 960px; margin: 0 auto; padding: 3rem 2rem; }
+.demo-grid       { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+.demo-slot-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+
+@media (max-width: 700px) {
+  .demo-outer     { padding: 2rem 1.25rem; }
+  .demo-grid      { grid-template-columns: 1fr; gap: 2rem; }
+  .demo-slot-grid { grid-template-columns: repeat(2, 1fr); }
+}

@@ -23,14 +23,16 @@ interface Message {
 }
 
 const SUGGESTED_QUESTIONS = [
-  "What are the most common services customers call about?",
-  "How many bookings did we get this week?",
-  "Did any customers mention pricing concerns?",
-  "What was the outcome of calls this month?",
+  "How many calls did I get last week?",
+  "What was my busiest day this month?",
+  "What time of day do most customers call?",
+  "What are the most common reasons customers call?",
+  "How many calls were escalated this month?",
+  "What was the outcome breakdown of my calls?",
+  "Did any customers complain via text this month?",
   "Which customers asked to reschedule?",
-  "Are there any complaints I should know about?",
-  "What times do most customers prefer for appointments?",
   "Show me calls where customers mentioned an emergency",
+  "How many review requests went out this month?",
 ];
 
 function renderInline(text: string): React.ReactNode[] {
@@ -329,7 +331,7 @@ export default function IntelligencePage() {
             </div>
 
             {/* Input bar */}
-            <div style={{ padding: "0.875rem 1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.65rem", alignItems: "flex-end", background: "white" }}>
+            <div style={{ padding: "0.875rem 1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.65rem", alignItems: "center", background: "white" }}>
               <textarea
                 ref={inputRef}
                 value={input}
