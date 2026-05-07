@@ -6,6 +6,41 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function formatHour(h: number) {
+  const suffix = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:00 ${suffix}`;
+}
+
+function buildCallStats(
+  weekCount:   number,
+  monthCount:  number,
+  byDayOfWeek: any[],
+  byHour:      any[],
+  outcomes:    any[],
+  dailyLast7:  any[]
+) {
+  return `
+CALL STATISTICS:
+
+Total calls:
+- Last 7 days: ${weekCount}
+- Last 30 days: ${monthCount}
+
+Last 7 days breakdown:
+${dailyLast7?.length > 0
+  ? dailyLast7.map((d: any) => `- ${d.call_date.trim()}: ${d.call_count} call${d.call_count !== 1 ? "s" : ""}`).join("\n")
+  : "- No calls in the last 7 days"}
+
+Busiest day of week (last 90 days): ${byDayOfWeek?.[0] ? `${byDayOfWeek[0].day_name.trim()} (${byDayOfWeek[0].call_count} calls)` : "N/A"}
+Busiest hour of day (last 90 days): ${byHour?.[0] ? `${formatHour(byHour[0].hour_of_day)} (${byHour[0].call_count} calls)` : "N/A"}
+
+Call outcomes (last 30 days):
+${outcomes?.length > 0
+  ? outcomes.map((o: any) => `- ${o.outcome}: ${o.call_count}`).join("\n")
+  : "- No outcome data"}
+  `.trim();
+}
+
 export async function POST(request: Request) {
   try {
     const { query, business_id, history } = await request.json();
@@ -14,7 +49,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "query and business_id required" }, { status: 400 });
     }
 
-    // Step 1 — Embed the query using OpenAI
+    // Step 1 — Fetch structured call metrics via SQL functions (aggregated, scalable)
+    const [
+      weekResult,
+      monthResult,
+      dayOfWeekResult,
+      hourResult,
+      outcomeResult,
+      dailyResult,
+    ] = await Promise.all([
+      supabase.rpc("get_call_count",           { p_business_id: business_id, p_days: 7 }),
+      supabase.rpc("get_call_count",           { p_business_id: business_id, p_days: 30 }),
+      supabase.rpc("get_calls_by_day_of_week", { p_business_id: business_id, p_days: 90 }),
+      supabase.rpc("get_calls_by_hour",        { p_business_id: business_id, p_days: 90 }),
+      supabase.rpc("get_calls_by_outcome",     { p_business_id: business_id, p_days: 30 }),
+      supabase.rpc("get_daily_call_counts",    { p_business_id: business_id, p_days: 7 }),
+    ]);
+
+    const callStats = buildCallStats(
+      weekResult.data      ?? 0,
+      monthResult.data     ?? 0,
+      dayOfWeekResult.data ?? [],
+      hourResult.data      ?? [],
+      outcomeResult.data   ?? [],
+      dailyResult.data     ?? []
+    );
+
+    // Step 2 — Embed the query
     const embedRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
@@ -34,7 +95,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to generate embedding" }, { status: 500 });
     }
 
-    // Step 2 — Similarity search in Supabase
+    // Step 3 — Similarity search
     const { data: matches, error: matchError } = await supabase.rpc("match_embeddings", {
       query_embedding:   queryEmbedding,
       match_business_id: business_id,
@@ -47,20 +108,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: matchError.message }, { status: 500 });
     }
 
-    // Step 3 — Build context from matches
-    const context = matches && matches.length > 0
+    // Step 4 — Build context
+    const ragContext = matches && matches.length > 0
       ? matches.map((m: any, i: number) =>
           `[Source ${i + 1} — ${m.source_type === "call" ? "Call transcript" : "SMS message"} (${Math.round(m.similarity * 100)}% relevant)]:\n${m.content}`
         ).join("\n\n---\n\n")
-      : "No relevant data found in your call and message history.";
+      : "No relevant transcript data found.";
 
-    // Step 4 — Build conversation history
+    const context = `
+STRUCTURED CALL METRICS:
+${callStats}
+
+---
+
+RELEVANT CALL TRANSCRIPTS AND MESSAGES:
+${ragContext}
+    `.trim();
+
+    // Step 5 — Build conversation history
     const historyMessages = (history ?? []).map((m: any) => ({
       role:    m.role,
       content: m.content,
     }));
 
-    // Step 5 — Ask Claude with context
+    // Step 6 — Ask Claude
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -71,17 +142,23 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model:      "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        system: `You are an AI business intelligence assistant for ${business_id}. 
-You have access to the business's call transcripts, SMS messages, and customer interactions.
-Answer questions based on the provided context. Be specific and cite details from the sources.
-If the context doesn't contain enough information to answer confidently, say so clearly.
-Format your answers clearly — use bullet points or numbered lists when listing multiple items.
-Keep answers concise and actionable for a busy business owner.`,
+        system: `You are an AI business intelligence assistant with access to real call metrics and transcripts.
+
+You have two types of data:
+1. STRUCTURED CALL METRICS — exact numbers from the database (use these for quantitative questions like "how many calls", "busiest day", "what time")
+2. RELEVANT TRANSCRIPTS — semantic search results (use these for qualitative questions like "what did customers complain about", "what services were requested")
+
+Answer questions using whichever data source is most relevant. For quantitative questions always use the structured metrics, not the transcripts.
+Be specific and cite actual numbers. Format answers clearly with bullet points where helpful.
+Keep answers concise and actionable for a busy business owner.
+If you don't know the answer, say you don't know. Never make up an answer.
+-dont preface and aswer by saying based on. just tell the user the answer.`,
+
         messages: [
           ...historyMessages,
           {
             role:    "user",
-            content: `Context from call and message history:\n\n${context}\n\nQuestion: ${query}`,
+            content: `Context:\n\n${context}\n\nQuestion: ${query}`,
           },
         ],
       }),
@@ -90,7 +167,7 @@ Keep answers concise and actionable for a busy business owner.`,
     const claudeData = await claudeRes.json();
     const answer = claudeData.content?.[0]?.text ?? "I couldn't generate an answer. Please try again.";
 
-    // Step 6 — Return answer with sources
+    // Step 7 — Return answer with sources
     return NextResponse.json({
       answer,
       sources: matches?.slice(0, 5).map((m: any) => ({

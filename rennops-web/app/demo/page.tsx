@@ -127,7 +127,7 @@ export default function DemoPage() {
         <a href="/" style={{ fontSize: "0.875rem", color: "#6B7280", textDecoration: "none" }}>← Back to home</a>
       </nav>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "3rem 2rem" }}>
+      <div className="demo-outer">
 
         {booked ? (
           /* Success state */
@@ -161,7 +161,7 @@ export default function DemoPage() {
             </div>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem", alignItems: "start" }}>
+          <div className="demo-grid">
 
             {/* Left — info */}
             <div>
@@ -218,7 +218,7 @@ export default function DemoPage() {
                       {grouped.map(({ date, slots }) => (
                         <div key={date}>
                           <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>{date}</p>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem" }}>
+                          <div className="demo-slot-grid">
                             {slots.map(slot => (
                               <button key={slot.start} onClick={() => { setSelectedSlot(slot); setError(""); }}
                                 style={{
