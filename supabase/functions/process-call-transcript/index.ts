@@ -122,13 +122,15 @@ serve(async (req) => {
         }
 
         // Update what we can with just the transcript
+        const fallbackDuration = Math.round((duration_ms ?? 0) / 1000);
+        const fallbackOutcome = fallbackDuration < 10 ? "missed" : fallbackDuration < 30 ? "no_answer" : "completed";
         await supabase
           .from("calls")
           .update({
             transcript,
             recording_url: recording_url ?? null,
-            duration_seconds: Math.round((duration_ms ?? 0) / 1000),
-            outcome: "missed",
+            duration_seconds: fallbackDuration,
+            outcome: fallbackOutcome,
           })
           .eq("id", callRecord.id);
 
@@ -166,10 +168,9 @@ serve(async (req) => {
 
     // Determine outcome
     const outcome = parsed.outcome ?? (() => {
-      if (disconnection_reason === "agent_hangup") return "booked";
-      if (durationSeconds < 10) return "missed"; // Never really connected
+      if (durationSeconds < 10) return "missed";    // Never really connected
       if (durationSeconds < 30) return "no_answer"; // Connected but very short
-      return "missed"; // Claude couldn't determine — default
+      return "completed"; // Claude couldn't determine but call had real conversation
     })();
 
 const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
