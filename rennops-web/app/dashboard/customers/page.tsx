@@ -35,14 +35,41 @@ export default function CustomersPage() {
   const [saving, setSaving]         = useState(false);
   const [editNotes, setEditNotes]   = useState("");
   const [messages, setMessages]     = useState<any[]>([]);
+  const [calls, setCalls]           = useState<any[]>([]);
+  const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
   const [replyText, setReplyText]   = useState("");
   const [sending, setSending]       = useState(false);
+  const [aiSummary, setAiSummary]         = useState<string | null>(null);
+  const [aiAction, setAiAction]           = useState<string | null>(null);
+  const [aiIntelligence, setAiIntelligence] = useState<Record<string, string> | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [aiError, setAiError]             = useState(false);
+
+  const CACHE_KEY = "renn_summary_cache";
+  function readCache(): Record<string, { lastMsgId: string; summary: string | null; action: string | null; intelligence: Record<string, string> | null }> {
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? "{}"); } catch { return {}; }
+  }
+  function writeCache(customerId: string, entry: { lastMsgId: string; summary: string | null; action: string | null; intelligence: Record<string, string> | null }) {
+    try {
+      const cache = readCache();
+      cache[customerId] = entry;
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {}
+  }
+  function deleteCache(customerId: string) {
+    try {
+      const cache = readCache();
+      delete cache[customerId];
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {}
+  };
 
   // Column widths (px). col1 = list, col2 = detail, col3 = messages (remainder)
   const [col1Width, setCol1Width] = useState(280);
   const [col2Width, setCol2Width] = useState(360);
   const dragRef = useRef<{ which: 1 | 2; startX: number; startW: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const callsRef = useRef<any[]>([]);
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragRef.current) return;
@@ -108,13 +135,18 @@ export default function CustomersPage() {
         setSelected(curr => {
           if (curr && msg.customer_id === curr.id) {
             setMessages(prev => {
-              // Only add if not already in the list
               if (prev.some(m => m.id === msg.id)) return prev;
-              return [...prev, msg];
+              const next = [...prev, msg];
+              // Auto-refresh intelligence card with fresh data
+              deleteCache(msg.customer_id);
+              setTimeout(() => fetchAndSetSummary(curr, next, callsRef.current), 0);
+              return next;
             });
           }
           return curr;
         });
+        // Also invalidate cache for customers not currently selected
+        deleteCache(msg.customer_id);
       })
       .subscribe();
 
@@ -140,20 +172,76 @@ export default function CustomersPage() {
     };
   }, [businessId, bizLoading, router]);
 
+  async function fetchAndSetSummary(c: Customer, msgs: any[], callsList: any[]) {
+    if (msgs.length === 0 && callsList.length === 0) return;
+    const lastMsgId = msgs.length > 0 ? msgs[msgs.length - 1].id : callsList[0]?.id ?? "";
+    const cached = readCache()[c.id];
+    if (cached && cached.lastMsgId === lastMsgId) {
+      const leadSource = callsList.length > 0 ? "Phone Call" : "SMS";
+      const intel = cached.intelligence ? { ...cached.intelligence, "Lead Source": leadSource } : null;
+      setAiSummary(cached.summary);
+      setAiAction(cached.action);
+      setAiIntelligence(intel);
+      return;
+    }
+    setLoadingSummary(true);
+    setAiSummary(null);
+    setAiAction(null);
+    setAiIntelligence(null);
+    setAiError(false);
+    try {
+      const r = await fetch("/api/customer-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer: c, messages: msgs, calls: callsList }),
+      });
+      const d = await r.json();
+      if (d.error) { console.error("customer-summary:", d.error); setAiError(true); return; }
+      setAiSummary(d.summary ?? null);
+      setAiAction(d.action ?? null);
+      setAiIntelligence(d.intelligence ?? null);
+      if (!d.summary) { setAiError(true); return; }
+      writeCache(c.id, { lastMsgId, summary: d.summary, action: d.action ?? null, intelligence: d.intelligence ?? null });
+    } catch (err) {
+      console.error("customer-summary fetch failed:", err);
+      setAiError(true);
+    } finally {
+      setLoadingSummary(false);
+    }
+  }
+
   async function selectCustomer(c: Customer) {
     setSelected(c);
     setEditNotes(c.notes ?? "");
     setReplyText("");
+    setAiSummary(null);
+    setAiAction(null);
+    setAiIntelligence(null);
+    setAiError(false);
+    setCalls([]);
+    setExpandedCallId(null);
+    const [{ data: msgData }, { data: callData }] = await Promise.all([
+      supabase
+        .from("messages")
+        .select("id, direction, body, sent_at, read")
+        .eq("business_id", businessId)
+        .eq("customer_id", c.id)
+        .order("sent_at", { ascending: true }),
+      supabase
+        .from("calls")
+        .select("id, outcome, transcript, duration_seconds, created_at")
+        .eq("business_id", businessId)
+        .eq("customer_id", c.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
 
-    // Fetch message thread
-    const { data } = await supabase
-      .from("messages")
-      .select("id, direction, body, sent_at, read")
-      .eq("business_id", businessId)
-      .eq("customer_id", c.id)
-      .order("sent_at", { ascending: true });
-
-    setMessages((data as any) ?? []);
+    const msgs  = (msgData  as any) ?? [];
+    const calls = (callData as any) ?? [];
+    setMessages(msgs);
+    setCalls(calls);
+    callsRef.current = calls;
+    setExpandedCallId(null);
 
     // Mark unread as read
     await supabase
@@ -161,6 +249,14 @@ export default function CustomersPage() {
       .update({ read: true })
       .eq("customer_id", c.id)
       .eq("read", false);
+
+    await fetchAndSetSummary(c, msgs, calls);
+  }
+
+  async function regenerateSummary() {
+    if (!selected || loadingSummary) return;
+    deleteCache(selected.id);
+    await fetchAndSetSummary(selected, messages, calls);
   }
 
 async function sendReply() {
@@ -193,7 +289,14 @@ async function sendReply() {
         .select("id, direction, body, sent_at, read")
         .single();
 
-      if (msg) setMessages(prev => [...prev, msg as any]);
+      if (msg) {
+        setMessages(prev => {
+          const next = [...prev, msg as any];
+          deleteCache(selected!.id);
+          setTimeout(() => fetchAndSetSummary(selected!, next, callsRef.current), 0);
+          return next;
+        });
+      }
       setReplyText("");
     } else {
       console.error("SMS send failed:", await res.text());
@@ -303,11 +406,12 @@ async function sendReply() {
               </div>
             ) : (
               filtered.map((customer, i) => (
-                <div key={customer.id} onClick={() => selectCustomer(customer)}
+                <div key={customer.id}
+                  style={{ borderBottom: i < filtered.length - 1 || selected?.id === customer.id ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+                  <div onClick={() => selectCustomer(customer)}
                   style={{
                     display: "flex", alignItems: "center", gap: "0.75rem",
                     padding: "1rem 1.25rem",
-                    borderBottom: i < filtered.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                     cursor: "pointer",
                     background: selected?.id === customer.id ? "#F0FAFE" : "white",
                     transition: "background 0.15s",
@@ -341,6 +445,82 @@ async function sendReply() {
                       <span style={{ fontSize: "0.68rem", color: "#EF4444", fontWeight: 600 }}>⚠ Dissatisfied</span>
                     )}
                   </div>
+                  </div>
+
+                  {/* AI summary inline — only for selected customer */}
+                  {selected?.id === customer.id && (loadingSummary || aiSummary || aiIntelligence || aiError) && (
+                    <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #0f2337 100%)", margin: "0", padding: "0.85rem 1.1rem", position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(12,192,223,0.12)", pointerEvents: "none" }} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                          <span style={{ fontSize: "0.65rem", color: "#0cc0df" }}>✦</span>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Renn Intelligence</p>
+                        </div>
+                        {!loadingSummary && (
+                          <button onClick={e => { e.stopPropagation(); regenerateSummary(); }}
+                            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: "0.65rem", padding: 0, fontFamily: "'DM Sans'" }}>
+                            ↺ refresh
+                          </button>
+                        )}
+                      </div>
+                      {loadingSummary ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <div style={{ width: 12, height: 12, border: "2px solid rgba(12,192,223,0.3)", borderTopColor: "#0cc0df", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+                          <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.45)", margin: 0, fontStyle: "italic" }}>Analyzing customer history...</p>
+                        </div>
+                      ) : aiError ? (
+                        <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", margin: 0, fontStyle: "italic" }}>Could not generate summary.</p>
+                      ) : (
+                        <>
+                          {aiSummary && (
+                            <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.65, margin: "0 0 0.65rem" }}>
+                              {aiSummary}
+                            </p>
+                          )}
+                          {aiAction && (
+                            <div style={{ borderTop: "1px solid rgba(12,192,223,0.18)", paddingTop: "0.55rem" }}>
+                              <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Recommended action</p>
+                              <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.6, margin: 0 }}>{aiAction}</p>
+                            </div>
+                          )}
+                          {aiIntelligence && (() => {
+                            const intentColor: Record<string, string> = { High: "#10B981", Medium: "#F59E0B", Low: "#9CA3AF" };
+                            const urgencyColor: Record<string, string> = { "Emergency": "#EF4444", "Emergency / Same-day": "#EF4444", "Same-day": "#F97316", "Routine": "#10B981", "Not urgent": "#9CA3AF" };
+                            const sentimentColor: Record<string, string> = { Positive: "#10B981", Neutral: "#9CA3AF", Frustrated: "#F59E0B", Angry: "#EF4444" };
+                            const fields = [
+                              { label: "Service Needed",   key: "Service Needed",   color: null },
+                              { label: "Intent Level",     key: "Intent Level",     colorMap: intentColor },
+                              { label: "Urgency",          key: "Urgency",          colorMap: urgencyColor },
+                              { label: "Sentiment",        key: "Sentiment",        colorMap: sentimentColor },
+                              { label: "Lead Source",      key: "Lead Source",      color: null },
+                              { label: "Est. Revenue",     key: "Estimated Revenue",color: "#10B981" },
+                              { label: "Current Stage",    key: "Current Stage",    color: null },
+                              { label: "Follow-up Due",    key: "Follow-up Due",    color: "#0cc0df" },
+                              { label: "Assigned To",      key: "Assigned To",      color: null },
+                            ];
+                            return (
+                              <div style={{ borderTop: "1px solid rgba(12,192,223,0.18)", paddingTop: "0.65rem", marginTop: "0.1rem" }}>
+                                <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.55rem" }}>Customer Intelligence</p>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem 0.75rem" }}>
+                                  {fields.map(({ label, key, color, colorMap }) => {
+                                    const val = aiIntelligence![key];
+                                    if (!val) return null;
+                                    const valueColor = colorMap ? (colorMap[val] ?? "rgba(255,255,255,0.75)") : (color ?? "rgba(255,255,255,0.75)");
+                                    return (
+                                      <div key={key}>
+                                        <p style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.38)", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 0.1rem" }}>{label}</p>
+                                        <p style={{ fontSize: "0.76rem", fontWeight: 600, color: valueColor, margin: 0, lineHeight: 1.3 }}>{val}</p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -514,36 +694,87 @@ async function sendReply() {
               {/* Header */}
               <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.06)", flexShrink: 0 }}>
                 <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#0D1B2A", margin: "0 0 0.1rem" }}>
-                  Messages{messages.length > 0 && <span style={{ fontWeight: 400, color: "#9CA3AF" }}> ({messages.length})</span>}
+                  History{(messages.length + calls.length) > 0 && <span style={{ fontWeight: 400, color: "#9CA3AF" }}> ({messages.length} messages · {calls.length} calls)</span>}
                 </p>
                 <p style={{ fontSize: "0.75rem", color: "#9CA3AF", margin: 0 }}>{selected.phone}</p>
               </div>
 
-              {/* Messages list */}
+              {/* Unified timeline */}
               <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {messages.length === 0 ? (
+                {messages.length === 0 && calls.length === 0 ? (
                   <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 0" }}>
-                    <p style={{ fontSize: "0.82rem", color: "#9CA3AF", fontStyle: "italic" }}>No messages yet</p>
+                    <p style={{ fontSize: "0.82rem", color: "#9CA3AF", fontStyle: "italic" }}>No messages or calls yet</p>
                   </div>
                 ) : (
-                  messages.map((msg: any) => (
-                    <div key={msg.id} style={{ display: "flex", justifyContent: msg.direction === "outbound" ? "flex-end" : "flex-start" }}>
-                      <div style={{
-                        maxWidth: "82%",
-                        padding: "0.55rem 0.8rem",
-                        borderRadius: msg.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
-                        background: msg.direction === "outbound" ? "#E8F4FD" : "#F9FAFB",
-                        border: msg.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "1px solid rgba(12,192,223,0.2)",
-                      }}>
-                        <p style={{ fontSize: "0.85rem", color: msg.direction === "outbound" ? "#0D1B2A" : "#374151", lineHeight: 1.5, margin: 0 }}>
-                          {msg.body}
-                        </p>
-                        <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "#6B7280" : "#9CA3AF", marginTop: "0.25rem", margin: "0.25rem 0 0", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
-                          {new Date(msg.sent_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                  [
+                    ...messages.map((m: any) => ({ ...m, _type: "message", _ts: new Date(m.sent_at).getTime() })),
+                    ...calls.map((c: any) => ({ ...c, _type: "call", _ts: new Date(c.created_at).getTime() })),
+                  ]
+                    .sort((a, b) => a._ts - b._ts)
+                    .map((item: any) => {
+                      if (item._type === "message") {
+                        return (
+                          <div key={`msg-${item.id}`} style={{ display: "flex", justifyContent: item.direction === "outbound" ? "flex-end" : "flex-start" }}>
+                            <div style={{
+                              maxWidth: "82%",
+                              padding: "0.55rem 0.8rem",
+                              borderRadius: item.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
+                              background: item.direction === "outbound" ? "#E8F4FD" : "#F9FAFB",
+                              border: item.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "1px solid rgba(12,192,223,0.2)",
+                            }}>
+                              <p style={{ fontSize: "0.85rem", color: item.direction === "outbound" ? "#0D1B2A" : "#374151", lineHeight: 1.5, margin: 0 }}>
+                                {item.body}
+                              </p>
+                              <p style={{ fontSize: "0.65rem", color: item.direction === "outbound" ? "#6B7280" : "#9CA3AF", margin: "0.25rem 0 0", textAlign: item.direction === "outbound" ? "right" : "left" }}>
+                                {new Date(item.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      // Call entry
+                      const dur = item.duration_seconds
+                        ? item.duration_seconds >= 60
+                          ? `${Math.floor(item.duration_seconds / 60)}m ${item.duration_seconds % 60}s`
+                          : `${item.duration_seconds}s`
+                        : null;
+                      const outcomeColor: Record<string, string> = {
+                        booked: "#10B981", voicemail: "#F59E0B", escalated: "#EF4444", missed: "#EF4444",
+                      };
+                      const isExpanded = expandedCallId === item.id;
+                      return (
+                        <div key={`call-${item.id}`} style={{ alignSelf: "center", width: "100%" }}>
+                          <button
+                            onClick={() => setExpandedCallId(isExpanded ? null : item.id)}
+                            style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" as const }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.5rem 0.75rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: isExpanded ? "8px 8px 0 0" : 8 }}>
+                              <span style={{ fontSize: "0.9rem" }}>📞</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#0D1B2A", margin: 0 }}>
+                                  Inbound call
+                                  {item.outcome && <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", fontWeight: 700, color: outcomeColor[item.outcome] ?? "#6B7280", textTransform: "capitalize" as const }}>· {item.outcome}</span>}
+                                </p>
+                                <p style={{ fontSize: "0.72rem", color: "#9CA3AF", margin: 0 }}>
+                                  {new Date(item.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}{dur ? ` · ${dur}` : ""}
+                                </p>
+                              </div>
+                              <span style={{ fontSize: "0.7rem", color: "#9CA3AF", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+                            </div>
+                          </button>
+                          {isExpanded && (
+                            <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderTop: "none", borderRadius: "0 0 8px 8px", padding: "0.75rem" }}>
+                              {item.transcript ? (
+                                <p style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" as const }}>
+                                  {item.transcript}
+                                </p>
+                              ) : (
+                                <p style={{ fontSize: "0.8rem", color: "#9CA3AF", fontStyle: "italic", margin: 0 }}>No transcript available</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                 )}
               </div>
 
