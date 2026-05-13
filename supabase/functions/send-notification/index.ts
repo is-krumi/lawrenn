@@ -217,6 +217,12 @@ serve(async (req) => {
           .select("id")
           .single();
 
+        // Increment SMS count
+        await supabase.rpc("increment_sms_count", {
+          p_business_id: business_id,
+          p_count:       1,
+        });
+
         // Embed the outbound notification
         if (msgEntry) {
           const embeddingContent = `

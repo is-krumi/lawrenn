@@ -190,6 +190,11 @@ const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
 
     console.log("Call update error:", updateError?.message ?? "none");
 
+    // Increment monthly call count
+    await supabase.rpc("increment_call_count", {
+      p_business_id: businessId,
+    });
+
     // If booking was confirmed — create customer and job
     if (parsed.booking_confirmed && parsed.slot_start) {
       console.log("Booking confirmed — creating customer and job...");

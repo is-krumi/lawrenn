@@ -283,6 +283,12 @@ Phone: ${fromNumber}
       .select("id")
       .single();
 
+      // Increment SMS count
+      await supabase.rpc("increment_sms_count", {
+        p_business_id: business.id,
+        p_count:       1,
+      });
+
       // Embed outbound message
       if (outboundMsg) {
         const outboundContent = `
@@ -305,6 +311,10 @@ Phone: ${fromNumber}
           toNumber,
           `💬 New message from ${customer?.name ?? fromNumber}: "${body.slice(0, 100)}" — reply at rennops.com/dashboard/messages`
         );
+        await supabase.rpc("increment_sms_count", {
+          p_business_id: business.id,
+          p_count:       1,
+        });
       }
     } else {
       // AI decided to escalate
@@ -316,6 +326,10 @@ Phone: ${fromNumber}
           toNumber,
           `⚠️ Customer reply needs your attention from ${customer?.name ?? fromNumber}: "${body.slice(0, 100)}" — rennops.com/dashboard/messages`
         );
+        await supabase.rpc("increment_sms_count", {
+          p_business_id: business.id,
+          p_count:       1,
+        });
       }
     }
 

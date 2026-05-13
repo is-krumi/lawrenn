@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useBusiness } from "@/context/BusinessContext";
+import { getPlanFeatures } from "@/lib/plans";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const NAV_LINKS = [
+const NAV_LINKS_CONFIG = [
   {
     label: "Dashboard", href: "/dashboard",
     icon: (
@@ -55,7 +56,7 @@ const NAV_LINKS = [
     ),
   },
   {
-    label: "Intelligence", href: "/dashboard/intelligence",
+    label: "Intelligence", href: "/dashboard/intelligence", requiresFeature: "intelligence" as const,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -91,7 +92,11 @@ function buildBreadcrumb(pathname: string): string {
 export default function DashboardNav() {
   const pathname = usePathname();
   const router   = useRouter();
-  const { businessId, businessName } = useBusiness();
+  const { businessId, businessName, subscriptionTier } = useBusiness();
+  const features = getPlanFeatures(subscriptionTier);
+  const NAV_LINKS = NAV_LINKS_CONFIG.filter(l =>
+    !l.requiresFeature || features[l.requiresFeature] === true
+  );
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
