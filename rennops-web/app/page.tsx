@@ -1,5 +1,7 @@
 "use client";
 
+import { PLAN_FEATURES } from "@/lib/plans";
+
 import { useState, useEffect, useRef } from "react";
 import _l1  from "@/assets/logos/1.png";
 import _l2  from "@/assets/logos/2.png";
@@ -895,9 +897,9 @@ export default function Home() {
 
         <div className="lp-pricing">
           {[
-            { tier: "Starter", price: 199, desc: "AI phone receptionist for solo operators. Answer every call, book every job.", features: ["AI voice receptionist — 500 min/mo", "Smart job booking engine", "Booking confirmation SMS", "Up to 2 team members", "Owner dashboard (mobile + web)", "24/7 call answering"], featured: false },
-            { tier: "Pro", price: 299, desc: "Everything in Starter plus the automation stack that closes quotes and grows reviews.", features: ["AI voice receptionist — 1,500 min/mo", "Quote follow-up automation (4-touch)", "Review request engine", "Customer notification system", "Up to 5 team members", "AI-generated call notes", "Revenue analytics"], featured: true },
-            { tier: "Growth", price: 449, desc: "The full RennOps suite for growing operations with multiple team members.", features: ["AI voice receptionist — unlimited", "Everything in Pro", "Up to 10 team members", "Technician mobile app", "Advanced reporting", "Priority support", "Early feature access"], featured: false },
+            { tier: "Starter", price: PLAN_FEATURES.starter.price, desc: "AI phone receptionist for solo operators. Answer every call, book every job.", features: [`Up to ${PLAN_FEATURES.starter.monthlyCallCap} AI-answered calls/mo`, `Up to ${PLAN_FEATURES.starter.monthlySMS} Smart SMS messages/mo`, "Smart job booking engine", "Booking confirmation SMS", `Up to ${PLAN_FEATURES.starter.maxTeamMembers} team member`, "Owner dashboard (mobile + web)", "24/7 call answering"], featured: false },
+            { tier: "Pro", price: PLAN_FEATURES.pro.price, desc: "Everything in Starter plus the automation stack that closes quotes and grows reviews.", features: [`Up to ${PLAN_FEATURES.pro.monthlyCallCap} AI-answered calls/mo`, `Up to ${PLAN_FEATURES.pro.monthlySMS} Smart SMS messages/mo`, "Quote follow-up automation (4-touch)", "Review request engine", "Customer notification system", `Up to ${PLAN_FEATURES.pro.maxTeamMembers} team members`, "AI-generated call notes", "Revenue analytics"], featured: true },
+            { tier: "Growth", price: PLAN_FEATURES.growth.price, desc: "The full RennOps suite for growing operations with multiple team members.", features: [`Up to ${PLAN_FEATURES.growth.monthlyCallCap} AI-answered calls/mo`, `Up to ${PLAN_FEATURES.growth.monthlySMS} Smart SMS messages/mo`, "Everything in Pro", "Renn Intelligence (AI insights)", "Unlimited team members", "Technician mobile app", "Advanced reporting", "Priority support", "Early feature access"], featured: false },
           ].map(({ tier, price, desc, features, featured }, i) => (
             <SL key={i} delay={i * 0.1}>
               <div style={{ background: featured ? "rgba(12,192,223,0.06)" : "rgba(13,27,42,0.03)", border: `1px solid ${featured ? "rgba(12,192,223,0.35)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>

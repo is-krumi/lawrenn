@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPlanFeatures } from "@/lib/plans";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,6 +48,21 @@ export async function POST(request: Request) {
 
     if (!query || !business_id) {
       return NextResponse.json({ error: "query and business_id required" }, { status: 400 });
+    }
+
+    // Plan check — server-side gate
+    const { data: biz } = await supabase
+      .from("businesses")
+      .select("subscription_tier")
+      .eq("id", business_id)
+      .single();
+
+    const planFeatures = getPlanFeatures(biz?.subscription_tier ?? "starter");
+    if (!planFeatures.intelligence) {
+      return NextResponse.json(
+        { error: "Intelligence is not available on your current plan." },
+        { status: 403 }
+      );
     }
 
     // Step 1 — Fetch structured call metrics via SQL functions (aggregated, scalable)

@@ -173,7 +173,7 @@ serve(async (req) => {
     // Look up business by Twilio number
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, name, settings, timezone, subscription_status, system_prompt")
+      .select("id, name, settings, timezone, subscription_status, subscription_tier, system_prompt, monthly_call_count, usage_reset_at")
       .eq("twilio_number", toNumber)
       .single();
 
@@ -189,6 +189,25 @@ serve(async (req) => {
     if (!["active", "trialing"].includes(business.subscription_status)) {
       return new Response(
         `<?xml version="1.0" encoding="UTF-8"?><Response><Say>This service is currently unavailable. Please call back later.</Say></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    // Get effective limits for this business
+    const { data: limits } = await supabase
+      .rpc("get_business_limits", { p_business_id: business.id })
+      .single();
+
+    // Check call cap
+    const callCount = business.monthly_call_count ?? 0;
+
+    if (callCount >= (limits?.monthly_call_cap ?? 100)) {
+      console.log(`Business ${business.id} has hit call cap: ${callCount}/${limits?.monthly_call_cap ?? 100}`);
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?>
+    <Response>
+      <Say>Thank you for calling ${business.name}. We are unable to take your call right now.</Say>
+    </Response>`,
         { headers: { "Content-Type": "text/xml" } }
       );
     }

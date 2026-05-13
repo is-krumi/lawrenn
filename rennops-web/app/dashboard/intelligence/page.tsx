@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useBusiness } from "@/context/BusinessContext";
+import FeatureGate from "@/components/FeatureGate";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -193,6 +194,7 @@ export default function IntelligencePage() {
   }
 
   return (
+    <FeatureGate feature="intelligence">
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "2rem 1.5rem", flex: 1, display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box" as const }}>
 
@@ -467,5 +469,6 @@ export default function IntelligencePage() {
         }
       `}</style>
     </div>
+    </FeatureGate>
   );
 }
