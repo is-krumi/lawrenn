@@ -81,7 +81,7 @@ async function generateAIReply(
       }).join(", ")}`
     : "No recent jobs";
 
-  const messageHistory = recentMessages.slice(-6).map(m =>
+  const messageHistory = recentMessages.map(m =>
     `${m.direction === "inbound" ? "Customer" : "Agent"}: ${m.body}`
   ).join("\n");
 
@@ -238,14 +238,14 @@ Phone: ${fromNumber}
       }
     }
 
-    // Fetch recent message history for context
+    // Fetch recent message history for context (both inbound from customer and outbound replies)
     const { data: recentMessages } = await supabase
       .from("messages")
       .select("direction, body, sent_at")
       .eq("business_id", business.id)
-      .eq("from_number", fromNumber)
-      .order("sent_at", { ascending: false })
-      .limit(6);
+      .or(`from_number.eq.${fromNumber},to_number.eq.${fromNumber}`)
+      .order("sent_at", { ascending: true })
+      .limit(10);
 
     // Fetch recent jobs for context
     const { data: recentJobs } = await supabase
