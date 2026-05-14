@@ -13,6 +13,16 @@ const RENNOPS_BUSINESS_ID   = process.env.RENNOPS_BUSINESS_ID!;
 const RENNOPS_TWILIO_NUMBER = "+18666581538";
 
 export async function POST(request: Request) {
+  // Log which env vars are present (values redacted) so Vercel logs show what's missing
+  console.log("[capture-trial-signup] env check:", {
+    SUPABASE_URL:        !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SERVICE_ROLE_KEY:    !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    ANTHROPIC_API_KEY:   !!process.env.ANTHROPIC_API_KEY,
+    TWILIO_ACCOUNT_SID:  !!process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN:   !!process.env.TWILIO_AUTH_TOKEN,
+    RENNOPS_BUSINESS_ID: !!process.env.RENNOPS_BUSINESS_ID,
+    DEMO_NOTIFY_PHONE:   !!process.env.DEMO_NOTIFY_PHONE,
+  });
   try {
     const body = await request.json();
     console.log("[capture-trial-signup] received:", JSON.stringify(body));
@@ -99,13 +109,17 @@ RULES:
           // Send the AI reply via Twilio to the lead's phone
           const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
           const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-          await fetch(twilioUrl, {
+          const twilioRes = await fetch(twilioUrl, {
             method: "POST",
             headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({ To: phone, From: RENNOPS_TWILIO_NUMBER, Body: aiReply }),
           });
-
-          // Store the outbound message
+          const twilioBody = await twilioRes.json().catch(() => ({}));
+          if (!twilioRes.ok) {
+            console.error("[capture-trial-signup] Twilio AI SMS failed:", twilioRes.status, JSON.stringify(twilioBody));
+          } else {
+            console.log("[capture-trial-signup] AI reply sent to", phone, "sid:", (twilioBody as any).sid);
+          }
           await supabase.from("messages").insert({
             business_id:  RENNOPS_BUSINESS_ID,
             customer_id:  customer?.id ?? null,
@@ -126,17 +140,23 @@ RULES:
 
     // Notify via SMS — only for new signups (not status updates)
     if (source !== "onboarding") {
-      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
-      const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-      const smsBody = `🚀 New trial signup!\n\n${name ?? "Unknown"} from ${business_name ?? "unknown business"}\nEmail: ${email}\nPhone: ${phone ?? "not provided"}\nType: ${business_type ?? "unknown"}`;
-      const recipients = [process.env.DEMO_NOTIFY_PHONE!, "+18666581538"];
-      await Promise.all(recipients.map(to =>
-        fetch(twilioUrl, {
-          method: "POST",
-          headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ To: to, From: "+18666581538", Body: smsBody }),
-        })
-      ));
+      try {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+        const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+        const smsBody = `🚀 New trial signup!\n\n${name ?? "Unknown"} from ${business_name ?? "unknown business"}\nEmail: ${email}\nPhone: ${phone ?? "not provided"}\nType: ${business_type ?? "unknown"}`;
+        const recipients = [process.env.DEMO_NOTIFY_PHONE!, "+18666581538"];
+        await Promise.all(recipients.map(to =>
+          fetch(twilioUrl, {
+            method: "POST",
+            headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ To: to, From: "+18666581538", Body: smsBody }),
+          }).then(async r => {
+            if (!r.ok) console.error("[capture-trial-signup] notify SMS failed:", r.status, await r.text());
+          })
+        ));
+      } catch (notifyErr) {
+        console.error("[capture-trial-signup] notify SMS error:", notifyErr);
+      }
     }
 
     return NextResponse.json({ success: true });
