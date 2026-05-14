@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { useBusiness } from "@/context/BusinessContext";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,8 +38,7 @@ export default function CustomersPage() {
   const [calls, setCalls]           = useState<any[]>([]);
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
   const [replyText, setReplyText]   = useState("");
-  const [sending, setSending]       = useState(false);
-  const [aiSummary, setAiSummary]         = useState<string | null>(null);
+  const [sending, setSending]       = useState(false);  const [confirmDelete, setConfirmDelete] = useState(false);  const [deleteUnlocked, setDeleteUnlocked] = useState(false);  const [aiSummary, setAiSummary]         = useState<string | null>(null);
   const [aiAction, setAiAction]           = useState<string | null>(null);
   const [aiIntelligence, setAiIntelligence] = useState<Record<string, string> | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
@@ -333,6 +332,15 @@ async function sendReply() {
     setSelected(prev => prev ? { ...prev, sms_opted_out: val } : null);
   }
 
+  async function deleteCustomer() {
+    if (!selected) return;
+    await supabase.from("customers").delete().eq("id", selected.id);
+    setCustomers(prev => prev.filter(c => c.id !== selected.id));
+    deleteCache(selected.id);
+    setSelected(null);
+    setConfirmDelete(false);
+  }
+
   const filtered = customers.filter(c => {
     const q = search.toLowerCase();
     return (
@@ -554,11 +562,22 @@ async function sendReply() {
                     <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>Customer since {formatDate(selected.created_at)}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelected(null)}
+                <button onClick={() => { setSelected(null); setConfirmDelete(false); setDeleteUnlocked(false); }}
                   style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem" }}>×</button>
               </div>
 
-              {/* Contact info */}
+              {/* Delete confirmation */}
+              {confirmDelete && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+                  <p style={{ fontSize: "0.82rem", color: "#991B1B", margin: 0 }}>Delete <strong>{selected.name ?? selected.phone}</strong> and all their data?</p>
+                  <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <button onClick={() => setConfirmDelete(false)}
+                      style={{ padding: "0.3rem 0.75rem", background: "none", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", cursor: "pointer", color: "#374151" }}>Cancel</button>
+                    <button onClick={deleteCustomer}
+                      style={{ padding: "0.3rem 0.75rem", background: "#EF4444", border: "none", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", color: "white" }}>Delete</button>
+                  </div>
+                </div>
+              )}
               <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem" }}>
                 <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Contact</p>
                 <p style={{ fontSize: "0.875rem", color: "#0D1B2A", marginBottom: "0.25rem" }}>📞 {selected.phone}</p>
@@ -670,6 +689,21 @@ async function sendReply() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Danger zone */}
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: "1rem", marginTop: "0.5rem", position: "relative", display: "inline-block" }}>
+                <button onClick={() => setConfirmDelete(true)}
+                  style={{ background: "none", border: "none", color: "#EF4444", fontFamily: "'DM Sans'", fontSize: "0.8rem", cursor: deleteUnlocked ? "pointer" : "default", padding: 0, opacity: deleteUnlocked ? 1 : 0.45 }}>
+                  Delete customer
+                </button>
+                {!deleteUnlocked && (
+                  <div
+                    onClick={() => setDeleteUnlocked(true)}
+                    title="Click to unlock"
+                    style={{ position: "absolute", inset: 0, cursor: "pointer", background: "transparent" }}
+                  />
+                )}
               </div>
             </div>
             </>
