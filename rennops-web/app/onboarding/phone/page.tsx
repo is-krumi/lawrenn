@@ -59,6 +59,17 @@ export default function OnboardingStep4() {
 
             setDone(true);
 
+            // Mark trial signup as onboarding complete
+            fetch("/api/capture-trial-signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email:  ownerEmail,
+                    status: "onboarding_complete",
+                    source: "onboarding",
+                }),
+            }).catch(() => {});
+
             // Notify of new trial (non-critical)
             fetch("/api/notify-new-trial", {
                 method: "POST",

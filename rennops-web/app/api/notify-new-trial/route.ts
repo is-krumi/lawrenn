@@ -18,31 +18,6 @@ export async function POST(request: Request) {
       status:        "silver",
     });
 
-    // ── Twilio SMS ────────────────────────────────────────────────────────
-    const accountSid  = process.env.TWILIO_ACCOUNT_SID!;
-    const authToken   = process.env.TWILIO_AUTH_TOKEN!;
-    const notifyPhone = process.env.DEMO_NOTIFY_PHONE!;
-
-    const smsRes = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
-          "Content-Type":  "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          To:   notifyPhone,
-          From: "+18666581538",
-          Body: `🎉 New RennOps trial!\n\nBusiness: ${business_name}\nEmail: ${owner_email}\nPlan: ${plan ?? "Pro"} (14-day trial)\n\nCheck dashboard: rennops.com/dashboard`,
-        }),
-      }
-    );
-    if (!smsRes.ok) {
-      const smsErr = await smsRes.text();
-      console.error("Twilio SMS error:", smsErr);
-    }
-
     // ── Resend email ──────────────────────────────────────────────────────
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",

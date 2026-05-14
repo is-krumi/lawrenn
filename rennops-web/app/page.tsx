@@ -2,17 +2,16 @@
 
 import { PLAN_FEATURES } from "@/lib/plans";
 
-import { useState, useEffect, useRef } from "react";
-import _l1  from "@/assets/logos/1.png";
-import _l2  from "@/assets/logos/2.png";
-import _l3  from "@/assets/logos/3.png";
-import _l4  from "@/assets/logos/4.png";
-import _l5  from "@/assets/logos/5.png";
-import _l6  from "@/assets/logos/6.png";
-import _l7  from "@/assets/logos/7.png";
-import _l8  from "@/assets/logos/8.png";
-import _l9  from "@/assets/logos/9.png";
+import _l1 from "@/assets/logos/1.png";
 import _l10 from "@/assets/logos/10.png";
+import _l2 from "@/assets/logos/2.png";
+import _l3 from "@/assets/logos/3.png";
+import _l5 from "@/assets/logos/5.png";
+import _l6 from "@/assets/logos/6.png";
+import _l7 from "@/assets/logos/7.png";
+import _l8 from "@/assets/logos/8.png";
+import _l9 from "@/assets/logos/9.png";
+import { useEffect, useRef, useState } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface FaqItem {
@@ -290,24 +289,25 @@ function Modal({ title, sub, onClose, children }: { title: string; sub: string; 
   );
 }
 
-function FormInput({ label, type = "text", placeholder, onChange }: { label: string; type?: string; placeholder: string; onChange?: (v: string) => void }) {
+function FormInput({ label, type = "text", placeholder, onChange, error }: { label: string; type?: string; placeholder: string; onChange?: (v: string) => void; error?: string }) {
   return (
     <div style={{ marginBottom: "1rem" }}>
       <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "rgba(13,27,42,0.6)", marginBottom: "0.4rem" }}>{label}</label>
       <input type={type} placeholder={placeholder}
         onChange={onChange ? e => onChange(e.target.value) : undefined}
-        style={{ width: "100%", background: "rgba(13,27,42,0.05)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
-        onFocus={e => e.currentTarget.style.borderColor = "var(--cyan)"}
-        onBlur={e => e.currentTarget.style.borderColor = "var(--border)"} />
+        style={{ width: "100%", background: "rgba(13,27,42,0.05)", border: `1px solid ${error ? "#EF4444" : "var(--border)"}`, borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
+        onFocus={e => e.currentTarget.style.borderColor = error ? "#EF4444" : "var(--cyan)"}
+        onBlur={e => e.currentTarget.style.borderColor = error ? "#EF4444" : "var(--border)"} />
+      {error && <p style={{ fontSize: "0.75rem", color: "#EF4444", margin: "0.25rem 0 0" }}>{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, options }: { label: string; options: string[] }) {
+function FormSelect({ label, options, onChange }: { label: string; options: string[]; onChange?: (v: string) => void }) {
   return (
     <div style={{ marginBottom: "1rem" }}>
       <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "rgba(13,27,42,0.6)", marginBottom: "0.4rem" }}>{label}</label>
-      <select style={{ width: "100%", background: "var(--off-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}>
+      <select onChange={onChange ? e => onChange(e.target.value) : undefined} style={{ width: "100%", background: "var(--off-white)", border: "1px solid var(--border)", borderRadius: 8, padding: "0.75rem 1rem", color: "var(--navy)", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}>
         <option value="">Select...</option>
         {options.map(o => <option key={o}>{o}</option>)}
       </select>
@@ -653,13 +653,51 @@ function LiveFeed() {
 export default function Home() {
   const [showTrial, setShowTrial] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
-  const [trialDone, setTrialDone]   = useState(false);
-  const [trialEmail, setTrialEmail] = useState("");
-  const [trialBiz,   setTrialBiz]   = useState("");
+  const [trialDone, setTrialDone]             = useState(false);
+  const [trialFirstName, setTrialFirstName]   = useState("");
+  const [trialLastName,  setTrialLastName]    = useState("");
+  const [trialEmail,     setTrialEmail]       = useState("");
+  const [trialBiz,       setTrialBiz]         = useState("");
+  const [trialPhone,     setTrialPhone]       = useState("");
+  const [trialBizType,   setTrialBizType]     = useState("");
+  const [trialErrors,    setTrialErrors]      = useState<Record<string, string>>({});
+
+  function validateTrial() {
+    const errs: Record<string, string> = {};
+    if (!trialFirstName.trim()) errs.firstName = "Required";
+    if (!trialEmail.trim())     errs.email     = "Required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trialEmail.trim())) errs.email = "Enter a valid email";
+    if (!trialBiz.trim())       errs.biz       = "Required";
+    if (!trialPhone.trim())     errs.phone     = "Required";
+    else if (!/^[\d\s\+\-\(\)]{7,}$/.test(trialPhone.trim())) errs.phone = "Enter a valid phone number";
+    setTrialErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   async function submitTrial() {
+    if (!validateTrial()) return;
     setTrialDone(true);
-    const res = await fetch("/api/notify-new-trial", {
+    const name = [trialFirstName, trialLastName].filter(Boolean).join(" ") || undefined;
+    // Fire-and-forget both — capture-trial-signup is the primary record
+    fetch("/api/capture-trial-signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email:         trialEmail || undefined,
+        phone:         trialPhone || undefined,
+        business_name: trialBiz   || undefined,
+        business_type: trialBizType || undefined,
+        source:        "marketing_site",
+      }),
+    })
+      .then(async r => {
+        const text = await r.text();
+        if (!r.ok) console.error(`capture-trial-signup HTTP ${r.status}:`, text);
+        else { try { const d = JSON.parse(text); if (d.error) console.error("capture-trial-signup error:", d.error); } catch {} }
+      })
+      .catch(err => console.error("capture-trial-signup fetch failed:", err));
+    fetch("/api/notify-new-trial", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -667,11 +705,7 @@ export default function Home() {
         owner_email:   trialEmail || "(not provided)",
         plan: "Pro",
       }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      console.error("notify-new-trial failed:", body);
-    }
+    }).catch(() => {});
   }
   const [demoDone, setDemoDone] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
@@ -1028,17 +1062,17 @@ export default function Home() {
 
       {/* ── TRIAL MODAL ── */}
       {showTrial && (
-        <Modal title="START YOUR FREE TRIAL" sub="14 days free. No credit card required. Up and running in 20 minutes." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialEmail(""); setTrialBiz(""); }}>
+        <Modal title="START YOUR FREE TRIAL" sub="14 days free. No credit card required. Up and running in 20 minutes." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialFirstName(""); setTrialLastName(""); setTrialEmail(""); setTrialBiz(""); setTrialPhone(""); setTrialBizType(""); setTrialErrors({}); }}>
           {!trialDone ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <FormInput label="First name" placeholder="Mike" />
-                <FormInput label="Last name" placeholder="Johnson" />
+                <FormInput label="First name *" placeholder="Mike" onChange={v => { setTrialFirstName(v); setTrialErrors(e => ({ ...e, firstName: "" })); }} error={trialErrors.firstName} />
+                <FormInput label="Last name" placeholder="Johnson" onChange={setTrialLastName} />
               </div>
-              <FormInput label="Business email" type="email" placeholder="mike@yourbusiness.com" onChange={setTrialEmail} />
-              <FormInput label="Business name" placeholder="ABC Plumbing" onChange={setTrialBiz} />
-              <FormInput label="Business phone" type="tel" placeholder="+1 (716) 555-0100" />
-              <FormSelect label="Business type" options={["HVAC", "Plumbing", "Electrical", "Roofing", "Pest Control", "Pool Service", "Landscaping", "Cleaning", "Other"]} />
+              <FormInput label="Business email *" type="email" placeholder="mike@yourbusiness.com" onChange={v => { setTrialEmail(v); setTrialErrors(e => ({ ...e, email: "" })); }} error={trialErrors.email} />
+              <FormInput label="Business name *" placeholder="ABC Plumbing" onChange={v => { setTrialBiz(v); setTrialErrors(e => ({ ...e, biz: "" })); }} error={trialErrors.biz} />
+              <FormInput label="Business phone *" type="tel" placeholder="+1 (716) 555-0100" onChange={v => { setTrialPhone(v); setTrialErrors(e => ({ ...e, phone: "" })); }} error={trialErrors.phone} />
+              <FormSelect label="Business type" options={["HVAC", "Plumbing", "Electrical", "Roofing", "Pest Control", "Pool Service", "Landscaping", "Cleaning", "Other"]} onChange={setTrialBizType} />
               <SubmitBtn label="Start free trial →" onClick={submitTrial} />
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(13,27,42,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>
             </>
