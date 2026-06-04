@@ -8,6 +8,115 @@ const OPENAI_API_KEY     = Deno.env.get("OPENAI_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+async function generateIntakeMemo(
+  transcript: string,
+  parsed: Record<string, any>
+): Promise<string | null> {
+  const today = new Date().toISOString().split("T")[0];
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2048,
+      messages: [{
+        role: "user",
+        content: `You are a legal intake specialist for a law firm. A potential client just spoke with an AI receptionist.
+
+Decide if the caller described a legal issue with enough substance to warrant an attorney intake memo.
+
+If NOT enough detail (caller hung up quickly, left a voicemail with no legal issue, or the conversation was purely about scheduling with no legal matter described), respond with exactly: NO_MEMO
+
+Otherwise generate a structured intake memo using plain text only (no markdown, no # headers). Follow this exact structure:
+
+INTAKE MEMO
+Potential Client
+
+Name: ${parsed.customer_name ?? "Not provided"}
+Phone: ${parsed.customer_phone ?? "Not provided"}
+Matter Type: [specific legal matter type]
+Jurisdiction: [if mentioned, otherwise "Not specified"]
+Urgency: [Low / Medium / High] — [one-line reason]
+Date: ${today}
+
+1. Brief Summary
+[2-3 sentences describing the situation and what the client wants]
+
+2. Key Facts
+- [specific fact from the call]
+(list every concrete fact mentioned — dates, amounts, locations, communications, etc.)
+
+3. Potential Legal Issues
+- [relevant legal claim or issue]
+
+4. Missing Information
+- [important detail not provided that the attorney will need]
+
+5. Recommended Attorney Review Points
+- [specific thing the attorney should verify, advise on, or act on promptly]
+
+6. Suggested Follow-Up Questions
+- [question to ask the client at the next contact]
+
+---
+Today: ${today}
+Detected matter: ${parsed.job_type ?? "Unknown"}
+Outcome: ${parsed.outcome ?? "Unknown"}
+
+Transcript:
+${transcript}`,
+      }],
+    }),
+  });
+
+  const data = await res.json();
+  const text = (data.content?.[0]?.text ?? "").trim();
+  if (!text || text.startsWith("NO_MEMO")) return null;
+  return text;
+}
+
+async function generateClientFollowup(intakeMemo: string, customerName: string | null): Promise<string | null> {
+  const firstName = (customerName ?? "").split(" ")[0] || "there";
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 600,
+      messages: [{
+        role: "user",
+        content: `You are drafting a follow-up message to send to a potential client (${firstName}) who just called a law firm.
+
+Using the intake memo below, write a warm, professional follow-up message that:
+1. Acknowledges their specific legal situation by name — reference the actual issue (eviction, car accident, contract dispute, etc.) and key facts so they feel heard
+2. Clearly lists what information or documents we need from them before the attorney can advise (draw directly from "Missing Information" in the memo)
+3. Advises any immediate steps they should or should not take to protect their position (draw from "Recommended Attorney Review Points")
+4. Explains what to expect next (attorney will review and follow up)
+5. Is warm, concise, and reassuring — they may be in a stressful situation
+
+Do NOT give specific legal advice. Do NOT fabricate facts not in the memo. 3-5 short paragraphs. Plain text only, no bullet points, no headers.
+
+Intake Memo:
+${intakeMemo}`,
+      }],
+    }),
+  });
+
+  const data = await res.json();
+  const text = (data.content?.[0]?.text ?? "").trim();
+  return text || null;
+}
+
 async function parseTranscript(transcript: string): Promise<Record<string, any>> {
   const today = new Date().toISOString().split('T')[0]; // e.g. "2026-04-30"
 
@@ -96,8 +205,9 @@ serve(async (req) => {
     console.log("transcript length:", transcript?.length ?? 0);
     console.log("disconnection_reason:", disconnection_reason);
 
-    const businessId = metadata?.business_id;
-    const callSid = metadata?.call_sid;
+    const businessId  = metadata?.business_id;
+    const callSid     = metadata?.call_sid;
+    const metaCustomerId = metadata?.customer_id ?? null;
 
     console.log("businessId:", businessId);
     console.log("callSid:", callSid);
@@ -146,7 +256,7 @@ serve(async (req) => {
     // Find the call record created by handle-inbound-call
     const { data: callRecord } = await supabase
       .from("calls")
-      .select("id, caller_phone")
+      .select("id, caller_phone, customer_id")
       .eq("twilio_call_sid", callSid)
       .maybeSingle();
 
@@ -195,6 +305,9 @@ const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
       p_business_id: businessId,
     });
 
+    // Resolved customer_id: prefer call record, fall back to metadata
+    let resolvedCustomerId: string | null = callRecord.customer_id ?? metaCustomerId;
+
     // If booking was confirmed — create customer and job
     if (parsed.booking_confirmed && parsed.slot_start) {
       console.log("Booking confirmed — creating customer and job...");
@@ -215,6 +328,7 @@ const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
       console.log("Customer upsert:", customer?.id ?? "FAILED", customerError?.message ?? "");
 
       if (customer) {
+        resolvedCustomerId = customer.id;
         await supabase
           .from("calls")
           .update({ customer_id: customer.id })
@@ -337,10 +451,39 @@ const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
       console.log("Booking not confirmed. booking_confirmed:", parsed.booking_confirmed, "slot_start:", parsed.slot_start);
     }
 
-    // Generate AI job notes
+    // Generate intake memo for calls with substantive legal content
+    console.log("outcome:", outcome, "transcript length:", transcript?.length ?? 0);
+    const memoWorthy =
+      transcript &&
+      transcript.length > 150 &&
+      ["booked", "callback_requested", "escalated", "completed"].includes(outcome);
+
+    if (memoWorthy) {
+      console.log("Generating intake memo...");
+      try {
+        const intakeMemo = await generateIntakeMemo(transcript, parsed);
+        if (intakeMemo) {
+          await supabase.from("calls").update({ intake_memo: intakeMemo }).eq("id", callRecord.id);
+          console.log("Intake memo stored");
+
+          console.log("Generating client follow-up...");
+          const clientFollowup = await generateClientFollowup(intakeMemo, parsed.customer_name ?? null);
+          if (clientFollowup) {
+            await supabase.from("calls").update({ client_followup: clientFollowup }).eq("id", callRecord.id);
+            console.log("Client follow-up stored");
+          }
+        } else {
+          console.log("Intake memo: not enough legal detail");
+        }
+      } catch (memoErr) {
+        console.error("Intake memo / follow-up generation failed (non-critical):", memoErr);
+      }
+    }
+
+    // Generate thorough AI call summary stored on the call record
     if (transcript && transcript.length > 100) {
-      console.log("Generating AI job notes...");
-      const notesRes = await fetch("https://api.anthropic.com/v1/messages", {
+      console.log("Generating AI call summary...");
+      const summaryRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "x-api-key": ANTHROPIC_API_KEY,
@@ -349,12 +492,14 @@ const escalated = parsed.urgency === "urgent" && parsed.outcome === "escalated";
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 512,
+          max_tokens: 600,
           messages: [{
             role: "user",
-            content: `Write a brief 2-3 sentence job summary for a trades business owner based on this call transcript.
-Cover: what the problem is, any specific details mentioned, and any follow-up needed.
-Plain text only, no bullet points.
+            content: `Summarize this call in exactly 2-3 plain sentences for a law firm attorney. Start directly with the content — no headers, no labels, no bold, no markdown, no "Call Summary:" prefix. Just sentences.
+
+Sentence 1: The specific legal issue described and key facts mentioned.
+Sentence 2: Any urgency, deadlines, evidence mentioned, or notable details.
+Sentence 3: What was agreed or promised (attorney callback, appointment booked, escalated/transferred, or after-hours callback).
 
 Transcript:
 ${transcript}`,
@@ -362,25 +507,17 @@ ${transcript}`,
         }),
       });
 
-      const notesData = await notesRes.json();
-      const aiNotes = notesData.content?.[0]?.text ?? null;
-      console.log("AI notes generated:", aiNotes?.slice(0, 100));
+      const summaryData = await summaryRes.json();
+      const aiSummary = summaryData.content?.[0]?.text ?? null;
+      console.log("AI summary generated:", aiSummary?.slice(0, 100));
 
-      if (aiNotes) {
-        const { data: latestJob } = await supabase
-          .from("jobs")
-          .select("id")
-          .eq("business_id", businessId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestJob) {
-          await supabase
-            .from("jobs")
-            .update({ ai_notes: aiNotes })
-            .eq("id", latestJob.id);
-        }
+      if (aiSummary) {
+        const { error: summaryErr } = await supabase
+          .from("calls")
+          .update({ ai_summary: aiSummary })
+          .eq("id", callRecord.id);
+        if (summaryErr) console.error("ai_summary update failed:", summaryErr.message);
+        else console.log("AI summary stored");
       }
     }
 
@@ -424,6 +561,7 @@ Job details:
             source_id:   callRecord.id,
             content:     embeddingContent,
             embedding:   JSON.stringify(embedding),
+            customer_id: resolvedCustomerId,
           });
           console.log("Call embedding stored successfully");
         }

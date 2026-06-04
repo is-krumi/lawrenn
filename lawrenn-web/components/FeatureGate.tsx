@@ -59,14 +59,14 @@ function UpgradePrompt({ feature }: { feature: string }) {
           lineHeight: 1.7,
           marginBottom: "2rem",
         }}>
-          Upgrade to Pro or Growth to unlock {labels[feature] ?? feature} and get full access to all RennOps features.
+          Upgrade to Firm or Enterprise to unlock {labels[feature] ?? feature} and get full access to all Lawrenn features.
         </p>
         <a
-          href="mailto:hello@rennops.com?subject=Upgrade my plan"
+          href="mailto:hello@lawrenn.com?subject=Upgrade my plan"
           style={{
             display: "inline-block",
             padding: "0.85rem 2rem",
-            background: "#0cc0df",
+            background: "#111111",
             borderRadius: 8,
             color: "white",
             textDecoration: "none",

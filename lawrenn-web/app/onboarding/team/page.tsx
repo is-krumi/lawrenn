@@ -10,7 +10,7 @@ const supabase = createClient(
 );
 
 const COLORS = [
-  "#0cc0df", "#3B82F6", "#8B5CF6", "#EC4899",
+  "#111111", "#3B82F6", "#8B5CF6", "#EC4899",
   "#F59E0B", "#10B981", "#EF4444", "#6366F1",
 ];
 
@@ -59,16 +59,22 @@ export default function OnboardingStep3() {
   const [error, setError]                   = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled) return;
       if (!user) { router.push("/login"); return; }
 
-      const { data: biz } = await supabase
+      // Use limit(1) + array result so duplicate business rows never cause a redirect
+      const { data: rows } = await supabase
         .from("businesses")
         .select("id, settings")
         .eq("owner_id", user.id)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1);
 
+      if (cancelled) return;
+      const biz = rows?.[0] ?? null;
       if (!biz) { router.push("/onboarding"); return; }
 
       setBusinessId(biz.id);
@@ -77,7 +83,8 @@ export default function OnboardingStep3() {
       }
     }
     load();
-  }, [router]);
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function updateMember(id: string, field: keyof TeamMember, value: any) {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
@@ -172,7 +179,7 @@ export default function OnboardingStep3() {
             business_id: businessId,
             name:        biz?.name ?? "Owner",
             phone:       null,
-            color:       "#0cc0df",
+            color:       "#111111",
             schedule:    bizHours,
             active:      true,
           });
@@ -190,7 +197,7 @@ export default function OnboardingStep3() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(160deg, #f0fafe 0%, #ffffff 60%)",
+      background: "#F5F5F0",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
@@ -198,8 +205,8 @@ export default function OnboardingStep3() {
     }}>
 
       {/* Logo */}
-      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none", marginBottom: "2.5rem" }}>
-        RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#111111", textDecoration: "none", marginBottom: "2.5rem" }}>
+        LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
       </a>
 
       {/* Progress */}
@@ -209,18 +216,18 @@ export default function OnboardingStep3() {
             <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%",
-                background: i < 3 ? "#0cc0df" : "rgba(0,0,0,0.08)",
+                background: i < 3 ? "#111111" : "rgba(0,0,0,0.08)",
                 color: i < 3 ? "white" : "#6B7280",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "0.8rem", fontWeight: 700,
                 border: i < 3 ? "none" : "1.5px solid rgba(0,0,0,0.1)",
               }}>{i < 2 ? "✓" : i + 1}</div>
-              <span style={{ fontSize: "0.72rem", color: i === 2 ? "#0cc0df" : "#6B7280", fontWeight: i === 2 ? 600 : 400 }}>{step}</span>
+              <span style={{ fontSize: "0.72rem", color: i === 2 ? "#111111" : "#6B7280", fontWeight: i === 2 ? 600 : 400 }}>{step}</span>
             </div>
           ))}
         </div>
         <div style={{ height: 3, background: "rgba(0,0,0,0.06)", borderRadius: 2 }}>
-          <div style={{ height: "100%", width: "60%", background: "#0cc0df", borderRadius: 2 }} />
+          <div style={{ height: "100%", width: "60%", background: "#111111", borderRadius: 2 }} />
         </div>
       </div>
 
@@ -233,11 +240,11 @@ export default function OnboardingStep3() {
         padding: "2.5rem",
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
       }}>
-        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.4rem" }}>
+        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.4rem" }}>
           Who's on your team?
         </h1>
         <p style={{ color: "#6B7280", fontSize: "0.9rem", marginBottom: "2rem", lineHeight: 1.6 }}>
-          Add your team members so the AI can check their availability and book jobs correctly.
+          Add your attorneys and staff so the AI can route inquiries and check availability.
         </p>
 
         {error && (
@@ -247,15 +254,15 @@ export default function OnboardingStep3() {
         )}
 
         {/* Solo toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: isSolo ? "rgba(12,192,223,0.06)" : "#F9FAFB", border: `1px solid ${isSolo ? "rgba(12,192,223,0.25)" : "rgba(0,0,0,0.08)"}`, borderRadius: 10, marginBottom: "1rem", transition: "all 0.2s" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: isSolo ? "rgba(17,17,17,0.04)" : "#F5F5F0", border: `1px solid ${isSolo ? "rgba(17,17,17,0.15)" : "rgba(0,0,0,0.08)"}`, borderRadius: 10, marginBottom: "1rem", transition: "all 0.2s" }}>
           <div>
-            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.15rem" }}>I work solo</p>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Solo practitioner</p>
             <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>No team members — just you</p>
           </div>
           <button onClick={() => setIsSolo(!isSolo)}
             style={{
               width: 44, height: 26, borderRadius: 13,
-              background: isSolo ? "#0cc0df" : "rgba(0,0,0,0.15)",
+              background: isSolo ? "#111111" : "rgba(0,0,0,0.15)",
               border: "none", cursor: "pointer",
               position: "relative", transition: "background 0.2s", flexShrink: 0,
             }}>
@@ -270,15 +277,15 @@ export default function OnboardingStep3() {
 
         {!isSolo && (<>
         {/* Use business hours toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, marginBottom: "1.5rem" }}>
           <div>
-            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.15rem" }}>Everyone works the same hours</p>
-            <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>Use your business operating hours for all team members</p>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Everyone works the same hours</p>
+            <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>Use your office hours for all team members</p>
           </div>
           <button onClick={() => setUseBizHours(!useBusinessHours)}
             style={{
               width: 44, height: 26, borderRadius: 13,
-              background: useBusinessHours ? "#0cc0df" : "rgba(0,0,0,0.15)",
+              background: useBusinessHours ? "#111111" : "rgba(0,0,0,0.15)",
               border: "none", cursor: "pointer",
               position: "relative", transition: "background 0.2s", flexShrink: 0,
             }}>
@@ -297,13 +304,13 @@ export default function OnboardingStep3() {
             <div key={member.id} style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, overflow: "hidden" }}>
 
               {/* Member header */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem", background: "#F9FAFB", cursor: "pointer" }}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem", background: "#F5F5F0", cursor: "pointer" }}
                 onClick={() => setExpanded(expanded === member.id ? null : member.id)}>
 
                 {/* Color dot */}
                 <div style={{ width: 12, height: 12, borderRadius: "50%", background: member.color, flexShrink: 0 }} />
 
-                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", flex: 1 }}>
+                <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", flex: 1 }}>
                   {member.name.trim() || `Team member ${idx + 1}`}
                 </span>
 
@@ -324,10 +331,10 @@ export default function OnboardingStep3() {
                   {/* Name */}
                   <div style={{ marginBottom: "1rem" }}>
                     <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Name</label>
-                    <input type="text" placeholder="James" value={member.name}
+                    <input type="text" placeholder="Jane Smith" value={member.name}
                       onChange={e => updateMember(member.id, "name", e.target.value)}
-                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
-                      onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
+                      onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
                       onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                   </div>
 
@@ -338,8 +345,8 @@ export default function OnboardingStep3() {
                     </label>
                     <input type="tel" placeholder="(716) 555-0100" value={member.phone}
                       onChange={e => updateMember(member.id, "phone", e.target.value)}
-                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
-                      onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
+                      onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
                       onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                   </div>
 
@@ -351,7 +358,7 @@ export default function OnboardingStep3() {
                         <button key={c} onClick={() => updateMember(member.id, "color", c)}
                           style={{
                             width: 26, height: 26, borderRadius: "50%", background: c,
-                            border: member.color === c ? "3px solid #0D1B2A" : "3px solid transparent",
+                            border: member.color === c ? "3px solid #111111" : "3px solid transparent",
                             cursor: "pointer", padding: 0, transition: "border 0.15s",
                           }} />
                       ))}
@@ -368,7 +375,7 @@ export default function OnboardingStep3() {
                             <button onClick={() => toggleMemberDay(member.id, day)}
                               style={{
                                 width: 36, height: 22, borderRadius: 11,
-                                background: member.schedule[day] ? "#0cc0df" : "rgba(0,0,0,0.1)",
+                                background: member.schedule[day] ? "#111111" : "rgba(0,0,0,0.1)",
                                 border: "none", cursor: "pointer",
                                 position: "relative", transition: "background 0.2s", flexShrink: 0,
                               }}>
@@ -379,18 +386,18 @@ export default function OnboardingStep3() {
                                 transition: "left 0.2s",
                               }} />
                             </button>
-                            <span style={{ width: 32, fontSize: "0.8rem", fontWeight: 500, color: member.schedule[day] ? "#0D1B2A" : "#9CA3AF" }}>
+                            <span style={{ width: 32, fontSize: "0.8rem", fontWeight: 500, color: member.schedule[day] ? "#111111" : "#9CA3AF" }}>
                               {DAY_LABELS[day]}
                             </span>
                             {member.schedule[day] ? (
                               <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                                 <input type="time" value={member.schedule[day]!.start}
                                   onChange={e => updateMemberHour(member.id, day, "start", e.target.value)}
-                                  style={{ padding: "0.25rem 0.4rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
+                                  style={{ padding: "0.25rem 0.4rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
                                 <span style={{ color: "#9CA3AF", fontSize: "0.78rem" }}>to</span>
                                 <input type="time" value={member.schedule[day]!.end}
                                   onChange={e => updateMemberHour(member.id, day, "end", e.target.value)}
-                                  style={{ padding: "0.25rem 0.4rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
+                                  style={{ padding: "0.25rem 0.4rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
                               </div>
                             ) : (
                               <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>Off</span>
@@ -407,10 +414,10 @@ export default function OnboardingStep3() {
         </div>
 
         {/* Add member */}
-        <button onClick={addMember}
-          style={{ width: "100%", padding: "0.75rem", background: "transparent", border: "1.5px dashed rgba(12,192,223,0.4)", borderRadius: 10, color: "#0cc0df", fontFamily: "'DM Sans'", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", marginBottom: "2rem", transition: "all 0.2s" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#0cc0df"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(12,192,223,0.4)"}>
+        <button type="button" onClick={addMember}
+          style={{ width: "100%", padding: "0.75rem", background: "transparent", border: "1.5px dashed rgba(17,17,17,0.25)", borderRadius: 10, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", marginBottom: "2rem", transition: "all 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(17,17,17,0.5)"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(17,17,17,0.25)"}>
           + Add another team member
         </button>
         </>)}
@@ -422,8 +429,8 @@ export default function OnboardingStep3() {
             ← Back
           </button>
           <button onClick={handleNext} disabled={loading}
-            style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
-            {loading ? "Saving..." : "Next — Set up your phone →"}
+            style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(17,17,17,0.45)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+            {loading ? "Saving..." : "Next — Set up your voice →"}
           </button>
         </div>
 

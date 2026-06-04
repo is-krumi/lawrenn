@@ -1,34 +1,34 @@
-export default function TermsOfService() {
+﻿export default function TermsOfService() {
   return (
     <div style={{ minHeight: "100vh", background: "white", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Nav */}
       <nav style={{ padding: "0 5%", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.06)", position: "sticky", top: 0, background: "white", zIndex: 100 }}>
-        <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none" }}>
-          RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+        <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#111111", textDecoration: "none" }}>
+          RENN<span style={{ color: "#111111" }}>OPS</span>
         </a>
-        <a href="/" style={{ fontSize: "0.875rem", color: "#6B7280", textDecoration: "none" }}>← Back to home</a>
+        <a href="/" style={{ fontSize: "0.875rem", color: "#6B7280", textDecoration: "none" }}>â† Back to home</a>
       </nav>
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "4rem 2rem" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "3rem" }}>
-          <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "0.75rem" }}>Legal</p>
-          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "3rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.5rem" }}>Terms of Service</h1>
-          <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>Effective date: May 1, 2026 · Last updated: May 1, 2026</p>
+          <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#111111", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "0.75rem" }}>Legal</p>
+          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "3rem", letterSpacing: "0.02em", color: "#111111", marginBottom: "0.5rem" }}>Terms of Service</h1>
+          <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>Effective date: May 1, 2026 Â· Last updated: May 1, 2026</p>
         </div>
 
         <div style={{ color: "#374151", fontSize: "0.95rem", lineHeight: 1.8 }}>
 
           <p style={{ marginBottom: "1.5rem" }}>
-            Please read these Terms of Service ("Terms") carefully before using RennOps. By accessing or using the Service you agree to be bound by these Terms. If you do not agree, do not use the Service.
+            Please read these Terms of Service ("Terms") carefully before using Lawrenn. By accessing or using the Service you agree to be bound by these Terms. If you do not agree, do not use the Service.
           </p>
 
           {[
             {
               title: "1. The Service",
-              content: "RennOps provides an AI-powered phone receptionist platform that answers inbound calls, books appointments, sends SMS notifications, and provides business analytics for service businesses. The Service includes our web dashboard at rennops.com, our AI infrastructure, and all related software.",
+              content: "Lawrenn provides an AI-powered phone receptionist platform that answers inbound calls, books appointments, sends SMS notifications, and provides business analytics for service businesses. The Service includes our web dashboard at Lawrenn.com, our AI infrastructure, and all related software.",
             },
             {
               title: "2. Eligibility",
@@ -40,7 +40,7 @@ export default function TermsOfService() {
               items: [
                 "Provide accurate and complete information during registration.",
                 "Keep your account credentials secure and not share them with unauthorized parties.",
-                "Notify us immediately at security@rennops.com if you suspect unauthorized access.",
+                "Notify us immediately at security@Lawrenn.com if you suspect unauthorized access.",
                 "Be responsible for all activity that occurs under your account.",
               ],
             },
@@ -49,7 +49,7 @@ export default function TermsOfService() {
               subsections: [
                 {
                   title: "4.1 Plans and pricing",
-                  content: "RennOps offers subscription plans as described on our pricing page. Plans are billed monthly in advance. Prices are subject to change with 30 days notice.",
+                  content: "Lawrenn offers subscription plans as described on our pricing page. Plans are billed monthly in advance. Prices are subject to change with 30 days notice.",
                 },
                 {
                   title: "4.2 Free trial",
@@ -89,22 +89,22 @@ export default function TermsOfService() {
                 "State-level telemarketing and robocall laws",
                 "10DLC registration requirements",
               ],
-              footer: "You represent and warrant that you have obtained all required consents from your customers before using RennOps to call or SMS them. RennOps provides compliance tools but is not responsible for your compliance failures.",
+              footer: "You represent and warrant that you have obtained all required consents from your customers before using Lawrenn to call or SMS them. Lawrenn provides compliance tools but is not responsible for your compliance failures.",
             },
             {
               title: "7. Call Recording Disclosure",
-              content: "Some jurisdictions require you to disclose to callers that a call is being recorded. You are responsible for ensuring your disclosure meets the legal requirements in all jurisdictions where you operate. RennOps is not liable for any penalties arising from your failure to provide required disclosures.",
+              content: "Some jurisdictions require you to disclose to callers that a call is being recorded. You are responsible for ensuring your disclosure meets the legal requirements in all jurisdictions where you operate. Lawrenn is not liable for any penalties arising from your failure to provide required disclosures.",
             },
             {
               title: "8. Intellectual Property",
               subsections: [
                 {
                   title: "8.1 Our IP",
-                  content: "RennOps and its licensors own all rights in the Service, including all software, designs, trademarks, and content. These Terms do not grant you any rights to our intellectual property except the limited license to use the Service.",
+                  content: "Lawrenn and its licensors own all rights in the Service, including all software, designs, trademarks, and content. These Terms do not grant you any rights to our intellectual property except the limited license to use the Service.",
                 },
                 {
                   title: "8.2 Your IP",
-                  content: "You retain ownership of all data you submit to the Service. You grant RennOps a limited license to use this data solely to provide the Service to you.",
+                  content: "You retain ownership of all data you submit to the Service. You grant Lawrenn a limited license to use this data solely to provide the Service to you.",
                 },
                 {
                   title: "8.3 Feedback",
@@ -114,28 +114,28 @@ export default function TermsOfService() {
             },
             {
               title: "9. Data and Privacy",
-              content: "Our Privacy Policy, available at rennops.com/privacy, describes how we collect, use, and share your information. By using the Service you agree to our Privacy Policy. You are the data controller for your customers' personal data. RennOps acts as a data processor on your behalf.",
+              content: "Our Privacy Policy, available at Lawrenn.com/privacy, describes how we collect, use, and share your information. By using the Service you agree to our Privacy Policy. You are the data controller for your customers' personal data. Lawrenn acts as a data processor on your behalf.",
             },
             {
               title: "10. Disclaimers",
-              content: "THE SERVICE IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR UNINTERRUPTED OPERATION. RENNOPS DOES NOT WARRANT THAT THE AI AGENT WILL ACCURATELY HANDLE ALL CALLS OR BOOK ALL APPOINTMENTS CORRECTLY. YOU ARE RESPONSIBLE FOR MONITORING YOUR AI AGENT'S PERFORMANCE AND VERIFYING BOOKINGS.",
+              content: "THE SERVICE IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR UNINTERRUPTED OPERATION. Lawrenn DOES NOT WARRANT THAT THE AI AGENT WILL ACCURATELY HANDLE ALL CALLS OR BOOK ALL APPOINTMENTS CORRECTLY. YOU ARE RESPONSIBLE FOR MONITORING YOUR AI AGENT'S PERFORMANCE AND VERIFYING BOOKINGS.",
               bold: true,
             },
             {
               title: "11. Limitation of Liability",
-              content: "TO THE MAXIMUM EXTENT PERMITTED BY LAW, RENNOPS AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS. RENNOPS'S TOTAL LIABILITY FOR ANY CLAIM SHALL NOT EXCEED THE AMOUNT YOU PAID TO RENNOPS IN THE 12 MONTHS PRECEDING THE CLAIM.",
+              content: "TO THE MAXIMUM EXTENT PERMITTED BY LAW, Lawrenn AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS. Lawrenn'S TOTAL LIABILITY FOR ANY CLAIM SHALL NOT EXCEED THE AMOUNT YOU PAID TO Lawrenn IN THE 12 MONTHS PRECEDING THE CLAIM.",
               bold: true,
             },
             {
               title: "12. Indemnification",
-              content: "You agree to defend, indemnify, and hold harmless RennOps and its officers, directors, employees, and agents from any claims, liabilities, damages, losses, and expenses arising out of or relating to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any applicable law or third-party rights; or (d) your failure to obtain required consents for SMS or telephone communications.",
+              content: "You agree to defend, indemnify, and hold harmless Lawrenn and its officers, directors, employees, and agents from any claims, liabilities, damages, losses, and expenses arising out of or relating to: (a) your use of the Service; (b) your violation of these Terms; (c) your violation of any applicable law or third-party rights; or (d) your failure to obtain required consents for SMS or telephone communications.",
             },
             {
               title: "13. Term and Termination",
               content: "These Terms remain in effect while you use the Service.",
               items: [
                 "You may terminate by cancelling your subscription and deleting your account.",
-                "We may suspend or terminate your account immediately if you breach these Terms, fail to pay, or use the Service in a way that creates legal or reputational risk for RennOps.",
+                "We may suspend or terminate your account immediately if you breach these Terms, fail to pay, or use the Service in a way that creates legal or reputational risk for Lawrenn.",
               ],
               footer: "Upon termination, your right to use the Service ends immediately. We will delete your data within 30 days of account closure.",
             },
@@ -150,24 +150,24 @@ export default function TermsOfService() {
             {
               title: "16. General",
               items: [
-                "Entire agreement: these Terms, together with the Privacy Policy, constitute the entire agreement between you and RennOps regarding the Service.",
+                "Entire agreement: these Terms, together with the Privacy Policy, constitute the entire agreement between you and Lawrenn regarding the Service.",
                 "Severability: if any provision of these Terms is found unenforceable, the remaining provisions remain in full force.",
                 "Waiver: our failure to enforce any provision does not constitute a waiver of our right to enforce it in the future.",
                 "Assignment: you may not assign these Terms without our prior written consent.",
-                "Notices: legal notices to RennOps should be sent to hello@rennops.com.",
+                "Notices: legal notices to Lawrenn should be sent to hello@Lawrenn.com.",
               ],
             },
             {
               title: "17. Contact",
               content: "For questions about these Terms:",
               items: [
-                "Email: hello@rennops.com",
-                "Website: rennops.com",
+                "Email: hello@Lawrenn.com",
+                "Website: Lawrenn.com",
               ],
             },
           ].map(({ title, content, items, subsections, footer, bold }: any) => (
             <div key={title} style={{ marginBottom: "2.5rem" }}>
-              <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.75rem", paddingBottom: "0.5rem", borderBottom: "2px solid rgba(12,192,223,0.2)" }}>
+              <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.75rem", paddingBottom: "0.5rem", borderBottom: "2px solid rgba(12,192,223,0.2)" }}>
                 {title}
               </h2>
               {content && (
@@ -184,7 +184,7 @@ export default function TermsOfService() {
               )}
               {subsections && subsections.map((sub: any) => (
                 <div key={sub.title} style={{ marginBottom: "1rem" }}>
-                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0D1B2A", marginBottom: "0.4rem" }}>{sub.title}</h3>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#111111", marginBottom: "0.4rem" }}>{sub.title}</h3>
                   <p style={{ marginBottom: sub.items ? "0.5rem" : 0 }}>{sub.content}</p>
                   {sub.items && (
                     <ul style={{ paddingLeft: "1.5rem", margin: 0 }}>
@@ -203,14 +203,14 @@ export default function TermsOfService() {
 
       {/* Footer */}
       <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "2rem 5%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.2rem", letterSpacing: "0.05em", color: "#0D1B2A" }}>
-          RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.2rem", letterSpacing: "0.05em", color: "#111111" }}>
+          RENN<span style={{ color: "#111111" }}>OPS</span>
         </span>
         <div style={{ display: "flex", gap: "1.5rem" }}>
           <a href="/privacy" style={{ fontSize: "0.82rem", color: "#6B7280", textDecoration: "none" }}>Privacy Policy</a>
-          <a href="/terms" style={{ fontSize: "0.82rem", color: "#0cc0df", textDecoration: "none" }}>Terms of Service</a>
+          <a href="/terms" style={{ fontSize: "0.82rem", color: "#111111", textDecoration: "none" }}>Terms of Service</a>
         </div>
-        <span style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>© 2026 RennOps. All rights reserved.</span>
+        <span style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>Â© 2026 Lawrenn. All rights reserved.</span>
       </div>
     </div>
   );

@@ -10,13 +10,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Business {
-  id: string;
-  name: string;
-  subscription_tier: string;
-  subscription_status: string;
-}
-
 interface Job {
   id: string;
   type: string;
@@ -43,10 +36,10 @@ export default function Dashboard() {
   const router = useRouter();
 
   const { businessId, businessName, loading: bizLoading } = useBusiness();
-  const [jobs, setJobs]             = useState<Job[]>([]);
-  const [calls, setCalls]           = useState<Call[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [greeting, setGreeting]     = useState("Good morning");
+  const [jobs, setJobs]         = useState<Job[]>([]);
+  const [calls, setCalls]       = useState<Call[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [greeting, setGreeting] = useState("Good morning");
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -60,7 +53,6 @@ export default function Dashboard() {
     if (!businessId) { router.push("/login"); return; }
 
     async function load() {
-      // Fetch today's and upcoming jobs
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date();
@@ -81,7 +73,6 @@ export default function Dashboard() {
 
       setJobs((jobsData as any) ?? []);
 
-      // Fetch recent calls
       const { data: callsData } = await supabase
         .from("calls")
         .select(`
@@ -97,7 +88,6 @@ export default function Dashboard() {
     }
     load();
 
-    // Realtime subscriptions
     const callsSub = supabase
       .channel(`dashboard-calls-${businessId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, (payload) => {
@@ -121,61 +111,55 @@ export default function Dashboard() {
     };
   }, [businessId, bizLoading, router]);
 
-  // Stats
-  const todayJobs    = jobs.filter(j => {
+  const todayJobs = jobs.filter(j => {
     const d = new Date(j.slot_start);
-    const today = new Date();
-    return d.toDateString() === today.toDateString();
-  });
-
-  const weekRevenue  = jobs
-    .filter(j => j.status === "complete" || j.status === "invoiced")
-    .reduce((sum, j) => sum + (j.amount ?? 0), 0);
-
-  const todayCalls   = calls.filter(c => {
-    const d = new Date(c.created_at);
     return d.toDateString() === new Date().toDateString();
   });
 
-  const aiJobsCount  = jobs.filter(j => j.source === "voice_agent").length;
-  const aiRate       = jobs.length > 0 ? Math.round((aiJobsCount / jobs.length) * 100) : 0;
+  const weekRevenue = jobs
+    .filter(j => j.status === "complete" || j.status === "invoiced")
+    .reduce((sum, j) => sum + (j.amount ?? 0), 0);
 
-  function outcomeColor(outcome: string) {
-    const map: Record<string, string> = {
-      booked:    "#10B981",
-      missed:    "#EF4444",
-      escalated: "#F59E0B",
-      voicemail: "#6B7280",
-      no_answer: "#6B7280",
-      in_progress: "#0cc0df",
+  const todayCalls = calls.filter(c => {
+    return new Date(c.created_at).toDateString() === new Date().toDateString();
+  });
+
+  const aiJobsCount = jobs.filter(j => j.source === "voice_agent").length;
+  const aiRate      = jobs.length > 0 ? Math.round((aiJobsCount / jobs.length) * 100) : 0;
+
+  function outcomeStyle(outcome: string): { color: string; bg: string } {
+    const map: Record<string, { color: string; bg: string }> = {
+      booked:      { color: "#166534", bg: "rgba(22,101,52,0.07)"  },
+      missed:      { color: "#991B1B", bg: "rgba(153,27,27,0.07)"  },
+      escalated:   { color: "#92400E", bg: "rgba(146,64,14,0.07)"  },
+      voicemail:   { color: "#374151", bg: "rgba(0,0,0,0.05)"      },
+      no_answer:   { color: "#374151", bg: "rgba(0,0,0,0.05)"      },
+      in_progress: { color: "#374151", bg: "rgba(0,0,0,0.05)"      },
     };
-    return map[outcome] ?? "#6B7280";
+    return map[outcome] ?? { color: "#374151", bg: "rgba(0,0,0,0.05)" };
   }
 
-  function statusColor(status: string) {
-    const map: Record<string, string> = {
-      booked:     "#0cc0df",
-      in_progress:"#F59E0B",
-      complete:   "#10B981",
-      canceled:   "#EF4444",
-      invoiced:   "#8B5CF6",
+  function statusStyle(status: string): { color: string; bg: string } {
+    const map: Record<string, { color: string; bg: string }> = {
+      booked:      { color: "#374151", bg: "rgba(0,0,0,0.05)"      },
+      in_progress: { color: "#92400E", bg: "rgba(146,64,14,0.07)"  },
+      complete:    { color: "#166534", bg: "rgba(22,101,52,0.07)"  },
+      canceled:    { color: "#991B1B", bg: "rgba(153,27,27,0.07)"  },
+      invoiced:    { color: "#5B21B6", bg: "rgba(91,33,182,0.07)"  },
     };
-    return map[status] ?? "#6B7280";
+    return map[status] ?? { color: "#374151", bg: "rgba(0,0,0,0.05)" };
   }
 
   function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString("en-US", {
-      hour: "numeric", minute: "2-digit", hour12: true,
-    });
+    return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   }
 
   function formatDate(iso: string) {
     const d = new Date(iso);
-    const today = new Date();
+    const today    = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === today.toDateString())    return "Today";
     if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   }
@@ -187,52 +171,47 @@ export default function Dashboard() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", color: "#0D1B2A", marginBottom: "1rem" }}>
-            RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", color: "#111111", marginBottom: "1rem", letterSpacing: "0.08em" }}>
+            LAW<span style={{ color: "rgba(17,17,17,0.3)" }}>RENN</span>
           </div>
-          <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>Loading your dashboard...</p>
+          <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+  const divider: React.CSSProperties = { height: 1, background: "rgba(0,0,0,0.06)" };
 
-      {/* Main content */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 2rem" }}>
+  return (
+    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "2.5rem 2rem" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: "2rem" }}>
-          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>
+        <div style={{ marginBottom: "2.5rem" }}>
+          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#111111", marginBottom: "0.2rem" }}>
             {greeting}
           </h1>
-          <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>
-            Here's what's happening with {businessName} today.
+          <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>
+            {businessName} &middot; here&apos;s what&apos;s happening today
           </p>
         </div>
 
         {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1px", background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden", marginBottom: "2.5rem" }}>
           {[
-            { label: "Calls today",      value: todayCalls.length,           sub: "AI answered",        color: "#0cc0df" },
-            { label: "Jobs this week",   value: jobs.length,                 sub: `${aiRate}% via AI`,  color: "#8B5CF6" },
-            { label: "Revenue this week",value: `$${weekRevenue.toLocaleString()}`, sub: "completed jobs", color: "#10B981" },
-            { label: "Today's jobs",     value: todayJobs.length,            sub: "scheduled",          color: "#F59E0B" },
-          ].map(({ label, value, sub, color }) => (
-            <div key={label} style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.25rem 1.5rem" }}>
-              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>{label}</p>
-              <div style={{ fontFamily: "'Bebas Neue'", fontSize: "2.2rem", letterSpacing: "0.02em", color, lineHeight: 1, marginBottom: "0.25rem" }}>{value}</div>
-              <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>{sub}</p>
+            { label: "Calls today",       value: todayCalls.length,                  sub: "AI answered"        },
+            { label: "Matters this week", value: jobs.length,                        sub: `${aiRate}% via AI`  },
+            { label: "Revenue this week", value: `$${weekRevenue.toLocaleString()}`, sub: "completed matters"  },
+            { label: "Today's schedule",  value: todayJobs.length,                   sub: "matters scheduled"  },
+          ].map(({ label, value, sub }) => (
+            <div key={label} style={{ background: "white", padding: "1.5rem 1.25rem" }}>
+              <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.6rem" }}>{label}</p>
+              <div style={{ fontFamily: "'Bebas Neue'", fontSize: "2.4rem", letterSpacing: "0.02em", color: "#111111", lineHeight: 1, marginBottom: "0.3rem" }}>{value}</div>
+              <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>{sub}</p>
             </div>
           ))}
         </div>
@@ -240,97 +219,109 @@ export default function Dashboard() {
         {/* Two column layout */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
 
-          {/* Upcoming jobs */}
-          <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h2 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0D1B2A" }}>Upcoming jobs</h2>
-              <a href="/dashboard/jobs" style={{ fontSize: "0.8rem", color: "#0cc0df", textDecoration: "none", fontWeight: 600 }}>View all →</a>
+          {/* Upcoming matters */}
+          <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+              <h2 style={{ fontSize: "0.82rem", fontWeight: 600, color: "#111111", textTransform: "uppercase", letterSpacing: "0.08em" }}>Upcoming matters</h2>
+              <a href="/dashboard/jobs" style={{ fontSize: "0.78rem", color: "#111111", textDecoration: "none", fontWeight: 500, opacity: 0.5 }}>View all</a>
             </div>
 
             {jobs.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2rem 0" }}>
-                <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📅</p>
-                <p style={{ fontSize: "0.875rem", color: "#9CA3AF" }}>No upcoming jobs this week</p>
+              <div style={{ padding: "2.5rem 1.25rem", textAlign: "center" }}>
+                <p style={{ fontSize: "0.875rem", color: "#9CA3AF" }}>No matters scheduled this week</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {jobs.slice(0, 5).map(job => (
-                  <div key={job.id} onClick={() => router.push(`/dashboard/jobs?job=${job.id}`)} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F0FAFE")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "#F9FAFB")}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: job.technicians?.color ?? "#0cc0df", flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {job.customers?.name ?? "Unknown"} — {job.type}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>
-                        {formatDate(job.slot_start)} · {formatTime(job.slot_start)}
-                        {job.technicians?.name ? ` · ${job.technicians.name}` : ""}
-                      </p>
+              <div>
+                {jobs.slice(0, 5).map((job, i) => {
+                  const st = statusStyle(job.status);
+                  return (
+                    <div key={job.id}>
+                      {i > 0 && <div style={divider} />}
+                      <div
+                        onClick={() => router.push(`/dashboard/jobs?job=${job.id}`)}
+                        style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.875rem 1.25rem", cursor: "pointer", transition: "background 0.1s" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F0")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111", marginBottom: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {job.customers?.name ?? "Unknown"} &mdash; {job.type}
+                          </p>
+                          <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                            {formatDate(job.slot_start)} &middot; {formatTime(job.slot_start)}
+                            {job.technicians?.name ? ` · ${job.technicians.name}` : ""}
+                          </p>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
+                          <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 4, background: st.bg, color: st.color, textTransform: "capitalize" }}>
+                            {job.status.replace("_", " ")}
+                          </span>
+                          {job.source === "voice_agent" && (
+                            <span style={{ fontSize: "0.68rem", color: "#9CA3AF", fontWeight: 500 }}>AI booked</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
-                      <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 100, background: `${statusColor(job.status)}15`, color: statusColor(job.status) }}>
-                        {job.status}
-                      </span>
-                      {job.source === "voice_agent" && (
-                        <span style={{ fontSize: "0.68rem", color: "#8B5CF6", fontWeight: 600 }}>AI booked</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Recent calls */}
-          <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h2 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0D1B2A" }}>Recent calls</h2>
-              <a href="/dashboard/calls" style={{ fontSize: "0.8rem", color: "#0cc0df", textDecoration: "none", fontWeight: 600 }}>View all →</a>
+          <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+              <h2 style={{ fontSize: "0.82rem", fontWeight: 600, color: "#111111", textTransform: "uppercase", letterSpacing: "0.08em" }}>Recent calls</h2>
+              <a href="/dashboard/calls" style={{ fontSize: "0.78rem", color: "#111111", textDecoration: "none", fontWeight: 500, opacity: 0.5 }}>View all</a>
             </div>
 
             {calls.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2rem 0" }}>
-                <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📞</p>
+              <div style={{ padding: "2.5rem 1.25rem", textAlign: "center" }}>
                 <p style={{ fontSize: "0.875rem", color: "#9CA3AF" }}>No calls yet</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {calls.map(call => (
-                  <div key={call.id} onClick={() => router.push(`/dashboard/calls?call=${call.id}`)} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", background: "#F9FAFB", borderRadius: 8, cursor: "pointer", transition: "background 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F0FAFE")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "#F9FAFB")}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${outcomeColor(call.outcome)}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
-                      {call.outcome === "booked" ? "📅" : call.outcome === "missed" ? "📵" : call.outcome === "escalated" ? "⚡" : "📞"}
+              <div>
+                {calls.map((call, i) => {
+                  const oc = outcomeStyle(call.outcome);
+                  return (
+                    <div key={call.id}>
+                      {i > 0 && <div style={divider} />}
+                      <div
+                        onClick={() => router.push(`/dashboard/calls?call=${call.id}`)}
+                        style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.875rem 1.25rem", cursor: "pointer", transition: "background 0.1s" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F0")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111", marginBottom: "0.15rem" }}>
+                            {call.customers?.name ?? call.caller_phone}
+                          </p>
+                          <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                            {formatTime(call.created_at)} &middot; {formatDuration(call.duration_seconds)}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 4, background: oc.bg, color: oc.color, textTransform: "capitalize", whiteSpace: "nowrap" }}>
+                          {call.outcome.replace("_", " ")}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem" }}>
-                        {call.customers?.name ?? call.caller_phone}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>
-                        {formatTime(call.created_at)} · {formatDuration(call.duration_seconds)}
-                      </p>
-                    </div>
-                    <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 100, background: `${outcomeColor(call.outcome)}15`, color: outcomeColor(call.outcome), whiteSpace: "nowrap" }}>
-                      {call.outcome}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
 
-        {/* AI capture banner */}
+        {/* AI performance */}
         {aiRate > 0 && (
-          <div style={{ marginTop: "1.5rem", background: "linear-gradient(135deg, #0D1B2A, #1a3a5c)", borderRadius: 12, padding: "1.5rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ marginTop: "1.5rem", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.5rem 1.75rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "rgba(12,192,223,0.8)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.25rem" }}>AI performance this week</p>
-              <p style={{ fontSize: "1.1rem", fontWeight: 600, color: "white" }}>
-                Your AI answered calls and booked <span style={{ color: "#0cc0df" }}>{aiJobsCount} job{aiJobsCount !== 1 ? "s" : ""}</span> automatically
+              <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.3rem" }}>AI performance this week</p>
+              <p style={{ fontSize: "0.975rem", fontWeight: 500, color: "#111111" }}>
+                Your AI assistant booked {aiJobsCount} matter{aiJobsCount !== 1 ? "s" : ""} automatically
               </p>
             </div>
-            <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3rem", color: "#0cc0df", letterSpacing: "0.02em" }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: "2.8rem", color: "#111111", letterSpacing: "0.02em", opacity: 0.15 }}>
               {aiRate}%
             </div>
           </div>

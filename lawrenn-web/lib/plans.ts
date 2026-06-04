@@ -29,7 +29,7 @@ export const PLAN_FEATURES: Record<Plan, {
   pro: {
     label:             "Pro",
     price:             199,
-    intelligence:      false,
+    intelligence:      true,
     outboundSequences: true,
     reviewEngine:      true,
     smartMessaging:    true,

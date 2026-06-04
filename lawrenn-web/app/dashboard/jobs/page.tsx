@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, type CSSProperties, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
 import { useBusiness } from "@/context/BusinessContext";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import FullCalendar from "@fullcalendar/react";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, type CSSProperties } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,48 +33,49 @@ interface Job {
 const STATUSES = ["booked", "in_progress", "complete", "invoiced", "canceled"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  booked:      { label: "Booked",      color: "#0cc0df", bg: "rgba(12,192,223,0.08)"  },
-  in_progress: { label: "In Progress", color: "#F59E0B", bg: "rgba(245,158,11,0.08)"  },
-  complete:    { label: "Complete",    color: "#10B981", bg: "rgba(16,185,129,0.08)"  },
-  invoiced:    { label: "Invoiced",    color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
-  canceled:    { label: "Canceled",    color: "#EF4444", bg: "rgba(239,68,68,0.08)"   },
+  booked:      { label: "Scheduled",   color: "#374151", bg: "rgba(0,0,0,0.05)"      },
+  in_progress: { label: "Active",      color: "#92400E", bg: "rgba(146,64,14,0.07)"  },
+  complete:    { label: "Closed",      color: "#166534", bg: "rgba(22,101,52,0.07)"  },
+  invoiced:    { label: "Billed",      color: "#5B21B6", bg: "rgba(91,33,182,0.07)"  },
+  canceled:    { label: "Dismissed",   color: "#991B1B", bg: "rgba(153,27,27,0.07)"  },
 };
 
 const inputSt: CSSProperties = {
   width: "100%",
   padding: "0.75rem 1rem",
-  background: "#F9FAFB",
+  background: "#F5F5F0",
   border: "1.5px solid rgba(0,0,0,0.1)",
   borderRadius: 8,
-  color: "#0D1B2A",
+  color: "#111111",
   fontFamily: "'DM Sans'",
   fontSize: "0.9rem",
   outline: "none",
   boxSizing: "border-box",
 };
 
-function JobsPageInner() {
+function MattersPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const calendarWrapRef = useRef<HTMLDivElement | null>(null);
   const hoverCellRef = useRef<HTMLDivElement | null>(null);
   const { businessId, settings, loading: bizLoading } = useBusiness();
 
-  const [jobs, setJobs]             = useState<Job[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [selected, setSelected]     = useState<Job | null>(null);
-  const [filter, setFilter]         = useState("all");
-  const [view, setView]             = useState<"list" | "calendar">("list");
-  const [showAddJob, setShowAddJob] = useState(false);
-  const [updating, setUpdating]     = useState(false);
-  const [confirmComplete, setConfirmComplete] = useState<string | null>(null);
-  const [confirmOverride, setConfirmOverride] = useState<{ jobId: string; status: string } | null>(null);
-  const [services, setServices]     = useState<{name: string; duration_mins: number}[]>([]);
-  const [technicians, setTechnicians] = useState<{id: string; name: string; color: string}[]>([]);
-  const [customers, setCustomers]   = useState<{id: string; name: string; phone: string}[]>([]);
-  const [newJob, setNewJob]         = useState({
+  const [jobs, setJobs]                 = useState<Job[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [selected, setSelected]         = useState<Job | null>(null);
+  const [filter, setFilter]             = useState("all");
+  const [view, setView]                 = useState<"list" | "calendar">("list");
+  const [showAddJob, setShowAddJob]     = useState(false);
+  const [updating, setUpdating]         = useState(false);
+  const [confirmComplete, setConfirmComplete]   = useState<string | null>(null);
+  const [confirmOverride, setConfirmOverride]   = useState<{ jobId: string; status: string } | null>(null);
+  const [services, setServices]         = useState<{ name: string }[]>([]);
+  const [technicians, setTechnicians]   = useState<{ id: string; name: string; color: string }[]>([]);
+  const [customers, setCustomers]       = useState<{ id: string; name: string; phone: string }[]>([]);
+  const [newJob, setNewJob]             = useState({
     customer_id: "",
-    customer_name: "",
+    customer_first_name: "",
+    customer_last_name: "",
     customer_phone: "",
     job_type: "",
     slot_start: "",
@@ -82,9 +83,9 @@ function JobsPageInner() {
     technician_id: "",
     notes: "",
   });
-  const [addingJob, setAddingJob]   = useState(false);
-  const [jobError, setJobError]     = useState("");
-  const [newCustomer, setNewCustomer] = useState(false);
+  const [addingJob, setAddingJob]       = useState(false);
+  const [jobError, setJobError]         = useState("");
+  const [newCustomer, setNewCustomer]   = useState(false);
 
   useEffect(() => {
     if (view !== "calendar") return;
@@ -93,61 +94,44 @@ function JobsPageInner() {
     const hoverEl = hoverCellRef.current;
     if (!wrapper || !hoverEl) return;
 
-    const setHidden = () => {
-      hoverEl.style.opacity = "0";
-    };
+    const setHidden = () => { hoverEl.style.opacity = "0"; };
 
     const renderMonthHover = (target: HTMLElement, wrapperRect: DOMRect) => {
       const dayCell = target.closest(".fc-daygrid-day") as HTMLElement | null;
-      if (!dayCell) {
-        setHidden();
-        return;
-      }
+      if (!dayCell) { setHidden(); return; }
 
       const rect = dayCell.getBoundingClientRect();
-      hoverEl.style.left = `${rect.left - wrapperRect.left + wrapper.scrollLeft}px`;
-      hoverEl.style.top = `${rect.top - wrapperRect.top + wrapper.scrollTop}px`;
-      hoverEl.style.width = `${rect.width}px`;
+      hoverEl.style.left   = `${rect.left - wrapperRect.left + wrapper.scrollLeft}px`;
+      hoverEl.style.top    = `${rect.top - wrapperRect.top + wrapper.scrollTop}px`;
+      hoverEl.style.width  = `${rect.width}px`;
       hoverEl.style.height = `${rect.height}px`;
       hoverEl.style.borderRadius = "12px";
       hoverEl.style.opacity = "1";
     };
 
     const renderTimeGridHover = (event: MouseEvent, wrapperRect: DOMRect) => {
-      const columns = Array.from(wrapper.querySelectorAll(".fc-timegrid-col")) as HTMLElement[];
+      const columns   = Array.from(wrapper.querySelectorAll(".fc-timegrid-col")) as HTMLElement[];
       const slotLanes = Array.from(wrapper.querySelectorAll(".fc-timegrid-slot-lane")) as HTMLElement[];
 
-      if (columns.length === 0 || slotLanes.length === 0) {
-        setHidden();
-        return;
-      }
+      if (columns.length === 0 || slotLanes.length === 0) { setHidden(); return; }
 
-      const dayColumn = columns.find((column) => {
-        const rect = column.getBoundingClientRect();
-        return event.clientX >= rect.left && event.clientX <= rect.right;
+      const dayColumn = columns.find((col) => {
+        const r = col.getBoundingClientRect();
+        return event.clientX >= r.left && event.clientX <= r.right;
       });
+      if (!dayColumn) { setHidden(); return; }
 
-      if (!dayColumn) {
-        setHidden();
-        return;
-      }
-
-      const columnRect = dayColumn.getBoundingClientRect();
+      const columnRect  = dayColumn.getBoundingClientRect();
       const hoveredSlot = slotLanes.find((slot) => {
-        const rect = slot.getBoundingClientRect();
-        return event.clientY >= rect.top && event.clientY <= rect.bottom;
+        const r = slot.getBoundingClientRect();
+        return event.clientY >= r.top && event.clientY <= r.bottom;
       });
-
-      if (!hoveredSlot) {
-        setHidden();
-        return;
-      }
+      if (!hoveredSlot) { setHidden(); return; }
 
       const slotRect = hoveredSlot.getBoundingClientRect();
-
-      hoverEl.style.left = `${columnRect.left - wrapperRect.left + wrapper.scrollLeft}px`;
-      hoverEl.style.top = `${slotRect.top - wrapperRect.top + wrapper.scrollTop}px`;
-      hoverEl.style.width = `${columnRect.width}px`;
+      hoverEl.style.left   = `${columnRect.left - wrapperRect.left + wrapper.scrollLeft}px`;
+      hoverEl.style.top    = `${slotRect.top - wrapperRect.top + wrapper.scrollTop}px`;
+      hoverEl.style.width  = `${columnRect.width}px`;
       hoverEl.style.height = `${slotRect.height}px`;
       hoverEl.style.borderRadius = "10px";
       hoverEl.style.opacity = "1";
@@ -156,25 +140,17 @@ function JobsPageInner() {
     const handleMove = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
-
       const wrapperRect = wrapper.getBoundingClientRect();
 
-      if (target.closest(".fc-daygrid-body")) {
-        renderMonthHover(target, wrapperRect);
-        return;
-      }
-
+      if (target.closest(".fc-daygrid-body")) { renderMonthHover(target, wrapperRect); return; }
       if (target.closest(".fc-timegrid-body") || target.closest(".fc-timegrid-slots") || target.closest(".fc-timegrid-cols")) {
-        renderTimeGridHover(event, wrapperRect);
-        return;
+        renderTimeGridHover(event, wrapperRect); return;
       }
-
       setHidden();
     };
 
     wrapper.addEventListener("mousemove", handleMove);
     wrapper.addEventListener("mouseleave", setHidden);
-
     return () => {
       wrapper.removeEventListener("mousemove", handleMove);
       wrapper.removeEventListener("mouseleave", setHidden);
@@ -185,7 +161,6 @@ function JobsPageInner() {
     if (bizLoading) return;
     if (!businessId) { router.push("/login"); return; }
 
-    // Channel must be created synchronously before any awaits
     const jobsChannel = supabase
       .channel("jobs-page")
       .on("postgres_changes", {
@@ -215,8 +190,6 @@ function JobsPageInner() {
         .limit(50);
 
       setJobs((data as any) ?? []);
-
-      // Services come from BusinessContext settings — no extra round-trip needed
       setServices(settings?.services ?? []);
 
       const { data: techsData } = await supabase
@@ -238,13 +211,13 @@ function JobsPageInner() {
 
       const jobId = searchParams.get("job");
       if (jobId) {
-        const { data } = await supabase.from("jobs").select(`
+        const { data: single } = await supabase.from("jobs").select(`
           id, type, status, slot_start, slot_end, amount, source,
           notes, ai_notes, created_at, technician_id,
           customers (id, name, phone, address),
           technicians (name, color)
         `).eq("id", jobId).single();
-        if (data) setSelected(data as any);
+        if (single) setSelected(single as any);
       }
     }
     load();
@@ -259,20 +232,17 @@ function JobsPageInner() {
 
     try {
       await supabase.from("jobs").update(updates).eq("id", jobId);
-
       setJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...updates } : j));
       if (selected?.id === jobId) setSelected(prev => ({ ...prev!, ...updates }));
 
       if (status === "complete") {
         try {
-          console.log("Triggering review request for job:", jobId);
           const reviewRes = await fetch("/api/trigger-review-request", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ job_id: jobId }),
           });
-          const reviewData = await reviewRes.json();
-          console.log("Review request response:", reviewData);
+          await reviewRes.json();
         } catch (reviewErr) {
           console.error("Review request failed (non-critical):", reviewErr);
         }
@@ -302,35 +272,31 @@ function JobsPageInner() {
     if (!value) return "";
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value;
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T09:00`;
-
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
   }
 
-  async function addJob() {
+  async function addMatter() {
     setJobError("");
 
-    if (!newJob.job_type) { setJobError("Select a job type"); return; }
-    if (!newJob.slot_start) { setJobError("Select a date and time"); return; }
-
+    if (!newJob.job_type.trim()) { setJobError("Enter a practice area"); return; }
     if (!newJob.customer_id && !newJob.customer_phone) {
-      setJobError("Select a customer or enter a phone number");
+      setJobError("Select a client or enter a phone number");
       return;
     }
 
     setAddingJob(true);
 
     try {
-      const slotStart = new Date(newJob.slot_start);
-      const slotEnd = new Date(slotStart.getTime() + newJob.duration_mins * 60 * 1000);
+      const slotStart = newJob.slot_start ? new Date(newJob.slot_start) : new Date();
+      const slotEnd   = new Date(slotStart.getTime() + newJob.duration_mins * 60 * 1000);
 
-      // Conflict check
       if (newJob.technician_id) {
-        const buffer = 30 * 60 * 1000;
+        const buffer       = 30 * 60 * 1000;
         const bufferedStart = new Date(slotStart.getTime() - buffer).toISOString();
-        const bufferedEnd = new Date(slotEnd.getTime() + buffer).toISOString();
+        const bufferedEnd   = new Date(slotEnd.getTime() + buffer).toISOString();
 
         const { data: conflicts } = await supabase
           .from("jobs")
@@ -342,17 +308,15 @@ function JobsPageInner() {
           .gt("slot_end", bufferedStart);
 
         if (conflicts && conflicts.length > 0) {
-          const conflict = conflicts[0];
-          const conflictTime = new Date(conflict.slot_start).toLocaleTimeString("en-US", {
-            hour: "numeric", minute: "2-digit"
+          const conflictTime = new Date(conflicts[0].slot_start).toLocaleTimeString("en-US", {
+            hour: "numeric", minute: "2-digit",
           });
-          setJobError(`Conflict with existing job at ${conflictTime}. Choose a different time or technician.`);
+          setJobError(`Scheduling conflict with existing matter at ${conflictTime}. Choose a different time or attorney.`);
           setAddingJob(false);
           return;
         }
       }
 
-      // Upsert customer
       let customerId = newJob.customer_id;
       if (!customerId && newJob.customer_phone) {
         const { data: customer } = await supabase
@@ -360,26 +324,25 @@ function JobsPageInner() {
           .upsert({
             business_id: businessId,
             phone: newJob.customer_phone,
-            name: newJob.customer_name || null,
+            name: [newJob.customer_first_name, newJob.customer_last_name].filter(Boolean).join(" ") || null,
           }, { onConflict: "business_id,phone" })
           .select("id")
           .single();
         customerId = customer?.id ?? "";
       }
 
-      // Insert job
       const { data: job, error } = await supabase
         .from("jobs")
         .insert({
-          business_id: businessId,
-          customer_id: customerId || null,
+          business_id:   businessId,
+          customer_id:   customerId || null,
           technician_id: newJob.technician_id || null,
-          type: newJob.job_type,
-          status: "booked",
-          slot_start: slotStart.toISOString(),
-          slot_end: slotEnd.toISOString(),
-          notes: newJob.notes || null,
-          source: "manual",
+          type:          newJob.job_type,
+          status:        "booked",
+          slot_start:    slotStart.toISOString(),
+          slot_end:      slotEnd.toISOString(),
+          notes:         newJob.notes || null,
+          source:        "manual",
         })
         .select("id")
         .single();
@@ -387,6 +350,16 @@ function JobsPageInner() {
       if (error) throw error;
 
       if (job?.id) {
+        // Fire-and-forget: embed the new job for RAG
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/embed-job`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ job_id: job.id, business_id: businessId, customer_id: customerId || null }),
+        }).catch(() => {});
+
         const { data: createdJob } = await supabase
           .from("jobs")
           .select(`
@@ -399,7 +372,7 @@ function JobsPageInner() {
           .single();
 
         if (createdJob) {
-          setJobs(prev => prev.some(existing => existing.id === (createdJob as any).id) ? prev : [createdJob as any, ...prev]);
+          setJobs(prev => prev.some(e => e.id === (createdJob as any).id) ? prev : [createdJob as any, ...prev]);
           setSelected(createdJob as any);
           setView("list");
         }
@@ -407,10 +380,10 @@ function JobsPageInner() {
 
       setShowAddJob(false);
       setNewCustomer(false);
-      setNewJob({ customer_id: "", customer_name: "", customer_phone: "", job_type: "", slot_start: "", duration_mins: 120, technician_id: "", notes: "" });
+      setNewJob({ customer_id: "", customer_first_name: "", customer_last_name: "", customer_phone: "", job_type: "", slot_start: "", duration_mins: 120, technician_id: "", notes: "" });
 
     } catch (err: any) {
-      setJobError(err.message ?? "Failed to create job");
+      setJobError(err.message ?? "Failed to create matter");
     } finally {
       setAddingJob(false);
     }
@@ -419,14 +392,14 @@ function JobsPageInner() {
   const filtered = filter === "all" ? jobs : jobs.filter(j => j.status === filter);
 
   function formatSlot(start: string, end: string) {
-    const s = new Date(start);
-    const e = new Date(end);
-    const today     = new Date();
-    const tomorrow  = new Date();
+    const s        = new Date(start);
+    const e        = new Date(end);
+    const today    = new Date();
+    const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     let day = "";
-    if (s.toDateString() === today.toDateString()) day = "Today";
+    if (s.toDateString() === today.toDateString())    day = "Today";
     else if (s.toDateString() === tomorrow.toDateString()) day = "Tomorrow";
     else day = s.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
@@ -435,53 +408,54 @@ function JobsPageInner() {
     return `${day} · ${timeStart} – ${timeEnd}`;
   }
 
+  const divider: CSSProperties = { height: 1, background: "rgba(0,0,0,0.06)" };
+
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-        <p style={{ color: "#6B7280" }}>Loading jobs...</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+        <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading matters...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
-
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2.5rem 2rem" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>Jobs</h1>
-            <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>All booked and completed jobs</p>
+            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#111111", marginBottom: "0.2rem" }}>Matters</h1>
+            <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>All scheduled and closed matters</p>
           </div>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button onClick={() => setShowAddJob(true)}
-              style={{ padding: "0.5rem 1rem", background: "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer" }}>
-              + Add job
+              style={{ padding: "0.5rem 1rem", background: "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
+              + Add matter
             </button>
             <button onClick={() => setView("list")}
-              style={{ padding: "0.5rem 1rem", background: view === "list" ? "#0D1B2A" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "list" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
-              ☰ List
+              style={{ padding: "0.5rem 1rem", background: view === "list" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "list" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
+              List
             </button>
             <button onClick={() => setView("calendar")}
-              style={{ padding: "0.5rem 1rem", background: view === "calendar" ? "#0D1B2A" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "calendar" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
-              📅 Calendar
+              style={{ padding: "0.5rem 1rem", background: view === "calendar" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "calendar" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
+              Calendar
             </button>
           </div>
         </div>
 
-        {/* Filter tabs — only show in list view */}
+        {/* Filter tabs */}
         {view === "list" && (
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
             {[{ key: "all", label: "All" }, ...STATUSES.map(s => ({ key: s, label: STATUS_CONFIG[s].label }))].map(({ key, label }) => (
               <button key={key} onClick={() => setFilter(key)}
                 style={{
-                  padding: "0.45rem 1rem",
-                  background: filter === key ? "#0D1B2A" : "white",
-                  border: `1px solid ${filter === key ? "#0D1B2A" : "rgba(0,0,0,0.1)"}`,
+                  padding: "0.4rem 0.9rem",
+                  background: filter === key ? "#111111" : "white",
+                  border: `1px solid ${filter === key ? "#111111" : "rgba(0,0,0,0.1)"}`,
                   borderRadius: 100,
                   color: filter === key ? "white" : "#6B7280",
-                  fontFamily: "'DM Sans'", fontSize: "0.85rem", fontWeight: 500,
+                  fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 500,
                   cursor: "pointer", transition: "all 0.15s",
                 }}>
                 {label}
@@ -491,271 +465,260 @@ function JobsPageInner() {
         )}
 
         {view === "list" ? (
-        /* existing split view code */
-        <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
 
-          {/* Jobs list */}
-          <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, overflow: "hidden" }}>
-            {filtered.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
-                <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📋</p>
-                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.4rem" }}>No jobs yet</p>
-                <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>Jobs booked by your AI will appear here</p>
-              </div>
-            ) : (
-              filtered.map((job, i) => {
-                const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.booked;
-                return (
-                  <div key={job.id} onClick={() => setSelected(selected?.id === job.id ? null : job)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.75rem",
-                      padding: "1rem 1.25rem",
-                      borderBottom: i < filtered.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
-                      cursor: "pointer",
-                      background: selected?.id === job.id ? "#F0FAFE" : "white",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "#F9FAFB"; }}
-                    onMouseLeave={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "white"; }}>
-
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: job.technicians?.color ?? "#0cc0df", flexShrink: 0 }} />
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {job.customers?.name ?? "Unknown"} — {job.type}
-                      </p>
-                      <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>
-                        {formatSlot(job.slot_start, job.slot_end)}
-                        {job.technicians?.name ? ` · ${job.technicians.name}` : ""}
-                      </p>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.3rem" }}>
-                      <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 100, background: cfg.bg, color: cfg.color }}>
-                        {cfg.label}
-                      </span>
-                      {job.source === "voice_agent" && (
-                        <span style={{ fontSize: "0.68rem", color: "#8B5CF6", fontWeight: 600 }}>AI booked</span>
-                      )}
-                      {job.amount > 0 && (
-                        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#10B981" }}>${job.amount}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Job detail panel */}
-          {selected && (
-            <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
-                <div>
-                  <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0D1B2A", marginBottom: "0.2rem" }}>{selected.type}</h3>
-                  <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>{formatSlot(selected.slot_start, selected.slot_end)}</p>
+            {/* Matters list */}
+            <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden" }}>
+              {filtered.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
+                  <p style={{ fontSize: "0.95rem", fontWeight: 500, color: "#111111", marginBottom: "0.4rem" }}>No matters</p>
+                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>Matters handled by your AI assistant will appear here</p>
                 </div>
-                <button onClick={() => setSelected(null)}
-                  style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem" }}>×</button>
-              </div>
+              ) : (
+                filtered.map((job, i) => {
+                  const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.booked;
+                  return (
+                    <div key={job.id}>
+                      {i > 0 && <div style={divider} />}
+                      <div
+                        onClick={() => setSelected(selected?.id === job.id ? null : job)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.75rem",
+                          padding: "1rem 1.25rem",
+                          cursor: "pointer",
+                          background: selected?.id === job.id ? "#F5F5F0" : "white",
+                          transition: "background 0.1s",
+                        }}
+                        onMouseEnter={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "#F5F5F0"; }}
+                        onMouseLeave={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "white"; }}
+                      >
+                        <div style={{ width: 3, height: 36, borderRadius: 2, background: job.technicians?.color ?? "rgba(0,0,0,0.15)", flexShrink: 0 }} />
 
-              {/* Customer info */}
-              {selected.customers && (
-                <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Customer</p>
-                  <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.2rem" }}>{selected.customers.name}</p>
-                  <p style={{ fontSize: "0.82rem", color: "#6B7280", marginBottom: "0.15rem" }}>{selected.customers.phone}</p>
-                  {selected.customers.address && (
-                    <p style={{ fontSize: "0.82rem", color: "#6B7280" }}>{selected.customers.address}</p>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111", marginBottom: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {job.customers?.name ?? "Unknown"} &mdash; {job.type}
+                          </p>
+                          <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                            {formatSlot(job.slot_start, job.slot_end)}
+                            {job.technicians?.name ? ` · ${job.technicians.name}` : ""}
+                          </p>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
+                          <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 4, background: cfg.bg, color: cfg.color }}>
+                            {cfg.label}
+                          </span>
+                          {job.source === "voice_agent" && (
+                            <span style={{ fontSize: "0.68rem", color: "#9CA3AF", fontWeight: 500 }}>AI scheduled</span>
+                          )}
+                          {job.amount > 0 && (
+                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#166534" }}>${job.amount}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Matter detail panel */}
+            {selected && (
+              <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1rem", fontWeight: 600, color: "#111111", marginBottom: "0.2rem" }}>{selected.type}</h3>
+                    <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>{formatSlot(selected.slot_start, selected.slot_end)}</p>
+                  </div>
+                  <button onClick={() => setSelected(null)}
+                    style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem", lineHeight: 1 }}>×</button>
+                </div>
+
+                {/* Client info */}
+                {selected.customers && (
+                  <div style={{ background: "#F5F5F0", borderRadius: 8, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Client</p>
+                    <p style={{ fontSize: "0.9rem", fontWeight: 500, color: "#111111", marginBottom: "0.2rem" }}>{selected.customers.name}</p>
+                    <p style={{ fontSize: "0.82rem", color: "#6B7280", marginBottom: "0.15rem" }}>{selected.customers.phone}</p>
+                    {selected.customers.address && (
+                      <p style={{ fontSize: "0.82rem", color: "#6B7280" }}>{selected.customers.address}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Status */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.6rem" }}>Status</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+                      {STATUSES.filter(s => s !== "complete").map((s) => {
+                        const cfg      = STATUS_CONFIG[s];
+                        const isActive = selected.status === s;
+                        return (
+                          <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            {s === "canceled" && <div style={{ width: 1, height: 28, background: "rgba(0,0,0,0.1)" }} />}
+                            <button
+                              onClick={() => handleStatusClick(selected.id, s)}
+                              disabled={updating || isActive}
+                              style={{
+                                padding: "0.3rem 0.7rem",
+                                background: isActive ? cfg.bg : "transparent",
+                                border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
+                                borderRadius: 100,
+                                color: isActive ? cfg.color : "#6B7280",
+                                fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 600,
+                                cursor: updating || isActive ? "not-allowed" : "pointer",
+                                opacity: updating ? 0.6 : 1,
+                                transition: "all 0.15s",
+                              }}>
+                              {cfg.label}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(() => {
+                      const cfg      = STATUS_CONFIG["complete"];
+                      const isActive = selected.status === "complete";
+                      return (
+                        <button
+                          onClick={() => handleStatusClick(selected.id, "complete")}
+                          disabled={updating || isActive}
+                          style={{
+                            padding: "0.3rem 1.25rem", alignSelf: "flex-start",
+                            background: isActive ? cfg.bg : "transparent",
+                            border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
+                            borderRadius: 100,
+                            color: isActive ? cfg.color : "#6B7280",
+                            fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 600,
+                            cursor: updating || isActive ? "not-allowed" : "pointer",
+                            opacity: updating ? 0.6 : 1,
+                            transition: "all 0.15s",
+                          }}>
+                          {cfg.label}
+                        </button>
+                      );
+                    })()}
+                  </div>
+
+                  {confirmComplete && (
+                    <div style={{ marginTop: "0.75rem", background: "rgba(22,101,52,0.06)", border: "1.5px solid rgba(22,101,52,0.2)", borderRadius: 8, padding: "0.85rem 1rem" }}>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#166534", marginBottom: "0.6rem" }}>Close this matter?</p>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button onClick={() => { updateStatus(confirmComplete, "complete"); setConfirmComplete(null); }}
+                          style={{ padding: "0.4rem 1rem", background: "#166534", border: "none", borderRadius: 6, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                          Yes, close it
+                        </button>
+                        <button onClick={() => setConfirmComplete(null)}
+                          style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 6, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {confirmOverride && (
+                    <div style={{ marginTop: "0.75rem", background: "rgba(146,64,14,0.06)", border: "1.5px solid rgba(146,64,14,0.2)", borderRadius: 8, padding: "0.85rem 1rem" }}>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#92400E", marginBottom: "0.25rem" }}>Matter is already closed.</p>
+                      <p style={{ fontSize: "0.8rem", color: "#78350F", marginBottom: "0.6rem" }}>Override the status?</p>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button onClick={() => { updateStatus(confirmOverride.jobId, confirmOverride.status); setConfirmOverride(null); }}
+                          style={{ padding: "0.4rem 1rem", background: "#92400E", border: "none", borderRadius: 6, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+                          Yes, override
+                        </button>
+                        <button onClick={() => setConfirmOverride(null)}
+                          style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 6, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
 
-              {/* Update status */}
-              <div style={{ marginBottom: "1rem" }}>
-                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Update status</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
-                    {STATUSES.filter(s => s !== "complete").map((s, i, arr) => {
-                      const cfg = STATUS_CONFIG[s];
-                      const isActive = selected.status === s;
-                      const showDivider = s === "canceled";
-                      return (
-                        <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                          {showDivider && <div style={{ width: 1, height: 32, background: "rgba(0,0,0,0.12)" }} />}
-                          <button onClick={() => handleStatusClick(selected.id, s)}
-                            disabled={updating || isActive}
-                            style={{
-                              padding: "0.35rem 0.75rem",
-                              background: isActive ? cfg.bg : "transparent",
-                              border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
-                              borderRadius: 100,
-                              color: isActive ? cfg.color : "#6B7280",
-                              fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600,
-                              cursor: updating || isActive ? "not-allowed" : "pointer",
-                              opacity: updating ? 0.6 : 1,
-                              transition: "all 0.15s",
-                            }}>
-                            {cfg.label}
-                          </button>
-                        </div>
-                      );
-                    })}
+                {/* Fees */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Fees</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.95rem", color: "#6B7280" }}>$</span>
+                    <input
+                      type="number"
+                      defaultValue={selected.amount || ""}
+                      placeholder="0"
+                      onBlur={e => updateAmount(selected.id, Number(e.target.value))}
+                      onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)")}
+                      style={{ width: "100%", padding: "0.6rem 0.75rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none" }}
+                    />
                   </div>
-                  {(() => {
-                    const cfg = STATUS_CONFIG["complete"];
-                    const isActive = selected.status === "complete";
-                    return (
-                      <button onClick={() => handleStatusClick(selected.id, "complete")}
-                        disabled={updating || isActive}
-                        style={{
-                          padding: "0.35rem 1.5rem",
-                          alignSelf: "flex-start",
-                          background: isActive ? cfg.bg : "transparent",
-                          border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
-                          borderRadius: 100,
-                          color: isActive ? cfg.color : "#6B7280",
-                          fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600,
-                          cursor: updating || isActive ? "not-allowed" : "pointer",
-                          opacity: updating ? 0.6 : 1,
-                          transition: "all 0.15s",
-                        }}>
-                        {cfg.label}
-                      </button>
-                    );
-                  })()}
                 </div>
 
-                {/* Confirm: mark as complete */}
-                {confirmComplete && (
-                  <div style={{ marginTop: "0.75rem", background: "rgba(16,185,129,0.07)", border: "1.5px solid #10B981", borderRadius: 10, padding: "0.85rem 1rem" }}>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#065F46", marginBottom: "0.6rem" }}>Mark job as complete?</p>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { updateStatus(confirmComplete, "complete"); setConfirmComplete(null); }}
-                        style={{ padding: "0.4rem 1rem", background: "#10B981", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
-                        Yes, complete it
-                      </button>
-                      <button onClick={() => setConfirmComplete(null)}
-                        style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
-                        Cancel
-                      </button>
-                    </div>
+                {/* AI notes */}
+                {selected.ai_notes && (
+                  <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, padding: "0.875rem 1rem", marginBottom: "1.25rem" }}>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.4rem" }}>AI summary</p>
+                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6 }}>{selected.ai_notes}</p>
                   </div>
                 )}
 
-                {/* Confirm: override completed job */}
-                {confirmOverride && (
-                  <div style={{ marginTop: "0.75rem", background: "rgba(245,158,11,0.07)", border: "1.5px solid #F59E0B", borderRadius: 10, padding: "0.85rem 1rem" }}>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#92400E", marginBottom: "0.25rem" }}>Job marked complete.</p>
-                    <p style={{ fontSize: "0.8rem", color: "#78350F", marginBottom: "0.6rem" }}>Are you sure you want to override the status?</p>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => { updateStatus(confirmOverride.jobId, confirmOverride.status); setConfirmOverride(null); }}
-                        style={{ padding: "0.4rem 1rem", background: "#F59E0B", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
-                        Yes, override
-                      </button>
-                      <button onClick={() => setConfirmOverride(null)}
-                        style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
-                        Cancel
-                      </button>
-                    </div>
+                {/* Notes */}
+                {selected.notes && (
+                  <div style={{ marginBottom: "1.25rem" }}>
+                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.4rem" }}>Notes</p>
+                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6 }}>{selected.notes}</p>
                   </div>
                 )}
-              </div>
 
-              {/* Job value */}
-              <div style={{ marginBottom: "1rem" }}>
-                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Job value</p>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "1rem", color: "#6B7280" }}>$</span>
-                  <input
-                    type="number"
-                    defaultValue={selected.amount || ""}
-                    placeholder="0"
-                    onBlur={e => updateAmount(selected.id, Number(e.target.value))}
-                    style={{ width: "100%", padding: "0.6rem 0.75rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none" }}
-                    onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
-                  />
+                {/* Assigned attorney */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Assigned attorney</p>
+                  <select
+                    value={selected.technician_id ?? ""}
+                    onChange={async e => {
+                      const techId = e.target.value || null;
+                      await supabase.from("jobs").update({ technician_id: techId }).eq("id", selected.id);
+                      const tech = technicians.find(t => t.id === techId);
+                      setJobs(prev => prev.map(j => j.id === selected.id ? { ...j, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : j));
+                      setSelected(prev => prev ? { ...prev, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : null);
+                    }}
+                    style={{ width: "100%", padding: "0.65rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}>
+                    <option value="">Unassigned</option>
+                    {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                    {selected.source === "voice_agent" ? "AI scheduled" : "Manually created"}
+                  </span>
+                  <span style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                    {new Date(selected.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
                 </div>
               </div>
-
-              {/* AI notes */}
-              {selected.ai_notes && (
-                <div style={{ background: "rgba(12,192,223,0.04)", border: "1px solid rgba(12,192,223,0.15)", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.4rem" }}>AI summary</p>
-                  <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6 }}>{selected.ai_notes}</p>
-                </div>
-              )}
-
-              {/* Notes */}
-              {selected.notes && (
-                <div>
-                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Notes</p>
-                  <p style={{ fontSize: "0.85rem", color: "#6B7280", lineHeight: 1.6 }}>{selected.notes}</p>
-                </div>
-              )}
-
-              {/* Assign technician */}
-              <div style={{ marginBottom: "1rem" }}>
-                <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Assigned to</p>
-                <select
-                  value={selected.technician_id ?? ""}
-                  onChange={async e => {
-                    const techId = e.target.value || null;
-                    await supabase.from("jobs").update({ technician_id: techId }).eq("id", selected.id);
-                    const tech = technicians.find(t => t.id === techId);
-                    setJobs(prev => prev.map(j => j.id === selected.id ? { ...j, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : j));
-                    setSelected(prev => prev ? { ...prev, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : null);
-                  }}
-                  style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}>
-                  <option value="">Unassigned</option>
-                  {technicians.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Source badge */}
-              <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>
-                  {selected.source === "voice_agent" ? "🤖 Booked by AI" : "✍️ Manually created"}
-                </span>
-                <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>
-                  {new Date(selected.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         ) : (
           /* Calendar view */
-          <div ref={calendarWrapRef} style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", position: "relative", overflow: "hidden" }}>
+          <div ref={calendarWrapRef} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.5rem", position: "relative", overflow: "hidden" }}>
             <style>{`
               .fc { font-family: 'DM Sans', sans-serif; }
-              .fc-button { font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important; }
-              .fc-button-primary { background: #0D1B2A !important; border-color: #0D1B2A !important; }
-              .fc-button-primary:hover { background: #1a3a5c !important; border-color: #1a3a5c !important; }
-              .fc-button-primary:not(:disabled):active, .fc-button-primary:not(:disabled).fc-button-active { background: #0cc0df !important; border-color: #0cc0df !important; }
+              .fc-button { font-family: 'DM Sans', sans-serif !important; font-weight: 500 !important; }
+              .fc-button-primary { background: #111111 !important; border-color: #111111 !important; }
+              .fc-button-primary:hover { background: #333333 !important; border-color: #333333 !important; }
+              .fc-button-primary:not(:disabled):active,
+              .fc-button-primary:not(:disabled).fc-button-active { background: #555555 !important; border-color: #555555 !important; }
               .fc-event { cursor: pointer; border: none !important; font-size: 0.78rem !important; font-weight: 600 !important; }
-              .fc-day-today { background: rgba(12,192,223,0.04) !important; }
-              .fc-col-header-cell { font-weight: 700 !important; color: #0D1B2A !important; }
+              .fc-day-today { background: rgba(0,0,0,0.02) !important; }
+              .fc-col-header-cell { font-weight: 600 !important; color: #111111 !important; }
               .fc-timegrid-slot { height: 40px !important; }
-              .fc-daygrid-day,
-              .fc-timegrid-col {
-                cursor: pointer;
-              }
+              .fc-daygrid-day, .fc-timegrid-col { cursor: pointer; }
             `}</style>
             <div
               ref={hoverCellRef}
               style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                width: 0,
-                height: 0,
-                opacity: 0,
-                pointerEvents: "none",
-                background: "rgba(12,192,223,0.12)",
-                boxShadow: "inset 0 0 0 1.5px rgba(12,192,223,0.34)",
+                position: "absolute", left: 0, top: 0, width: 0, height: 0,
+                opacity: 0, pointerEvents: "none",
+                background: "rgba(0,0,0,0.04)",
+                boxShadow: "inset 0 0 0 1.5px rgba(0,0,0,0.1)",
                 transition: "left 80ms ease, top 80ms ease, width 80ms ease, height 80ms ease, opacity 100ms ease",
                 zIndex: 2,
               }}
@@ -764,23 +727,18 @@ function JobsPageInner() {
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="timeGridWeek"
               eventDisplay="block"
-              headerToolbar={{
-                left:   "prev,next today",
-                center: "title",
-                right:  "dayGridMonth,timeGridWeek,timeGridDay",
-              }}
+              headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
               events={jobs.map(job => ({
                 id:    job.id,
                 title: `${job.customers?.name ?? "Unknown"} — ${job.type}`,
                 start: job.slot_start,
                 end:   job.slot_end,
-                backgroundColor: job.technicians?.color ?? "#0cc0df",
-                borderColor:     job.technicians?.color ?? "#0cc0df",
+                backgroundColor: job.technicians?.color ?? "#374151",
+                borderColor:     job.technicians?.color ?? "#374151",
                 extendedProps: { job },
               }))}
               eventClick={(info) => {
-                const job = info.event.extendedProps.job as Job;
-                setSelected(job);
+                setSelected(info.event.extendedProps.job as Job);
                 setView("list");
               }}
               dateClick={(info) => {
@@ -797,14 +755,14 @@ function JobsPageInner() {
           </div>
         )}
 
-        {/* Add Job Modal */}
+        {/* Add Matter Modal */}
         {showAddJob && (
-          <div onClick={() => setShowAddJob(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: "2rem", maxWidth: 520, width: "90%", position: "relative", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.15)" }}>
-              <button onClick={() => setShowAddJob(false)} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem" }}>✕</button>
+          <div onClick={() => setShowAddJob(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 12, padding: "2rem", maxWidth: 520, width: "90%", position: "relative", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.12)" }}>
+              <button onClick={() => setShowAddJob(false)} style={{ position: "absolute", top: "1.25rem", right: "1.25rem", background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem", lineHeight: 1 }}>&#x2715;</button>
 
-              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.25rem" }}>ADD JOB</h3>
-              <p style={{ fontSize: "0.85rem", color: "#6B7280", marginBottom: "1.5rem" }}>Manually create a job — conflicts are checked automatically</p>
+              <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.25rem" }}>ADD MATTER</h3>
+              <p style={{ fontSize: "0.85rem", color: "#9CA3AF", marginBottom: "1.5rem" }}>Manually create a matter &mdash; scheduling conflicts are checked automatically</p>
 
               {jobError && (
                 <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.875rem", color: "#991B1B" }}>
@@ -812,21 +770,26 @@ function JobsPageInner() {
                 </div>
               )}
 
-              {/* Customer */}
+              {/* Client */}
               <div style={{ marginBottom: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151" }}>Customer</label>
-                  <button onClick={() => setNewCustomer(!newCustomer)}
-                    style={{ fontSize: "0.75rem", color: "#0cc0df", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                    {newCustomer ? "← Select existing" : "+ New customer"}
+                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151" }}>Client</label>
+                  <button type="button" onClick={() => setNewCustomer(!newCustomer)}
+                    style={{ fontSize: "0.75rem", color: "#374151", background: "none", border: "none", cursor: "pointer", fontWeight: 500, textDecoration: "underline" }}>
+                    {newCustomer ? "Select existing" : "New client"}
                   </button>
                 </div>
 
                 {newCustomer ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    <input type="text" placeholder="Name (optional)" value={newJob.customer_name}
-                      onChange={e => setNewJob(prev => ({ ...prev, customer_name: e.target.value }))}
-                      style={inputSt} />
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                      <input type="text" placeholder="First name" value={newJob.customer_first_name}
+                        onChange={e => setNewJob(prev => ({ ...prev, customer_first_name: e.target.value }))}
+                        style={inputSt} />
+                      <input type="text" placeholder="Last name" value={newJob.customer_last_name}
+                        onChange={e => setNewJob(prev => ({ ...prev, customer_last_name: e.target.value }))}
+                        style={inputSt} />
+                    </div>
                     <input type="tel" placeholder="Phone number *" value={newJob.customer_phone}
                       onChange={e => setNewJob(prev => ({ ...prev, customer_phone: e.target.value, customer_id: "" }))}
                       style={inputSt} />
@@ -834,54 +797,52 @@ function JobsPageInner() {
                 ) : (
                   <select value={newJob.customer_id}
                     onChange={e => {
-                      const customer = customers.find(c => c.id === e.target.value);
-                      setNewJob(prev => ({ ...prev, customer_id: e.target.value, customer_name: customer?.name ?? "", customer_phone: customer?.phone ?? "" }));
+                      const c = customers.find(c => c.id === e.target.value);
+                      setNewJob(prev => ({ ...prev, customer_id: e.target.value, customer_first_name: "", customer_last_name: "", customer_phone: c?.phone ?? "" }));
                     }}
                     style={inputSt}>
-                    <option value="">Select a customer...</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.name ?? c.phone} — {c.phone}</option>
-                    ))}
+                    <option value="">Select a client...</option>
+                    {customers.map(c => <option key={c.id} value={c.id}>{c.name ?? c.phone} &mdash; {c.phone}</option>)}
                   </select>
                 )}
               </div>
 
-              {/* Job type */}
+              {/* Practice area */}
               <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Job type</label>
-                <select value={newJob.job_type} onChange={e => {
-                  const svc = services.find(s => s.name === e.target.value);
-                  setNewJob(prev => ({ ...prev, job_type: e.target.value, duration_mins: svc?.duration_mins ?? 120 }));
-                }} style={inputSt}>
-                  <option value="">Select a service...</option>
-                  {services.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                  <option value="General Service">General Service</option>
-                </select>
-              </div>
-
-              {/* Date + time */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Date & time</label>
-                  <input type="datetime-local" value={newJob.slot_start}
-                    onChange={e => setNewJob(prev => ({ ...prev, slot_start: e.target.value }))}
-                    style={inputSt} />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Duration</label>
-                  <select value={newJob.duration_mins}
-                    onChange={e => setNewJob(prev => ({ ...prev, duration_mins: Number(e.target.value) }))}
-                    style={inputSt}>
-                    {[30, 60, 90, 120, 150, 180, 240, 300, 360].map(m => (
-                      <option key={m} value={m}>{m >= 60 ? `${Math.floor(m / 60)}hr${m % 60 > 0 ? ` ${m % 60}min` : ""}` : `${m}min`}</option>
+                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Practice area</label>
+                <input
+                  type="text"
+                  value={newJob.job_type}
+                  onChange={e => setNewJob(prev => ({ ...prev, job_type: e.target.value }))}
+                  placeholder="Type or select below..."
+                  style={inputSt}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)")}
+                />
+                {services.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "0.35rem", marginTop: "0.5rem" }}>
+                    {services.map(s => (
+                      <button key={s.name} type="button"
+                        onClick={() => setNewJob(prev => ({ ...prev, job_type: s.name }))}
+                        style={{
+                          padding: "0.3rem 0.75rem",
+                          background: newJob.job_type === s.name ? "#111111" : "#F5F5F0",
+                          border: `1px solid ${newJob.job_type === s.name ? "#111111" : "rgba(0,0,0,0.12)"}`,
+                          borderRadius: 20,
+                          color: newJob.job_type === s.name ? "white" : "#374151",
+                          fontFamily: "'DM Sans'", fontSize: "0.78rem",
+                          cursor: "pointer", transition: "all 0.12s",
+                        }}>
+                        {s.name}
+                      </button>
                     ))}
-                  </select>
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* Technician */}
+              {/* Assign attorney */}
               <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Assign to</label>
+                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Assign attorney</label>
                 <select value={newJob.technician_id}
                   onChange={e => setNewJob(prev => ({ ...prev, technician_id: e.target.value }))}
                   style={inputSt}>
@@ -898,9 +859,9 @@ function JobsPageInner() {
                   style={{ ...inputSt, resize: "vertical" }} />
               </div>
 
-              <button onClick={addJob} disabled={addingJob}
-                style={{ width: "100%", padding: "0.9rem", background: addingJob ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: addingJob ? "not-allowed" : "pointer" }}>
-                {addingJob ? "Checking conflicts..." : "Create job"}
+              <button onClick={addMatter} disabled={addingJob}
+                style={{ width: "100%", padding: "0.9rem", background: addingJob ? "rgba(17,17,17,0.45)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: addingJob ? "not-allowed" : "pointer" }}>
+                {addingJob ? "Checking conflicts..." : "Create matter"}
               </button>
             </div>
           </div>
@@ -910,10 +871,10 @@ function JobsPageInner() {
   );
 }
 
-export default function JobsPage() {
+export default function MattersPage() {
   return (
     <Suspense>
-      <JobsPageInner />
+      <MattersPageInner />
     </Suspense>
   );
 }

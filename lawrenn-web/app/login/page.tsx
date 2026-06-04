@@ -119,30 +119,30 @@ export default function Login() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(160deg, #f0fafe 0%, #ffffff 60%)",
+      background: "#F5F5F0",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
       fontFamily: "'DM Sans', sans-serif",
     }}>
 
-      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none", marginBottom: "2.5rem" }}>
-        RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#111111", textDecoration: "none", marginBottom: "2.5rem" }}>
+        LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
       </a>
 
       <div style={{
         width: "100%", maxWidth: 440,
         background: "white",
-        border: "1px solid rgba(0,0,0,0.07)",
+        border: "1px solid rgba(0,0,0,0.08)",
         borderRadius: 16,
         padding: "2.5rem",
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
       }}>
-        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.4rem" }}>
+        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.4rem" }}>
           {mode === "login" ? "Welcome back" : mode === "magic" ? "Sign in with email" : "Create your account"}
         </h1>
         <p style={{ color: "#6B7280", fontSize: "0.9rem", marginBottom: "2rem", lineHeight: 1.6 }}>
-          {mode === "login" ? "Sign in to your RennOps dashboard" : mode === "magic" ? "We'll send a login link to your inbox" : "Start your 14-day free trial — no credit card required"}
+          {mode === "login" ? "Sign in to your Lawrenn dashboard" : mode === "magic" ? "We'll send a login code to your inbox" : "Start your 14-day free trial — no credit card required"}
         </p>
 
         {error && (
@@ -168,7 +168,7 @@ export default function Login() {
             justifyContent: "center", gap: "0.75rem",
             marginBottom: "1.25rem", transition: "all 0.2s",
           }}
-          onMouseEnter={e => e.currentTarget.style.background = "#F9FAFB"}
+          onMouseEnter={e => e.currentTarget.style.background = "#F5F5F0"}
           onMouseLeave={e => e.currentTarget.style.background = "white"}>
           <svg width="18" height="18" viewBox="0 0 18 18">
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
@@ -186,7 +186,7 @@ export default function Login() {
         </div>
 
         {/* Mode tabs */}
-        <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
+        <div style={{ display: "flex", background: "#EFEFED", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
           {[
             { key: "login",  label: "Password" },
             { key: "magic",  label: "Email code" },
@@ -194,7 +194,7 @@ export default function Login() {
             <button key={key} onClick={() => { setMode(key as any); setError(""); setSuccess(""); setMagicSent(false); }}
               style={{
                 flex: 1, padding: "0.5rem", background: mode === key ? "white" : "transparent",
-                border: "none", borderRadius: 6, color: mode === key ? "#0D1B2A" : "#6B7280",
+                border: "none", borderRadius: 6, color: mode === key ? "#111111" : "#6B7280",
                 fontFamily: "'DM Sans'", fontSize: "0.85rem", fontWeight: mode === key ? 700 : 500,
                 cursor: "pointer", boxShadow: mode === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                 transition: "all 0.15s",
@@ -207,7 +207,7 @@ export default function Login() {
         {magicSent ? (
           <div>
             <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-              <h4 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "#0D1B2A", marginBottom: "0.4rem" }}>CHECK YOUR EMAIL</h4>
+              <h4 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "#111111", marginBottom: "0.4rem" }}>CHECK YOUR EMAIL</h4>
               <p style={{ color: "#6B7280", fontSize: "0.875rem", lineHeight: 1.6 }}>
                 We sent a 6-digit code to <strong>{email}</strong>. Enter it below to sign in.
               </p>
@@ -231,20 +231,20 @@ export default function Login() {
                 onKeyDown={e => { if (e.key === "Enter") handleVerifyOtp(); }}
                 style={{
                   width: "100%", padding: "0.9rem 1rem",
-                  background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)",
-                  borderRadius: 8, color: "#0D1B2A",
+                  background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)",
+                  borderRadius: 8, color: "#111111",
                   fontFamily: "'DM Mono'", fontSize: "1.5rem",
                   letterSpacing: "0.3em", textAlign: "center",
                   outline: "none", boxSizing: "border-box",
                 }}
-                onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                 onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
                 autoFocus
               />
             </div>
 
             <button onClick={handleVerifyOtp} disabled={loading || otp.length < 6}
-              style={{ width: "100%", padding: "0.9rem", background: loading || otp.length < 6 ? "rgba(12,192,223,0.5)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading || otp.length < 6 ? "not-allowed" : "pointer", transition: "all 0.2s", marginBottom: "1rem" }}>
+              style={{ width: "100%", padding: "0.9rem", background: loading || otp.length < 6 ? "rgba(17,17,17,0.35)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading || otp.length < 6 ? "not-allowed" : "pointer", transition: "all 0.2s", marginBottom: "1rem" }}>
               {loading ? "Verifying..." : "Sign in"}
             </button>
 
@@ -254,7 +254,7 @@ export default function Login() {
                 Different email
               </button>
               <button onClick={handleMagicLink} disabled={loading}
-                style={{ background: "none", border: "none", color: "#0cc0df", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
+                style={{ background: "none", border: "none", color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
                 Resend code
               </button>
             </div>
@@ -264,11 +264,11 @@ export default function Login() {
             {/* Email field — shown for all modes */}
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Email</label>
-              <input type="email" placeholder="mike@yourbusiness.com" value={email}
+              <input type="email" placeholder="partner@yourfirm.com" value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") mode === "magic" ? handleMagicLink() : handleSubmit(); }}
-                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
-                onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                 onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
             </div>
 
@@ -279,8 +279,8 @@ export default function Login() {
                 <input type="password" placeholder="••••••••" value={password}
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
-                  style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
-                  onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                  style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                  onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                   onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
               </div>
             )}
@@ -288,10 +288,10 @@ export default function Login() {
             {mode === "magic" && <div style={{ marginBottom: "1.5rem" }} />}
 
             <button onClick={mode === "magic" ? handleMagicLink : handleSubmit} disabled={loading}
-              style={{ width: "100%", padding: "0.9rem", background: loading ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s", marginBottom: "1.25rem" }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#0aadc9"; }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#0cc0df"; }}>
-              {loading ? "Please wait..." : mode === "magic" ? "Send login link" : mode === "login" ? "Sign in" : "Create account"}
+              style={{ width: "100%", padding: "0.9rem", background: loading ? "rgba(17,17,17,0.45)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s", marginBottom: "1.25rem" }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#000000"; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#111111"; }}>
+              {loading ? "Please wait..." : mode === "magic" ? "Send login code" : mode === "login" ? "Sign in" : "Create account"}
             </button>
           </>
         )}
@@ -299,7 +299,7 @@ export default function Login() {
         <p style={{ textAlign: "center", fontSize: "0.875rem", color: "#6B7280" }}>
           {mode === "login" ? "Don't have an account? " : mode === "magic" ? "Have a password? " : "Already have an account? "}
           <button onClick={() => { setMode(mode === "signup" ? "login" : mode === "login" ? "signup" : "login"); setError(""); setSuccess(""); setMagicSent(false); }}
-            style={{ background: "none", border: "none", color: "#0cc0df", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", padding: 0 }}>
+            style={{ background: "none", border: "none", color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", padding: 0 }}>
             {mode === "login" ? "Sign up free" : mode === "magic" ? "Sign in" : "Sign in"}
           </button>
         </p>

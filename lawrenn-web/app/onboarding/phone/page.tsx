@@ -9,7 +9,7 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function OnboardingStep4() {
+export default function OnboardingStep5() {
     const router = useRouter();
 
     const [businessId, setBusinessId]   = useState<string | null>(null);
@@ -50,7 +50,6 @@ export default function OnboardingStep4() {
                 .update({ twilio_number: twilioNumber.trim() || null })
                 .eq("id", businessId);
 
-            // Send call forwarding instructions email via Resend
             await fetch("/api/send-welcome-email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -59,7 +58,6 @@ export default function OnboardingStep4() {
 
             setDone(true);
 
-            // Mark trial signup as onboarding complete
             fetch("/api/capture-trial-signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -70,7 +68,6 @@ export default function OnboardingStep4() {
                 }),
             }).catch(() => {});
 
-            // Notify of new trial (non-critical)
             fetch("/api/notify-new-trial", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -92,7 +89,7 @@ export default function OnboardingStep4() {
     return (
         <div style={{
             minHeight: "100vh",
-            background: "linear-gradient(160deg, #f0fafe 0%, #ffffff 60%)",
+            background: "#F5F5F0",
             display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
             padding: "2rem 1rem",
@@ -100,8 +97,8 @@ export default function OnboardingStep4() {
         }}>
 
             {/* Logo */}
-            <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none", marginBottom: "2.5rem" }}>
-                RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+            <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#111111", textDecoration: "none", marginBottom: "2.5rem" }}>
+                LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
             </a>
 
             {/* Progress */}
@@ -111,17 +108,17 @@ export default function OnboardingStep4() {
                         <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
                             <div style={{
                                 width: 28, height: 28, borderRadius: "50%",
-                                background: "#0cc0df",
+                                background: "#111111",
                                 color: "white",
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 fontSize: "0.8rem", fontWeight: 700,
-                            }}>{i < 3 ? "✓" : "4"}</div>
-                            <span style={{ fontSize: "0.72rem", color: i === 3 ? "#0cc0df" : "#6B7280", fontWeight: i === 3 ? 600 : 400 }}>{step}</span>
+                            }}>{i < 4 ? "✓" : "5"}</div>
+                            <span style={{ fontSize: "0.72rem", color: i === 4 ? "#111111" : "#6B7280", fontWeight: i === 4 ? 600 : 400 }}>{step}</span>
                         </div>
                     ))}
                 </div>
                 <div style={{ height: 3, background: "rgba(0,0,0,0.06)", borderRadius: 2 }}>
-                    <div style={{ height: "100%", width: "100%", background: "#0cc0df", borderRadius: 2 }} />
+                    <div style={{ height: "100%", width: "100%", background: "#111111", borderRadius: 2 }} />
                 </div>
             </div>
 
@@ -137,29 +134,29 @@ export default function OnboardingStep4() {
 
                 {done ? (
                     <div style={{ textAlign: "center", padding: "2rem 0" }}>
-                        <div style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>🎉</div>
-                        <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: "2.2rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.5rem" }}>
-                            YOU'RE ALL SET!
+                        <div style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>&#x1F389;</div>
+                        <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: "2.2rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.5rem" }}>
+                            YOU&apos;RE ALL SET!
                         </h2>
                         <p style={{ color: "#6B7280", fontSize: "0.95rem", lineHeight: 1.7 }}>
-                            Your AI receptionist is ready. Taking you to your dashboard...
+                            Your AI assistant is ready. Taking you to your dashboard...
                         </p>
                     </div>
                 ) : (
                     <>
-                        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.4rem" }}>
+                        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.4rem" }}>
                             Set up call forwarding
                         </h1>
                         <p style={{ color: "#6B7280", fontSize: "0.9rem", marginBottom: "2rem", lineHeight: 1.6 }}>
-                            You keep your existing phone number. Just forward calls to your RennOps number and the AI handles the rest.
+                            You keep your existing phone number. Just forward calls to your Lawrenn number and the AI handles the rest.
                         </p>
 
-                        {/* RennOps number */}
-                        <div style={{ background: "rgba(12,192,223,0.06)", border: "1px solid rgba(12,192,223,0.2)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
-                            <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#0cc0df", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                                Your RennOps number
+                        {/* Lawrenn number */}
+                        <div style={{ background: "rgba(17,17,17,0.04)", border: "1px solid rgba(17,17,17,0.12)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
+                            <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                                Your Lawrenn number
                             </p>
-                            <p style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.05em", color: "#0D1B2A", marginBottom: "0.25rem" }}>
+                            <p style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.05em", color: "#111111", marginBottom: "0.25rem" }}>
                                 {twilioNumber || "Being provisioned..."}
                             </p>
                             <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>
@@ -182,20 +179,20 @@ export default function OnboardingStep4() {
                                 {
                                     step: "2",
                                     title: "Enable call forwarding",
-                                    body: `Forward all calls to your RennOps number: ${twilioNumber || "[your RennOps number above]"}`,
+                                    body: `Forward all calls to your Lawrenn number: ${twilioNumber || "[your Lawrenn number above]"}`,
                                 },
                                 {
                                     step: "3",
                                     title: "Test it",
-                                    body: "Call your existing business number from another phone. RennOps should answer within 2 rings.",
+                                    body: "Call your existing number from another phone. Lawrenn should answer within 2 rings.",
                                 },
                             ].map(({ step, title, body }) => (
                                 <div key={step} style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-                                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(12,192,223,0.1)", border: "1.5px solid rgba(12,192,223,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, color: "#0cc0df", flexShrink: 0, marginTop: "0.1rem" }}>
+                                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(17,17,17,0.08)", border: "1.5px solid rgba(17,17,17,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, color: "#111111", flexShrink: 0, marginTop: "0.1rem" }}>
                                         {step}
                                     </div>
                                     <div>
-                                        <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.2rem" }}>{title}</p>
+                                        <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", marginBottom: "0.2rem" }}>{title}</p>
                                         <p style={{ fontSize: "0.85rem", color: "#6B7280", lineHeight: 1.6 }}>{body}</p>
                                     </div>
                                 </div>
@@ -203,7 +200,7 @@ export default function OnboardingStep4() {
                         </div>
 
                         {/* Carrier shortcuts */}
-                        <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
+                        <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
                             <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "0.75rem" }}>Quick dial codes (dial from your phone):</p>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.5rem" }}>
                                 {[
@@ -214,7 +211,7 @@ export default function OnboardingStep4() {
                                 ].map(({ carrier, code }) => (
                                     <div key={carrier} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 8 }}>
                                         <span style={{ fontSize: "0.82rem", color: "#374151", fontWeight: 500 }}>{carrier}</span>
-                                        <span style={{ fontFamily: "'DM Mono'", fontSize: "0.82rem", color: "#0cc0df", fontWeight: 600 }}>{code} + number</span>
+                                        <span style={{ fontFamily: "'DM Mono'", fontSize: "0.82rem", color: "#374151", fontWeight: 600 }}>{code} + number</span>
                                     </div>
                                 ))}
                             </div>
@@ -223,24 +220,24 @@ export default function OnboardingStep4() {
                         {/* Skip option */}
                         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
                             <p style={{ fontSize: "0.85rem", color: "#92400E", lineHeight: 1.6 }}>
-                                <strong>Not ready to forward calls yet?</strong> That's fine — you can set this up later from your dashboard. Your AI agent is already configured and ready.
+                                <strong>Not ready to forward calls yet?</strong> That&apos;s fine &mdash; you can set this up later from your dashboard. Your AI assistant is already configured and ready.
                             </p>
                         </div>
 
                         {/* Back + Finish */}
                         <div style={{ display: "flex", gap: "0.75rem" }}>
-                            <button onClick={() => router.push("/onboarding/team")}
+                            <button onClick={() => router.push("/onboarding/persona")}
                                 style={{ flex: 1, padding: "0.9rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 600, cursor: "pointer" }}>
-                                ← Back
+                                &larr; Back
                             </button>
                             <button onClick={handleFinish} disabled={loading}
-                                style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+                                style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(17,17,17,0.45)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                                 {loading ? "Finishing up..." : "Finish setup →"}
                             </button>
                         </div>
 
                         <p style={{ textAlign: "center", fontSize: "0.78rem", color: "#6B7280", marginTop: "1rem" }}>
-                            Step 4 of 4 · You can always update this later
+                            Step 5 of 5 &middot; You can always update this later
                         </p>
                     </>
                 )}

@@ -225,14 +225,14 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading messages...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem", height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
 

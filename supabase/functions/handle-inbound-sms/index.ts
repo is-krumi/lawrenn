@@ -28,7 +28,8 @@ async function sendSMS(to: string, from: string, body: string) {
 async function generateAndStoreEmbedding(
   businessId: string,
   sourceId: string,
-  content: string
+  content: string,
+  customerId?: string | null
 ) {
   try {
     const res = await fetch("https://api.openai.com/v1/embeddings", {
@@ -37,10 +38,7 @@ async function generateAndStoreEmbedding(
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type":  "application/json",
       },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: content,
-      }),
+      body: JSON.stringify({ model: "text-embedding-3-small", input: content }),
     });
 
     const data = await res.json();
@@ -53,10 +51,56 @@ async function generateAndStoreEmbedding(
         source_id:   sourceId,
         content,
         embedding:   JSON.stringify(embedding),
+        customer_id: customerId ?? null,
       });
     }
   } catch (err) {
     console.error("Message embedding failed (non-critical):", err);
+  }
+}
+
+// Retrieve relevant context for a client using vector similarity search.
+// Searches embeddings scoped to this business + client, ranked by similarity to the query.
+async function retrieveContext(
+  businessId: string,
+  customerId: string | null,
+  queryText: string,
+  matchCount = 5
+): Promise<string> {
+  try {
+    const embRes = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: queryText }),
+    });
+
+    const embData = await embRes.json();
+    const queryEmbedding = embData.data?.[0]?.embedding;
+    if (!queryEmbedding) return "";
+
+    const { data: matches, error } = await supabase.rpc("match_embeddings", {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.45,
+      match_count:     matchCount,
+      p_business_id:   businessId,
+      p_customer_id:   customerId ?? null,
+    });
+
+    if (error) {
+      console.error("match_embeddings error:", error.message);
+      return "";
+    }
+    if (!matches || matches.length === 0) return "";
+
+    return matches
+      .map((m: any) => `[${m.source_type}] ${m.content}`)
+      .join("\n\n---\n\n");
+  } catch (err) {
+    console.error("retrieveContext error (non-critical):", err);
+    return "";
   }
 }
 
@@ -65,12 +109,12 @@ async function generateAIReply(
   business: any,
   customer: any,
   recentMessages: any[],
-  recentJobs: any[]
+  recentJobs: any[],
+  ragContext: string
 ): Promise<string | null> {
 
-  // Build context
   const jobContext = recentJobs.length > 0
-    ? `Recent jobs: ${recentJobs.map(j => {
+    ? `Recent matters: ${recentJobs.map(j => {
         const slot = j.slot_start
           ? new Date(j.slot_start).toLocaleDateString("en-US", {
               weekday: "long", month: "short", day: "numeric",
@@ -79,44 +123,50 @@ async function generateAIReply(
           : "time TBD";
         return `${j.type} (${j.status}) scheduled for ${slot}`;
       }).join(", ")}`
-    : "No recent jobs";
+    : "No prior matters on file";
 
   const messageHistory = recentMessages.map(m =>
-    `${m.direction === "inbound" ? "Customer" : "Agent"}: ${m.body}`
+    `${m.direction === "inbound" ? "Client" : "Firm"}: ${m.body}`
   ).join("\n");
 
-  const systemPrompt = `You are the AI receptionist for ${business.name}. 
-You are handling SMS replies from customers on behalf of the business owner.
+  const contextBlock = ragContext
+    ? `\nRelevant context from client history:\n${ragContext}\n`
+    : "";
 
-Business info:
+  const systemPrompt = `You are the AI intake assistant for ${business.name}, a law firm.
+You are handling SMS replies from clients on behalf of the attorneys.
+
+Firm info:
 - Name: ${business.name}
-- Services: ${business.settings?.services?.map((s: any) => s.name).join(", ") ?? "general services"}
+- Practice areas: ${business.settings?.services?.map((s: any) => s.name ?? s).join(", ") ?? "general legal services"}
 - Hours: ${JSON.stringify(business.settings?.operating_hours ?? {})}
 
-Customer info:
+Client info:
 - Name: ${customer?.name ?? "Unknown"}
 - ${jobContext}
-
+${contextBlock}
 Recent conversation:
 ${messageHistory}
 
 RULES:
 - Keep replies short — 1-3 sentences max, this is SMS
-- Never quote specific prices — say the owner will provide a quote
-- For scheduling changes — offer to have the owner call them back
-- For complaints or disputes — say you will have the owner contact them shortly
-- For simple questions about services, hours, or availability — answer directly
+- If you know the client's name and this is the first or second message in the conversation, open with "Hi ${customer?.name ? customer.name.split(" ")[0] : "[Name]"}," — use their first name naturally
+- Never give legal advice or quote specific fees — say an attorney will follow up
+- For scheduling or intake questions — offer to have the attorney or intake team call them
+- For complaints or disputes — say you will have an attorney contact them shortly
+- For simple questions about practice areas or availability — answer directly and professionally
 - If unsure — say "Great question! Let me have our team follow up with you shortly."
 - Always be warm and professional
-- Sign off with the business name if it's the first reply
-- Never make promises you can't keep
-- If the customer seems angry or upset — do NOT try to resolve it via SMS, escalate to owner
+- Sign off with the firm name if it's the first reply
+- Never make promises you cannot keep
+- If the client seems distressed or mentions a legal emergency — do NOT try to resolve via SMS, escalate immediately
 
-Escalate to owner (return null) if message contains:
-- Complaints about work quality
-- Requests for refunds
-- Legal threats
-- Anything requiring judgment or negotiation`;
+Escalate to attorney (return ESCALATE) if message contains:
+- Complaints about legal representation
+- Requests for refunds or fee disputes
+- Threats of bar complaints or malpractice
+- Anything requiring legal judgment or negotiation
+- Mention of court dates, deadlines, or emergencies`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -130,7 +180,7 @@ Escalate to owner (return null) if message contains:
       max_tokens: 300,
       messages: [{
         role:    "user",
-        content: `Customer SMS: "${message}"\n\nGenerate a reply. If this requires escalation to the owner, respond with exactly: ESCALATE`,
+        content: `Client SMS: "${message}"\n\nGenerate a reply. If this requires escalation to an attorney, respond with exactly: ESCALATE`,
       }],
       system: systemPrompt,
     }),
@@ -171,12 +221,12 @@ serve(async (req) => {
     // Find customer by phone
     const { data: customer } = await supabase
       .from("customers")
-      .select("id, name, sms_opted_out, ai_sms_replies")
+      .select("id, name, sms_opted_out, ai_sms_replies, notes")
       .eq("business_id", business.id)
       .eq("phone", fromNumber)
       .maybeSingle();
 
-    // Handle STOP
+    // Handle STOP / START
     const stopKeywords  = ["stop", "stopall", "unsubscribe", "cancel", "end", "quit"];
     const startKeywords = ["start", "unstop", "yes"];
     const bodyLower     = body.toLowerCase().trim();
@@ -218,7 +268,7 @@ serve(async (req) => {
       console.error("Message insert error:", insertError.message);
     }
 
-    // Embed inbound message
+    // Embed inbound message (tagged with customer_id for future RAG retrieval)
     if (!insertError) {
       const { data: insertedMsg } = await supabase
         .from("messages")
@@ -228,17 +278,12 @@ serve(async (req) => {
         .single();
 
       if (insertedMsg) {
-        const msgContent = `
-Inbound SMS from ${customer?.name ?? fromNumber}:
-"${body}"
-Customer: ${customer?.name ?? "Unknown"}
-Phone: ${fromNumber}
-        `.trim();
-        await generateAndStoreEmbedding(business.id, insertedMsg.id, msgContent);
+        const msgContent = `Inbound SMS from ${customer?.name ?? fromNumber}:\n"${body}"\nClient: ${customer?.name ?? "Unknown"}\nPhone: ${fromNumber}`.trim();
+        await generateAndStoreEmbedding(business.id, insertedMsg.id, msgContent, customer?.id ?? null);
       }
     }
 
-    // Fetch recent message history for context (both inbound from customer and outbound replies)
+    // Fetch recent message history
     const { data: recentMessages } = await supabase
       .from("messages")
       .select("direction, body, sent_at")
@@ -247,7 +292,7 @@ Phone: ${fromNumber}
       .order("sent_at", { ascending: true })
       .limit(10);
 
-    // Fetch recent jobs for context
+    // Fetch recent matters for context
     const { data: recentJobs } = await supabase
       .from("jobs")
       .select("type, status, slot_start, slot_end, notes")
@@ -256,21 +301,23 @@ Phone: ${fromNumber}
       .order("created_at", { ascending: false })
       .limit(3);
 
-    // Check if AI replies are enabled for this business
+    // Determine if AI replies are enabled
     const aiRepliesEnabled = customer?.ai_sms_replies !== null && customer?.ai_sms_replies !== undefined
       ? customer.ai_sms_replies
       : business.ai_sms_replies !== false;
 
-  
+    // Retrieve RAG context before generating reply
+    const ragContext = aiRepliesEnabled && customer?.id
+      ? await retrieveContext(business.id, customer.id, body)
+      : "";
+
     const aiReply = aiRepliesEnabled
-      ? await generateAIReply(body, business, customer, recentMessages ?? [], recentJobs ?? [])
+      ? await generateAIReply(body, business, customer, recentMessages ?? [], recentJobs ?? [], ragContext)
       : null;
 
     if (aiReply) {
-      // Send AI reply
       await sendSMS(fromNumber, toNumber, aiReply);
 
-      // Store outbound message
       const { data: outboundMsg } = await supabase.from("messages").insert({
         business_id: business.id,
         customer_id: customer?.id ?? null,
@@ -283,26 +330,18 @@ Phone: ${fromNumber}
       .select("id")
       .single();
 
-      // Increment SMS count
       await supabase.rpc("increment_sms_count", {
         p_business_id: business.id,
         p_count:       1,
       });
 
-      // Embed outbound message
       if (outboundMsg) {
-        const outboundContent = `
-Outbound SMS to ${customer?.name ?? fromNumber}:
-"${aiReply}"
-Customer: ${customer?.name ?? "Unknown"}
-Phone: ${fromNumber}
-        `.trim();
-        await generateAndStoreEmbedding(business.id, outboundMsg.id, outboundContent);
+        const outboundContent = `Outbound SMS to ${customer?.name ?? fromNumber}:\n"${aiReply}"\nClient: ${customer?.name ?? "Unknown"}\nPhone: ${fromNumber}`.trim();
+        await generateAndStoreEmbedding(business.id, outboundMsg.id, outboundContent, customer?.id ?? null);
       }
 
       console.log("AI reply sent:", aiReply);
     } else if (!aiRepliesEnabled) {
-      // AI replies off — just notify owner
       console.log("AI replies disabled — notifying owner");
 
       if (business.phone) {
@@ -311,25 +350,18 @@ Phone: ${fromNumber}
           toNumber,
           `💬 New message from ${customer?.name ?? fromNumber}: "${body.slice(0, 100)}" — reply at rennops.com/dashboard/messages`
         );
-        await supabase.rpc("increment_sms_count", {
-          p_business_id: business.id,
-          p_count:       1,
-        });
+        await supabase.rpc("increment_sms_count", { p_business_id: business.id, p_count: 1 });
       }
     } else {
-      // AI decided to escalate
-      console.log("Escalating to owner — message requires human judgment");
+      console.log("Escalating to owner — message requires attorney attention");
 
       if (business.phone) {
         await sendSMS(
           business.phone,
           toNumber,
-          `⚠️ Customer reply needs your attention from ${customer?.name ?? fromNumber}: "${body.slice(0, 100)}" — rennops.com/dashboard/messages`
+          `⚠️ Client reply needs your attention from ${customer?.name ?? fromNumber}: "${body.slice(0, 100)}" — rennops.com/dashboard/messages`
         );
-        await supabase.rpc("increment_sms_count", {
-          p_business_id: business.id,
-          p_count:       1,
-        });
+        await supabase.rpc("increment_sms_count", { p_business_id: business.id, p_count: 1 });
       }
     }
 

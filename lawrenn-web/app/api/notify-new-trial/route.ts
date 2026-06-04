@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
     const { business_name, owner_email, plan } = await request.json();
 
-    // ── Save lead to marketing DB ─────────────────────────────────────────
+    // â”€â”€ Save lead to marketing DB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL1!,
       process.env.SUPABASE_SERVICE_ROLE_KEY1!
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       status:        "silver",
     });
 
-    // ── Resend email ──────────────────────────────────────────────────────
+    // â”€â”€ Resend email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -26,15 +26,15 @@ export async function POST(request: Request) {
         "Content-Type":  "application/json",
       },
       body: JSON.stringify({
-        from:    "RennOps <notifications@rennops.com>",
-        to:      "hello@rennops.com",
-        subject: `🎉 New trial: ${business_name}`,
+        from:    "Lawrenn <notifications@lawrenn.com>",
+        to:      "hello@lawrenn.com",
+        subject: `ðŸŽ‰ New trial: ${business_name}`,
         html: `
           <h2>New trial started!</h2>
           <p><strong>Business:</strong> ${business_name}</p>
           <p><strong>Email:</strong> ${owner_email}</p>
-          <p><strong>Plan:</strong> ${plan ?? "Pro"} — 14-day trial</p>
-          <p><a href="https://rennops.com/dashboard">View dashboard →</a></p>
+          <p><strong>Plan:</strong> ${plan ?? "Pro"} â€” 14-day trial</p>
+          <p><a href="https://lawrenn.com/dashboard">View dashboard â†’</a></p>
         `,
       }),
     });

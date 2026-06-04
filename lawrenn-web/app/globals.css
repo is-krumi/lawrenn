@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --cyan:     #0cc0df;
-  --cyan-dark:#0aadc9;
-  --navy:     #0D1B2A;
-  --navy2:    #111f2e;
+  --cyan:     #111111;
+  --cyan-dark:#000000;
+  --navy:     #111111;
+  --navy2:    #1a1a1a;
   --white:    #ffffff;
-  --off-white:#F8FAFB;
+  --off-white:#F5F5F0;
   --grey:     #6B7280;
-  --lgrey:    #F3F4F6;
+  --lgrey:    #EFEFED;
   --dgrey:    #374151;
   --border:   rgba(0,0,0,0.08);
-  --border2:  rgba(12,192,223,0.2);
+  --border2:  rgba(0,0,0,0.14);
 }
 
 @keyframes spin {
@@ -72,7 +72,7 @@ body {
   transition: box-shadow 0.2s ease;
 }
 .scroller-card:hover {
-  box-shadow: 0 0 0 1.5px rgba(12, 192, 223, 0.7), 0 0 14px rgba(12, 192, 223, 0.12);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25), 0 0 14px rgba(0, 0, 0, 0.08);
 }
 
 /* ── Landing page responsive ── */

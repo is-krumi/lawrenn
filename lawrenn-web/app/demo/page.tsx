@@ -137,24 +137,24 @@ export default function DemoPage() {
               YOU'RE BOOKED!
             </h1>
             <p style={{ color: "#6B7280", fontSize: "1rem", lineHeight: 1.7, marginBottom: "2rem" }}>
-              Check your email for the confirmation and Google Meet link. We're looking forward to showing you RennOps!
+              Check your email for the confirmation and Google Meet link. We're looking forward to showing you Lawrenn!
             </p>
             {meetLink && (
               <a href={meetLink} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-block", padding: "0.9rem 2rem", background: "#0cc0df", borderRadius: 8, color: "white", fontWeight: 700, fontSize: "1rem", textDecoration: "none", marginBottom: "1.5rem" }}>
+                style={{ display: "inline-block", padding: "0.9rem 2rem", background: "#111111", borderRadius: 8, color: "white", fontWeight: 700, fontSize: "1rem", textDecoration: "none", marginBottom: "1.5rem" }}>
                 Join Google Meet
               </a>
             )}
-            <div style={{ background: "#F0FAFE", border: "1px solid rgba(12,192,223,0.2)", borderRadius: 12, padding: "1.5rem", textAlign: "left" }}>
-              <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.75rem" }}>What to expect</p>
+            <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "1.5rem", textAlign: "left" }}>
+              <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(17,17,17,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.75rem" }}>What to expect</p>
               {[
-                "We'll call your business number live so you can hear your AI agent answer",
-                "You'll see the dashboard update in real time as the booking comes in",
-                "We'll walk through the full setup — takes less than 20 minutes",
+                "We'll walk through a live Lawrenn session tailored to your practice area",
+                "You'll see document drafting, contract analysis, and research in real time",
+                "We'll walk through the full setup — takes less than 15 minutes",
                 "No pressure — just a live demo of the product",
               ].map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: "0.75rem", marginBottom: "0.6rem" }}>
-                  <span style={{ color: "#0cc0df", fontWeight: 700, flexShrink: 0 }}>✓</span>
+                  <span style={{ color: "#374151", fontWeight: 700, flexShrink: 0 }}>✓</span>
                   <p style={{ fontSize: "0.875rem", color: "#374151", margin: 0 }}>{item}</p>
                 </div>
               ))}
@@ -165,22 +165,22 @@ export default function DemoPage() {
 
             {/* Left — info */}
             <div>
-              <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "0.75rem" }}>Live demo · 30 minutes</p>
-              <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3rem)", letterSpacing: "0.02em", color: "#0D1B2A", lineHeight: 1, marginBottom: "1rem" }}>
-                SEE RENNOPS<br />IN ACTION
+              <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "rgba(17,17,17,0.45)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "0.75rem" }}>Live demo · 30 minutes</p>
+              <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3rem)", letterSpacing: "0.02em", color: "#111111", lineHeight: 1, marginBottom: "1rem" }}>
+                SEE LAWRENN<br />IN ACTION
               </h1>
               <p style={{ color: "#6B7280", fontSize: "1rem", lineHeight: 1.7, marginBottom: "2rem" }}>
-                We'll show you a live AI call, walk through the dashboard, and get you set up — all in 30 minutes.
+                We'll walk through a live Lawrenn session — document drafting, legal research, and client intake — tailored to your practice area.
               </p>
 
               {[
-                { icon: "📞", title: "Live AI call demo",        desc: "We call your number live so you hear the AI answer" },
-                { icon: "📊", title: "Dashboard walkthrough",    desc: "See jobs, calls, and customers update in real time" },
-                { icon: "⚡", title: "20-minute setup",          desc: "If you want to start, you'll be live before we hang up" },
-                { icon: "🚫", title: "No pressure",              desc: "Just a demo — no credit card, no commitment" },
+                { icon: "📄", title: "Live document drafting",    desc: "Watch an NDA or brief generate in under 30 seconds" },
+                { icon: "🔍", title: "Legal research demo",       desc: "See AI find on-point case law across major databases" },
+                { icon: "⚡", title: "15-minute setup",           desc: "If you want to start, you'll be live before we hang up" },
+                { icon: "🚫", title: "No pressure",               desc: "Just a demo — no credit card, no commitment" },
               ].map(({ icon, title, desc }) => (
                 <div key={title} style={{ display: "flex", gap: "1rem", marginBottom: "1.25rem" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(12,192,223,0.08)", border: "1px solid rgba(12,192,223,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
                     {icon}
                   </div>
                   <div>
@@ -211,7 +211,7 @@ export default function DemoPage() {
                     <div style={{ textAlign: "center", padding: "2rem", color: "#9CA3AF" }}>Loading availability...</div>
                   ) : grouped.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "2rem", color: "#9CA3AF" }}>
-                      No slots available right now. Email us at hello@rennops.com
+                      No slots available right now. Email us at hello@lawrenn.com
                     </div>
                   ) : (
                     <div style={{ maxHeight: 420, overflowY: "auto", display: "flex", flexDirection: "column", gap: "1.25rem" }}>

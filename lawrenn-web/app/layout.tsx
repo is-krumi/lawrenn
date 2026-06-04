@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RennOps — AI  Operating System for Service Businesses",
-  description: "RennOps answers every call, books every job, and follows up on every quote — automatically. Never miss a customer again.",
-  keywords: "AI receptionist, service business, missed calls, automated booking, phone answering",
+  title: "Lawrenn — The AI Platform Built for Law",
+  description: "Lawrenn brings enterprise AI to every stage of legal practice — from client intake to final invoice. Draft faster, research deeper, and deliver more for every client.",
+  keywords: "legal AI, law firm software, AI document drafting, contract analysis, legal research, matter management",
   openGraph: {
-    title: "RennOps — AI Phone Receptionist for Service Businesses",
-    description: "Stop losing jobs to voicemail. RennOps answers every call automatically.",
-    url: "https://rennops.com",
-    siteName: "RennOps",
+    title: "Lawrenn — The AI Platform Built for Law",
+    description: "Draft faster. Research deeper. Win more. Lawrenn is purpose-built AI for legal professionals.",
+    url: "https://lawrenn.com",
+    siteName: "Lawrenn",
     type: "website",
   },
 };

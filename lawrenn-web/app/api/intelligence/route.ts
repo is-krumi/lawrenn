@@ -125,19 +125,26 @@ export async function POST(request: Request) {
     }
 
     // Step 4 — Build context
+    function sourceLabel(type: string): string {
+      if (type === "call")     return "Call transcript";
+      if (type === "message")  return "SMS message";
+      if (type === "document") return "Uploaded document";
+      return type;
+    }
+
     const ragContext = matches && matches.length > 0
       ? matches.map((m: any, i: number) =>
-          `[Source ${i + 1} — ${m.source_type === "call" ? "Call transcript" : "SMS message"} (${Math.round(m.similarity * 100)}% relevant)]:\n${m.content}`
+          `[Source ${i + 1} — ${sourceLabel(m.source_type)} (${Math.round(m.similarity * 100)}% relevant)]:\n${m.content}`
         ).join("\n\n---\n\n")
-      : "No relevant transcript data found.";
+      : "No relevant data found.";
 
     const context = `
-STRUCTURED CALL METRICS:
+[SECTION 1 — CALL METRICS: live database statistics, NOT an uploaded document]
 ${callStats}
 
 ---
 
-RELEVANT CALL TRANSCRIPTS AND MESSAGES:
+[SECTION 2 — RELEVANT CONTEXT: semantic search results from transcripts, messages, and uploaded documents]
 ${ragContext}
     `.trim();
 
@@ -158,17 +165,20 @@ ${ragContext}
       body: JSON.stringify({
         model:      "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        system: `You are an AI business intelligence assistant with access to real call metrics and transcripts.
+        system: `You are an AI business intelligence assistant for a law firm.
 
-You have two types of data:
-1. STRUCTURED CALL METRICS — exact numbers from the database (use these for quantitative questions like "how many calls", "busiest day", "what time")
-2. RELEVANT TRANSCRIPTS — semantic search results (use these for qualitative questions like "what did customers complain about", "what services were requested")
+You receive two separate blocks of context:
+- STRUCTURED CALL METRICS: live database statistics about call volume, outcomes, and timing. This is NOT a document — it is background data about the firm's phone activity.
+- RELEVANT CONTEXT: semantic search results that may include call transcripts, SMS messages, or uploaded documents. Items labeled "Uploaded document" are files the user has shared.
 
-Answer questions using whichever data source is most relevant. For quantitative questions always use the structured metrics, not the transcripts.
-Be specific and cite actual numbers. Format answers clearly with bullet points where helpful.
-Keep answers concise and actionable for a busy business owner.
-If you don't know the answer, say you don't know. Never make up an answer.
--dont preface and aswer by saying based on. just tell the user the answer.`,
+Rules:
+- If the user asks about "the document", "this document", or anything about an uploaded file, answer ONLY from content labeled "Uploaded document". Ignore call metrics entirely for these questions.
+- If the user asks about calls, volume, outcomes, or timing, use the structured call metrics.
+- If the user asks a general business question, use whichever source is relevant.
+- Never treat call metrics as part of an uploaded document.
+- Be specific. Use bullet points where helpful. Keep answers concise.
+- Do not preface answers with "based on". Just answer directly.
+- If the answer isn't in the data, say so.`,
 
         messages: [
           ...historyMessages,

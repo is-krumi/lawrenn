@@ -38,7 +38,12 @@ export default function CustomersPage() {
   const [calls, setCalls]           = useState<any[]>([]);
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
   const [replyText, setReplyText]   = useState("");
-  const [sending, setSending]       = useState(false);  const [confirmDelete, setConfirmDelete] = useState(false);  const [deleteUnlocked, setDeleteUnlocked] = useState(false);  const [aiSummary, setAiSummary]         = useState<string | null>(null);
+  const [sending, setSending]       = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneValue, setPhoneValue]     = useState("");
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editingJobAmount, setEditingJobAmount] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);  const [deleteUnlocked, setDeleteUnlocked] = useState(false);  const [aiSummary, setAiSummary]         = useState<string | null>(null);
   const [aiAction, setAiAction]           = useState<string | null>(null);
   const [aiIntelligence, setAiIntelligence] = useState<Record<string, string> | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
@@ -172,15 +177,14 @@ export default function CustomersPage() {
   }, [businessId, bizLoading, router]);
 
   async function fetchAndSetSummary(c: Customer, msgs: any[], callsList: any[]) {
-    if (msgs.length === 0 && callsList.length === 0) return;
-    const lastMsgId = msgs.length > 0 ? msgs[msgs.length - 1].id : callsList[0]?.id ?? "";
+    const hasAnyData = msgs.length > 0 || callsList.length > 0 || (c.jobs?.length ?? 0) > 0 || !!c.notes;
+    if (!hasAnyData) return;
+    const lastMsgId = msgs.length > 0 ? msgs[msgs.length - 1].id : callsList[0]?.id ?? c.jobs?.[0]?.id ?? "static";
     const cached = readCache()[c.id];
     if (cached && cached.lastMsgId === lastMsgId) {
-      const leadSource = callsList.length > 0 ? "Phone Call" : "SMS";
-      const intel = cached.intelligence ? { ...cached.intelligence, "Lead Source": leadSource } : null;
       setAiSummary(cached.summary);
       setAiAction(cached.action);
-      setAiIntelligence(intel);
+      setAiIntelligence(cached.intelligence);
       return;
     }
     setLoadingSummary(true);
@@ -219,6 +223,8 @@ export default function CustomersPage() {
     setAiError(false);
     setCalls([]);
     setExpandedCallId(null);
+    setEditingPhone(false);
+    setEditingJobId(null);
     const [{ data: msgData }, { data: callData }] = await Promise.all([
       supabase
         .from("messages")
@@ -316,6 +322,24 @@ async function sendReply() {
     setSaving(false);
   }
 
+  async function savePhone(newPhone: string) {
+    if (!selected || !newPhone.trim() || newPhone.trim() === selected.phone) return;
+    const phone = newPhone.trim();
+    await supabase.from("customers").update({ phone }).eq("id", selected.id);
+    setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, phone } : c));
+    setSelected(prev => prev ? { ...prev, phone } : null);
+  }
+
+  async function saveJobAmount(jobId: string, amountStr: string) {
+    if (!selected) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount < 0) return;
+    await supabase.from("jobs").update({ amount }).eq("id", jobId);
+    const updatedJobs = selected.jobs.map(j => j.id === jobId ? { ...j, amount } : j);
+    setSelected(prev => prev ? { ...prev, jobs: updatedJobs } : null);
+    setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, jobs: updatedJobs } : c));
+  }
+
   async function toggleDissatisfied() {
     if (!selected) return;
     const val = !selected.dissatisfied;
@@ -365,34 +389,36 @@ async function sendReply() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading customers...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
 
       <div style={{ maxWidth: 1500, margin: "0 auto", padding: "2rem" }}>
 
         <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>Customers</h1>
-            <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>{customers.length} total customers</p>
+            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.5rem", letterSpacing: "0.06em", color: "#111111", marginBottom: "0.25rem" }}>CLIENTS</h1>
+            <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>{customers.length} total clients</p>
           </div>
         </div>
 
         {/* Search */}
         <div style={{ position: "relative", marginBottom: "1.5rem" }}>
-          <span style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", fontSize: "1rem" }}>🔍</span>
+          <span style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", display: "flex" }}>
+            <svg style={{ width: 15, height: 15 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
           <input
             type="text"
             placeholder="Search by name, phone, email, or address..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "0.75rem 1rem 0.75rem 2.5rem", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
-            onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+            style={{ width: "100%", padding: "0.75rem 1rem 0.75rem 2.5rem", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" }}
+            onFocus={e => e.currentTarget.style.borderColor = "#111111"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"}
           />
         </div>
@@ -405,7 +431,7 @@ async function sendReply() {
             {filtered.length === 0 ? (
               <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
                 <p style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>👥</p>
-                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.4rem" }}>
+                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#111111", marginBottom: "0.4rem" }}>
                   {search ? "No customers found" : "No customers yet"}
                 </p>
                 <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>
@@ -421,19 +447,19 @@ async function sendReply() {
                     display: "flex", alignItems: "center", gap: "0.75rem",
                     padding: "1rem 1.25rem",
                     cursor: "pointer",
-                    background: selected?.id === customer.id ? "#F0FAFE" : "white",
+                    background: selected?.id === customer.id ? "#F9FAFB" : "white",
                     transition: "background 0.15s",
                   }}
                   onMouseEnter={e => { if (selected?.id !== customer.id) e.currentTarget.style.background = "#F9FAFB"; }}
                   onMouseLeave={e => { if (selected?.id !== customer.id) e.currentTarget.style.background = "white"; }}>
 
                   {/* Avatar */}
-                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg, #0cc0df, #0D1B2A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
                     {(customer.name ?? customer.phone).charAt(0).toUpperCase()}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {customer.name ?? customer.phone}
                     </p>
                     <p style={{ fontSize: "0.78rem", color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -455,68 +481,64 @@ async function sendReply() {
                   </div>
                   </div>
 
-                  {/* AI summary inline — only for selected customer */}
+                  {/* Lawrenn AI panel — only for selected customer */}
                   {selected?.id === customer.id && (loadingSummary || aiSummary || aiIntelligence || aiError) && (
-                    <div style={{ background: "linear-gradient(135deg, #0D1B2A 0%, #0f2337 100%)", margin: "0", padding: "0.85rem 1.1rem", position: "relative", overflow: "hidden" }}>
-                      <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(12,192,223,0.12)", pointerEvents: "none" }} />
+                    <div style={{ background: "#F5F5F0", margin: "0", padding: "0.85rem 1.1rem", position: "relative", overflow: "hidden" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                          <span style={{ fontSize: "0.65rem", color: "#0cc0df" }}>✦</span>
-                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Renn Intelligence</p>
-                        </div>
+                        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "0.95rem", letterSpacing: "0.12em", color: "#111111" }}>LAWRENN</span>
                         {!loadingSummary && (
                           <button onClick={e => { e.stopPropagation(); regenerateSummary(); }}
-                            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", fontSize: "0.65rem", padding: 0, fontFamily: "'DM Sans'" }}>
+                            style={{ background: "none", border: "none", color: "rgba(0,0,0,0.3)", cursor: "pointer", fontSize: "0.65rem", padding: 0, fontFamily: "'DM Sans'" }}>
                             ↺ refresh
                           </button>
                         )}
                       </div>
                       {loadingSummary ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                          <div style={{ width: 12, height: 12, border: "2px solid rgba(12,192,223,0.3)", borderTopColor: "#0cc0df", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
-                          <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.45)", margin: 0, fontStyle: "italic" }}>Analyzing customer history...</p>
+                          <div style={{ width: 12, height: 12, border: "2px solid rgba(0,0,0,0.12)", borderTopColor: "#111111", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+                          <p style={{ fontSize: "0.78rem", color: "rgba(0,0,0,0.4)", margin: 0, fontStyle: "italic" }}>Analyzing client profile...</p>
                         </div>
                       ) : aiError ? (
-                        <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", margin: 0, fontStyle: "italic" }}>Could not generate summary.</p>
+                        <p style={{ fontSize: "0.78rem", color: "rgba(0,0,0,0.35)", margin: 0, fontStyle: "italic" }}>Could not generate summary.</p>
                       ) : (
                         <>
                           {aiSummary && (
-                            <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.65, margin: "0 0 0.65rem" }}>
+                            <p style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.75)", lineHeight: 1.65, margin: "0 0 0.65rem" }}>
                               {aiSummary}
                             </p>
                           )}
                           {aiAction && (
-                            <div style={{ borderTop: "1px solid rgba(12,192,223,0.18)", paddingTop: "0.55rem" }}>
-                              <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Recommended action</p>
-                              <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.6, margin: 0 }}>{aiAction}</p>
+                            <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "0.55rem" }}>
+                              <p style={{ fontSize: "0.6rem", fontWeight: 700, color: "rgba(0,0,0,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.25rem" }}>Recommended action</p>
+                              <p style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.75)", lineHeight: 1.6, margin: 0 }}>{aiAction}</p>
                             </div>
                           )}
                           {aiIntelligence && (() => {
-                            const intentColor: Record<string, string> = { High: "#10B981", Medium: "#F59E0B", Low: "#9CA3AF" };
-                            const urgencyColor: Record<string, string> = { "Emergency": "#EF4444", "Emergency / Same-day": "#EF4444", "Same-day": "#F97316", "Routine": "#10B981", "Not urgent": "#9CA3AF" };
-                            const sentimentColor: Record<string, string> = { Positive: "#10B981", Neutral: "#9CA3AF", Frustrated: "#F59E0B", Angry: "#EF4444" };
+                            const engagementColor: Record<string, string> = { High: "#10B981", Medium: "#D97706", Low: "rgba(0,0,0,0.35)" };
+                            const urgencyColor: Record<string, string> = { "Emergency": "#DC2626", "Time-sensitive": "#EA580C", "Routine": "#10B981", "Not urgent": "rgba(0,0,0,0.35)" };
+                            const sentimentColor: Record<string, string> = { Positive: "#10B981", Neutral: "rgba(0,0,0,0.5)", Concerned: "#D97706", Frustrated: "#D97706", Distressed: "#DC2626" };
                             const fields = [
-                              { label: "Service Needed",   key: "Service Needed",   color: null },
-                              { label: "Intent Level",     key: "Intent Level",     colorMap: intentColor },
-                              { label: "Urgency",          key: "Urgency",          colorMap: urgencyColor },
-                              { label: "Sentiment",        key: "Sentiment",        colorMap: sentimentColor },
-                              { label: "Lead Source",      key: "Lead Source",      color: null },
-                              { label: "Est. Revenue",     key: "Estimated Revenue",color: "#10B981" },
-                              { label: "Current Stage",    key: "Current Stage",    color: null },
-                              { label: "Follow-up Due",    key: "Follow-up Due",    color: "#0cc0df" },
-                              { label: "Assigned To",      key: "Assigned To",      color: null },
+                              { label: "Matter Type",     key: "Matter Type",      color: null },
+                              { label: "Engagement",      key: "Engagement Level", colorMap: engagementColor },
+                              { label: "Urgency",         key: "Urgency",          colorMap: urgencyColor },
+                              { label: "Sentiment",       key: "Client Sentiment", colorMap: sentimentColor },
+                              { label: "Referral Source", key: "Referral Source",  color: null },
+                              { label: "Est. Fees",       key: "Estimated Fees",   color: "#10B981" },
+                              { label: "Matter Stage",    key: "Matter Stage",     color: null },
+                              { label: "Follow-up Due",   key: "Follow-up Due",    color: "#111111" },
+                              { label: "Assigned To",     key: "Assigned To",      color: null },
                             ];
                             return (
-                              <div style={{ borderTop: "1px solid rgba(12,192,223,0.18)", paddingTop: "0.65rem", marginTop: "0.1rem" }}>
-                                <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.55rem" }}>Customer Intelligence</p>
+                              <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", paddingTop: "0.65rem", marginTop: "0.1rem" }}>
+                                <p style={{ fontSize: "0.6rem", fontWeight: 700, color: "rgba(0,0,0,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.55rem" }}>Client Intelligence</p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem 0.75rem" }}>
                                   {fields.map(({ label, key, color, colorMap }) => {
                                     const val = aiIntelligence![key];
                                     if (!val) return null;
-                                    const valueColor = colorMap ? (colorMap[val] ?? "rgba(255,255,255,0.75)") : (color ?? "rgba(255,255,255,0.75)");
+                                    const valueColor = colorMap ? (colorMap[val] ?? "rgba(0,0,0,0.7)") : (color ?? "rgba(0,0,0,0.7)");
                                     return (
                                       <div key={key}>
-                                        <p style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.38)", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 0.1rem" }}>{label}</p>
+                                        <p style={{ fontSize: "0.58rem", color: "rgba(0,0,0,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 0.1rem" }}>{label}</p>
                                         <p style={{ fontSize: "0.76rem", fontWeight: 600, color: valueColor, margin: 0, lineHeight: 1.3 }}>{val}</p>
                                       </div>
                                     );
@@ -552,11 +574,11 @@ async function sendReply() {
             <div style={{ width: col2Width, flexShrink: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, padding: "1.5rem", position: "sticky", top: 72 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #0cc0df, #0D1B2A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "1.1rem" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "1.1rem" }}>
                     {(selected.name ?? selected.phone).charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0D1B2A", marginBottom: "0.1rem" }}>
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#111111", marginBottom: "0.1rem" }}>
                       {selected.name ?? "Unknown"}
                     </h3>
                     <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>Customer since {formatDate(selected.created_at)}</p>
@@ -580,19 +602,54 @@ async function sendReply() {
               )}
               <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem" }}>
                 <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Contact</p>
-                <p style={{ fontSize: "0.875rem", color: "#0D1B2A", marginBottom: "0.25rem" }}>📞 {selected.phone}</p>
-                {selected.email && <p style={{ fontSize: "0.875rem", color: "#0D1B2A", marginBottom: "0.25rem" }}>✉️ {selected.email}</p>}
-                {selected.address && <p style={{ fontSize: "0.875rem", color: "#0D1B2A" }}>📍 {selected.address}</p>}
+                {editingPhone ? (
+                  <input
+                    type="tel"
+                    autoFocus
+                    value={phoneValue}
+                    onChange={e => setPhoneValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") { savePhone(phoneValue); setEditingPhone(false); }
+                      if (e.key === "Escape") setEditingPhone(false);
+                    }}
+                    onBlur={() => { savePhone(phoneValue); setEditingPhone(false); }}
+                    style={{ width: "100%", padding: "0.35rem 0.6rem", background: "white", border: "1.5px solid #111111", borderRadius: 6, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none", marginBottom: "0.25rem", boxSizing: "border-box" as const }}
+                  />
+                ) : (
+                  <p
+                    onClick={() => { setEditingPhone(true); setPhoneValue(selected.phone); }}
+                    title="Click to edit"
+                    style={{ fontSize: "0.875rem", color: "#111111", marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.4rem", cursor: "pointer", borderRadius: 4 }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.04)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <svg style={{ width: 14, height: 14, color: "#9CA3AF", flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.11 13.42 19.79 19.79 0 0 1 1 4.82 2 2 0 0 1 2.96 2.68h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91A16 16 0 0 0 12.09 14.91l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 20 15.92z"/></svg>
+                    {selected.phone}
+                    <svg style={{ width: 11, height: 11, color: "#C4C4C4", marginLeft: "auto" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </p>
+                )}
+                {selected.email && (
+                  <p style={{ fontSize: "0.875rem", color: "#111111", marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <svg style={{ width: 14, height: 14, color: "#9CA3AF", flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    {selected.email}
+                  </p>
+                )}
+                {selected.address && (
+                  <p style={{ fontSize: "0.875rem", color: "#111111", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <svg style={{ width: 14, height: 14, color: "#9CA3AF", flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {selected.address}
+                  </p>
+                )}
               </div>
 
               {/* Stats */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Total jobs</p>
-                  <p style={{ fontSize: "1.4rem", fontFamily: "'Bebas Neue'", color: "#0cc0df", letterSpacing: "0.02em" }}>{jobCount(selected)}</p>
+                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Matters</p>
+                  <p style={{ fontSize: "1.4rem", fontFamily: "'Bebas Neue'", color: "#111111", letterSpacing: "0.02em" }}>{jobCount(selected)}</p>
                 </div>
                 <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Total revenue</p>
+                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Total Fees</p>
                   <p style={{ fontSize: "1.4rem", fontFamily: "'Bebas Neue'", color: "#10B981", letterSpacing: "0.02em" }}>${totalRevenue(selected).toLocaleString()}</p>
                 </div>
               </div>
@@ -600,13 +657,36 @@ async function sendReply() {
               {/* Job history */}
               {selected.jobs?.length > 0 && (
                 <div style={{ marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Job history</p>
+                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Matter history <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "#9CA3AF" }}>· click fee to edit</span></p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     {selected.jobs.slice(0, 4).map(job => (
                       <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "#F9FAFB", borderRadius: 6 }}>
                         <span style={{ fontSize: "0.82rem", color: "#374151" }}>{job.type}</span>
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                          {job.amount > 0 && <span style={{ fontSize: "0.78rem", color: "#10B981", fontWeight: 600 }}>${job.amount}</span>}
+                          {editingJobId === job.id ? (
+                            <input
+                              type="number"
+                              autoFocus
+                              value={editingJobAmount}
+                              onChange={e => setEditingJobAmount(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") { saveJobAmount(job.id, editingJobAmount); setEditingJobId(null); }
+                                if (e.key === "Escape") setEditingJobId(null);
+                              }}
+                              onBlur={() => { saveJobAmount(job.id, editingJobAmount); setEditingJobId(null); }}
+                              style={{ width: 80, padding: "0.2rem 0.4rem", background: "white", border: "1.5px solid #111111", borderRadius: 4, color: "#10B981", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600, outline: "none" }}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => { setEditingJobId(job.id); setEditingJobAmount(String(job.amount ?? 0)); }}
+                              title="Click to edit"
+                              style={{ fontSize: "0.78rem", color: "#10B981", fontWeight: 600, cursor: "pointer", padding: "0.1rem 0.25rem", borderRadius: 3 }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.08)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              ${job.amount > 0 ? job.amount : "—"}
+                            </span>
+                          )}
                           <span style={{ fontSize: "0.72rem", color: "#9CA3AF" }}>{formatDate(job.created_at)}</span>
                         </div>
                       </div>
@@ -622,9 +702,9 @@ async function sendReply() {
                   value={editNotes}
                   onChange={e => setEditNotes(e.target.value)}
                   rows={3}
-                  placeholder="Add notes about this customer..."
-                  style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-                  onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                  placeholder="Add attorney notes about this client..."
+                  style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                   onBlur={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"; saveNotes(); }}
                 />
                 <p style={{ fontSize: "0.72rem", color: "#9CA3AF", marginTop: "0.25rem" }}>Auto-saves on blur</p>
@@ -634,7 +714,7 @@ async function sendReply() {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem" }}>Mark as dissatisfied</p>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>Mark as dissatisfied</p>
                     <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>Excludes from review requests</p>
                   </div>
                   <button onClick={toggleDissatisfied}
@@ -645,7 +725,7 @@ async function sendReply() {
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem" }}>SMS opted out</p>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>SMS opted out</p>
                     <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>No SMS messages will be sent</p>
                   </div>
                   <button onClick={toggleOptOut}
@@ -656,7 +736,7 @@ async function sendReply() {
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.1rem" }}>AI SMS replies</p>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>AI SMS replies</p>
                     <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
                       {selected.ai_sms_replies === null || selected.ai_sms_replies === undefined
                         ? "Using business default"
@@ -677,8 +757,8 @@ async function sendReply() {
                         }}
                         style={{
                           padding: "0.3rem 0.65rem",
-                          background: selected.ai_sms_replies === value ? "#0D1B2A" : "#F9FAFB",
-                          border: `1px solid ${selected.ai_sms_replies === value ? "#0D1B2A" : "rgba(0,0,0,0.1)"}`,
+                          background: selected.ai_sms_replies === value ? "#111111" : "#F9FAFB",
+                          border: `1px solid ${selected.ai_sms_replies === value ? "#111111" : "rgba(0,0,0,0.1)"}`,
                           borderRadius: 6,
                           color: selected.ai_sms_replies === value ? "white" : "#6B7280",
                           fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 600,
@@ -727,7 +807,7 @@ async function sendReply() {
             <div style={{ flex: 1, minWidth: 0, background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, display: "flex", flexDirection: "column", position: "sticky", top: 72, maxHeight: "calc(100vh - 120px)", overflow: "hidden" }}>
               {/* Header */}
               <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.06)", flexShrink: 0 }}>
-                <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#0D1B2A", margin: "0 0 0.1rem" }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#111111", margin: "0 0 0.1rem" }}>
                   History{(messages.length + calls.length) > 0 && <span style={{ fontWeight: 400, color: "#9CA3AF" }}> ({messages.length} messages · {calls.length} calls)</span>}
                 </p>
                 <p style={{ fontSize: "0.75rem", color: "#9CA3AF", margin: 0 }}>{selected.phone}</p>
@@ -753,13 +833,13 @@ async function sendReply() {
                               maxWidth: "82%",
                               padding: "0.55rem 0.8rem",
                               borderRadius: item.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
-                              background: item.direction === "outbound" ? "#E8F4FD" : "#F9FAFB",
-                              border: item.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "1px solid rgba(12,192,223,0.2)",
+                              background: item.direction === "outbound" ? "#111111" : "#F9FAFB",
+                              border: item.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "none",
                             }}>
-                              <p style={{ fontSize: "0.85rem", color: item.direction === "outbound" ? "#0D1B2A" : "#374151", lineHeight: 1.5, margin: 0 }}>
+                              <p style={{ fontSize: "0.85rem", color: item.direction === "outbound" ? "white" : "#374151", lineHeight: 1.5, margin: 0 }}>
                                 {item.body}
                               </p>
-                              <p style={{ fontSize: "0.65rem", color: item.direction === "outbound" ? "#6B7280" : "#9CA3AF", margin: "0.25rem 0 0", textAlign: item.direction === "outbound" ? "right" : "left" }}>
+                              <p style={{ fontSize: "0.65rem", color: item.direction === "outbound" ? "rgba(255,255,255,0.55)" : "#9CA3AF", margin: "0.25rem 0 0", textAlign: item.direction === "outbound" ? "right" : "left" }}>
                                 {new Date(item.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                               </p>
                             </div>
@@ -782,9 +862,9 @@ async function sendReply() {
                             onClick={() => setExpandedCallId(isExpanded ? null : item.id)}
                             style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" as const }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.5rem 0.75rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: isExpanded ? "8px 8px 0 0" : 8 }}>
-                              <span style={{ fontSize: "0.9rem" }}>📞</span>
+                              <svg style={{ width: 14, height: 14, color: "#9CA3AF", flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.11 13.42 19.79 19.79 0 0 1 1 4.82 2 2 0 0 1 2.96 2.68h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91A16 16 0 0 0 12.09 14.91l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 20 15.92z"/></svg>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#0D1B2A", margin: 0 }}>
+                                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111111", margin: 0 }}>
                                   Inbound call
                                   {item.outcome && <span style={{ marginLeft: "0.4rem", fontSize: "0.72rem", fontWeight: 700, color: outcomeColor[item.outcome] ?? "#6B7280", textTransform: "capitalize" as const }}>· {item.outcome}</span>}
                                 </p>
@@ -820,12 +900,12 @@ async function sendReply() {
                   value={replyText}
                   onChange={e => setReplyText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") sendReply(); }}
-                  style={{ flex: 1, padding: "0.6rem 0.85rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.09)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}
-                  onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                  style={{ flex: 1, padding: "0.6rem 0.85rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.09)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}
+                  onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                   onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)"}
                 />
                 <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                  style={{ padding: "0.6rem 1rem", background: sending || !replyText.trim() ? "#E5E7EB" : "#0D1B2A", border: "none", borderRadius: 8, color: sending || !replyText.trim() ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
+                  style={{ padding: "0.6rem 1rem", background: sending || !replyText.trim() ? "#E5E7EB" : "#111111", border: "none", borderRadius: 8, color: sending || !replyText.trim() ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
                   {sending ? "..." : "Send"}
                 </button>
               </div>

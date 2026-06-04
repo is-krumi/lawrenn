@@ -156,7 +156,7 @@ async function handlePreview() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(160deg, #f0fafe 0%, #ffffff 60%)",
+      background: "#F5F5F0",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
@@ -164,8 +164,8 @@ async function handlePreview() {
     }}>
 
       {/* Logo */}
-      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none", marginBottom: "2.5rem" }}>
-        RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+      <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#111111", textDecoration: "none", marginBottom: "2.5rem" }}>
+        LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
       </a>
 
       {/* Progress — 5 steps now */}
@@ -175,18 +175,18 @@ async function handlePreview() {
             <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
               <div style={{
                 width: 28, height: 28, borderRadius: "50%",
-                background: i < 4 ? "#0cc0df" : "rgba(0,0,0,0.08)",
+                background: i < 4 ? "#111111" : "rgba(0,0,0,0.08)",
                 color: i < 4 ? "white" : "#6B7280",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "0.8rem", fontWeight: 700,
                 border: i < 4 ? "none" : "1.5px solid rgba(0,0,0,0.1)",
               }}>{i < 3 ? "✓" : i + 1}</div>
-              <span style={{ fontSize: "0.72rem", color: i === 3 ? "#0cc0df" : "#6B7280", fontWeight: i === 3 ? 600 : 400 }}>{step}</span>
+              <span style={{ fontSize: "0.72rem", color: i === 3 ? "#111111" : "#6B7280", fontWeight: i === 3 ? 600 : 400 }}>{step}</span>
             </div>
           ))}
         </div>
         <div style={{ height: 3, background: "rgba(0,0,0,0.06)", borderRadius: 2 }}>
-          <div style={{ height: "100%", width: "80%", background: "#0cc0df", borderRadius: 2 }} />
+          <div style={{ height: "100%", width: "80%", background: "#111111", borderRadius: 2 }} />
         </div>
       </div>
 
@@ -199,11 +199,11 @@ async function handlePreview() {
         padding: "2.5rem",
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
       }}>
-        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.4rem" }}>
-          Set up your AI agent
+        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.03em", color: "#111111", marginBottom: "0.4rem" }}>
+          Set up your AI assistant
         </h1>
         <p style={{ color: "#6B7280", fontSize: "0.9rem", marginBottom: "2rem", lineHeight: 1.6 }}>
-          Customize how your AI receptionist sounds and what it says when it answers.
+          Customize how your AI assistant sounds and what it says when it answers.
         </p>
 
         {error && (
@@ -225,8 +225,8 @@ async function handlePreview() {
             placeholder="Alex"
             value={agentName}
             onChange={e => handleAgentNameChange(e.target.value)}
-            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
-            onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+            onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
           />
         </div>
@@ -243,8 +243,8 @@ async function handlePreview() {
             value={greeting}
             onChange={e => { setGreeting(e.target.value); setAudioUrl(null); }}
             rows={3}
-            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
-            onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
+            onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
           />
           <p style={{ fontSize: "0.75rem", color: "#9CA3AF", marginTop: "0.35rem" }}>
@@ -262,14 +262,14 @@ async function handlePreview() {
               <button key={voice.elevenLabsId} onClick={() => { setSelectedVoice(voice); setAudioUrl(null); }}
                 style={{
                   padding: "0.75rem 1rem",
-                  background: selectedVoice.elevenLabsId === voice.elevenLabsId ? "rgba(12,192,223,0.08)" : "#F9FAFB",
-                  border: `1.5px solid ${selectedVoice.elevenLabsId === voice.elevenLabsId ? "#0cc0df" : "rgba(0,0,0,0.1)"}`,
+                  background: selectedVoice.elevenLabsId === voice.elevenLabsId ? "rgba(17,17,17,0.06)" : "#F5F5F0",
+                  border: `1.5px solid ${selectedVoice.elevenLabsId === voice.elevenLabsId ? "#111111" : "rgba(0,0,0,0.1)"}`,
                   borderRadius: 8,
                   cursor: "pointer",
                   textAlign: "left",
                   transition: "all 0.15s",
                 }}>
-                <div style={{ fontSize: "0.9rem", fontWeight: 600, color: selectedVoice.elevenLabsId === voice.elevenLabsId ? "#0cc0df" : "#0D1B2A", marginBottom: "0.15rem" }}>
+                <div style={{ fontSize: "0.9rem", fontWeight: 600, color: selectedVoice.elevenLabsId === voice.elevenLabsId ? "#111111" : "#374151", marginBottom: "0.15rem" }}>
                   {voice.name}
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#6B7280" }}>{voice.desc} · {voice.gender}</div>
@@ -279,17 +279,17 @@ async function handlePreview() {
         </div>
 
         {/* Audio preview */}
-        <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
+        <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: audioUrl ? "0.75rem" : 0 }}>
             <div>
-              <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0D1B2A", marginBottom: "0.15rem" }}>Preview your greeting</p>
-              <p style={{ fontSize: "0.78rem", color: "#6B7280" }}>Hear exactly how your agent will sound</p>
+              <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Preview your greeting</p>
+              <p style={{ fontSize: "0.78rem", color: "#6B7280" }}>Hear exactly how your assistant will sound</p>
             </div>
             <button onClick={handlePreview} disabled={previewLoading}
               style={{
                 display: "flex", alignItems: "center", gap: "0.5rem",
                 padding: "0.6rem 1.1rem",
-                background: previewLoading ? "rgba(12,192,223,0.6)" : "#0cc0df",
+                background: previewLoading ? "rgba(17,17,17,0.45)" : "#111111",
                 border: "none", borderRadius: 8,
                 color: "white", fontFamily: "'DM Sans'",
                 fontSize: "0.875rem", fontWeight: 600,
@@ -309,15 +309,15 @@ async function handlePreview() {
 
           {audioUrl && (
             <audio ref={audioRef} src={audioUrl} controls
-              style={{ width: "100%", height: 36, accentColor: "#0cc0df" }} />
+              style={{ width: "100%", height: 36, accentColor: "#111111" }} />
           )}
         </div>
 
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
         {/* Preview of what caller hears */}
-        <div style={{ background: "rgba(12,192,223,0.04)", border: "1px solid rgba(12,192,223,0.15)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
-          <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
+        <div style={{ background: "rgba(17,17,17,0.04)", border: "1px solid rgba(17,17,17,0.1)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
+          <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#374151", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
             What your caller will hear
           </p>
           <p style={{ fontSize: "0.9rem", color: "#374151", lineHeight: 1.6, fontStyle: "italic" }}>
@@ -332,7 +332,7 @@ async function handlePreview() {
             ← Back
           </button>
           <button onClick={handleNext} disabled={loading}
-            style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+            style={{ flex: 2, padding: "0.9rem", background: loading ? "rgba(17,17,17,0.45)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
             {loading ? "Saving..." : "Next — Set up your phone →"}
           </button>
         </div>

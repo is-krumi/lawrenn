@@ -1,10 +1,67 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useBusiness } from "@/context/BusinessContext";
 import FeatureGate from "@/components/FeatureGate";
+import RichEmailEditor from "@/components/RichEmailEditor";
+
+function DocTypeIcon({ name }: { name: string }) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+
+  if (ext === "pdf") {
+    return (
+      <img
+        src="/icons/adobeLogo.png"
+        alt="PDF"
+        width={16}
+        height={16}
+        style={{ flexShrink: 0, objectFit: "contain" }}
+      />
+    );
+  }
+
+  // Document shape with folded corner for other types
+  function DocShape({ color, foldColor, children }: { color: string; foldColor: string; children: React.ReactNode }) {
+    return (
+      <svg width="16" height="19" viewBox="0 0 16 19" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+        <path d="M1 2.5C1 1.67 1.67 1 2.5 1H9L15 7V16.5C15 17.33 14.33 18 13.5 18H2.5C1.67 18 1 17.33 1 16.5V2.5Z" fill={color}/>
+        <path d="M9 1L15 7H10C9.45 7 9 6.55 9 6V1Z" fill={foldColor}/>
+        {children}
+      </svg>
+    );
+  }
+
+  if (ext === "doc" || ext === "docx") {
+    return (
+      <DocShape color="#2B579A" foldColor="#1E3F73">
+        <text x="8" y="15.5" textAnchor="middle" fill="white" fontSize="7" fontWeight="900" fontFamily="Arial,sans-serif">W</text>
+      </DocShape>
+    );
+  }
+  if (ext === "xls" || ext === "xlsx") {
+    return (
+      <DocShape color="#217346" foldColor="#185A34">
+        <text x="8" y="15" textAnchor="middle" fill="white" fontSize="4.5" fontWeight="800" fontFamily="Arial,sans-serif">XLS</text>
+      </DocShape>
+    );
+  }
+  if (ext === "ppt" || ext === "pptx") {
+    return (
+      <DocShape color="#D04423" foldColor="#A8341A">
+        <text x="8" y="15" textAnchor="middle" fill="white" fontSize="4.5" fontWeight="800" fontFamily="Arial,sans-serif">PPT</text>
+      </DocShape>
+    );
+  }
+  return (
+    <DocShape color="#6B7280" foldColor="#4B5563">
+      <text x="8" y="15" textAnchor="middle" fill="white" fontSize="4" fontWeight="800" fontFamily="Arial,sans-serif" letterSpacing="0.3">
+        {ext.toUpperCase().slice(0, 3) || "DOC"}
+      </text>
+    </DocShape>
+  );
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,12 +85,12 @@ const SUGGESTED_QUESTIONS = [
   "What was my busiest day this month?",
   "What time of day do most customers call?",
   "What are the most common reasons customers call?",
-  "How many calls were escalated this month?",
+  "Summarize the document I uploaded",
+  "What are the key terms in this contract?",
   "What was the outcome breakdown of my calls?",
   "Did any customers complain via text this month?",
   "Which customers asked to reschedule?",
   "Show me calls where customers mentioned an emergency",
-  "How many review requests went out this month?",
 ];
 
 function renderInline(text: string): React.ReactNode[] {
@@ -121,9 +178,18 @@ function renderContent(text: string): React.ReactNode {
   return <div style={{ fontSize: "0.9rem", color: "#1F2937" }}>{nodes}</div>;
 }
 
+interface DocRecord {
+  id: string;
+  name: string;
+  status: string;
+  file_type?: string;
+  file_size?: number;
+  created_at?: string;
+}
+
 export default function IntelligencePage() {
   const router = useRouter();
-  const { businessId, loading: bizLoading } = useBusiness();
+  const { businessId, businessName, loading: bizLoading } = useBusiness();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -131,16 +197,128 @@ export default function IntelligencePage() {
   const [activeSources, setActiveSources] = useState<Source[] | null>(null);
   const [activeSourcesLabel, setActiveSourcesLabel] = useState("");
   const [expandedSource, setExpandedSource] = useState<number | null>(null);
+  const [isDragging,      setIsDragging]      = useState(false);
+  const [showDraftEmail,  setShowDraftEmail]  = useState(false);
+  const [draftLoading,    setDraftLoading]    = useState(false);
+  const [draftError,      setDraftError]      = useState("");
+  const [draftSubject,    setDraftSubject]    = useState("");
+  const [draftBody,       setDraftBody]       = useState("");
+  const [draftCopied,     setDraftCopied]     = useState(false);
+  const [draftWidth,      setDraftWidth]      = useState(600);
+  const [draftVersion,    setDraftVersion]    = useState(0);
+  const draftDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [showPurposeInput, setShowPurposeInput] = useState(false);
+  const [emailPurpose,     setEmailPurpose]     = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadingName, setUploadingName] = useState("");
+  const [documents, setDocuments] = useState<DocRecord[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!bizLoading && !businessId) router.push("/login");
   }, [businessId, bizLoading, router]);
 
+  function removeDocument(doc: DocRecord) {
+    setDocuments(prev => prev.filter(d => d.id !== doc.id));
+  }
+
+  async function generateDraft(purpose: string) {
+    setShowPurposeInput(false);
+    setEmailPurpose("");
+    setShowDraftEmail(true);
+    setDraftLoading(true);
+    setDraftError("");
+    setDraftSubject("");
+    setDraftBody("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const lawyerName = user?.user_metadata?.full_name ?? user?.email ?? "Attorney";
+      const chatHistory = messages
+        .map(m => `${m.role === "user" ? "Lawyer" : "Intelligence"}: ${m.content}`)
+        .join("\n\n");
+      const res = await fetch("/api/draft-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatHistory,
+          recipientType: "client",
+          recipientName: "Client",
+          firmName:      businessName ?? "Law Firm",
+          lawyerName,
+          instructions:  purpose.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to generate draft");
+      setDraftSubject(data.subject ?? "");
+      setDraftBody(data.body ?? "");
+      setDraftVersion(v => v + 1); // force RichEmailEditor remount with new content
+    } catch (err: any) {
+      setDraftError(err.message);
+    } finally {
+      setDraftLoading(false);
+    }
+  }
+
+  async function handleFileDrop(file: File) {
+    if (!businessId) return;
+    if (documents.some(d => d.name === file.name)) {
+      alert(`"${file.name}" is already attached. Remove it first to re-upload.`);
+      return;
+    }
+    setUploading(true);
+    setUploadingName(file.name);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("business_id", businessId);
+    try {
+      const res  = await fetch("/api/process-document", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setDocuments(prev => [{ id: data.document_id, name: file.name, status: "ready" }, ...prev]);
+      } else {
+        alert(data.error ?? "Failed to process document");
+      }
+    } catch {
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const onDraftMouseMove = useCallback((e: MouseEvent) => {
+    if (!draftDragRef.current) return;
+    const dx = draftDragRef.current.startX - e.clientX; // dragging left edge = inverse
+    setDraftWidth(Math.max(340, Math.min(1000, draftDragRef.current.startW + dx)));
+  }, []);
+
+  const onDraftMouseUp = useCallback(() => {
+    draftDragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onDraftMouseMove);
+    window.addEventListener("mouseup",   onDraftMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onDraftMouseMove);
+      window.removeEventListener("mouseup",   onDraftMouseUp);
+    };
+  }, [onDraftMouseMove, onDraftMouseUp]);
+
+  function startDraftDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    draftDragRef.current = { startX: e.clientX, startW: draftWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
 
   async function sendMessage(text?: string) {
     const query = text ?? input.trim();
@@ -187,7 +365,7 @@ export default function IntelligencePage() {
 
   if (bizLoading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading...</p>
       </div>
     );
@@ -195,97 +373,106 @@ export default function IntelligencePage() {
 
   return (
     <FeatureGate feature="intelligence">
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "2rem 1.5rem", flex: 1, display: "flex", flexDirection: "column", width: "100%", boxSizing: "border-box" as const }}>
+    <div
+      onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+      onDrop={e => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFileDrop(file); }}
+      style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif", position: "relative" as const }}>
 
-        {/* Header */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", margin: 0 }}>
-            <span style={{ color: "#0cc0df" }}>Renn</span> Intelligence
-          </h1>
-          <p style={{ color: "#9CA3AF", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>
-            Ask anything about your calls, messages, and customer conversations
-          </p>
+      {/* Drag overlay */}
+      {isDragging && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(12,192,223,0.05)", border: "2px dashed rgba(12,192,223,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, pointerEvents: "none" }}>
+          <div style={{ textAlign: "center" }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 0.75rem", display: "block" }}>
+              <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+            </svg>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0cc0df" }}>Drop to upload document</p>
+          </div>
         </div>
+      )}
 
-        {/* Two-column layout */}
-        <div style={{ flex: 1, display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
+      {/* Hidden file input — shared by both tabs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.txt,.doc,.docx"
+        style={{ display: "none" }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileDrop(f); e.target.value = ""; }}
+      />
 
-          {/* Chat panel */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 16, overflow: "hidden", minWidth: 0 }}>
+      {/* ── Main body: messages + sources ── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-            {/* Messages */}
-            <div style={{ overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", minHeight: 480, maxHeight: "calc(100vh - 300px)" }}>
+        {/* Left column: chat messages + input bar */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-              {messages.length === 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1.5rem", height: "100%", padding: "2rem 0" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ width: 50, height: 50, borderRadius: "50%", background: "rgba(12,192,223,0.08)", border: "1.5px solid rgba(12,192,223,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      </svg>
-                    </div>
-                    <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.25rem", letterSpacing: "0.04em", color: "#0D1B2A", margin: "0 0 0.4rem" }}>
-                      ASK YOUR BUSINESS DATA
-                    </h3>
-                    <p style={{ fontSize: "0.86rem", color: "#9CA3AF", maxWidth: 360, lineHeight: 1.6, margin: "0 auto" }}>
-                      Ask about your calls, customers, and bookings. I will search through your data and give you real answers.
-                    </p>
+        {/* Messages scroll area */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "2rem 1.5rem 1rem" }}>
+          <div style={{ maxWidth: 780, margin: "0 auto" }}>
+
+            {messages.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1.75rem", minHeight: "60vh", padding: "2rem 0" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(12,192,223,0.08)", border: "1.5px solid rgba(12,192,223,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
                   </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.45rem", width: "100%", maxWidth: 540 }}>
-                    {SUGGESTED_QUESTIONS.map((q, i) => (
-                      <button key={i} onClick={() => sendMessage(q)}
-                        style={{
-                          padding: "0.6rem 0.85rem",
-                          background: "#F9FAFB",
-                          border: "1px solid rgba(0,0,0,0.07)",
-                          borderRadius: 8,
-                          color: "#374151",
-                          fontFamily: "'DM Sans'",
-                          fontSize: "0.795rem",
-                          textAlign: "left",
-                          cursor: "pointer",
-                          lineHeight: 1.45,
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "#0cc0df"; e.currentTarget.style.background = "rgba(12,192,223,0.04)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)"; e.currentTarget.style.background = "#F9FAFB"; }}>
-                        {q}
-                      </button>
-                    ))}
-                  </div>
+                  <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.06em", color: "#111111", margin: "0 0 0.5rem" }}>
+                    ASK YOUR BUSINESS DATA
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF", maxWidth: 380, lineHeight: 1.65, margin: "0 auto" }}>
+                    Ask about your calls, customers, and uploaded documents.
+                  </p>
                 </div>
-              ) : (
-                <>
-                  {messages.map((msg, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: "0.6rem", alignItems: "flex-start" }}>
 
-                      {msg.role === "assistant" && (
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(12,192,223,0.08)", border: "1.5px solid rgba(12,192,223,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                          </svg>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", width: "100%", maxWidth: 580 }}>
+                  {SUGGESTED_QUESTIONS.map((q, i) => (
+                    <button key={i} onClick={() => sendMessage(q)}
+                      style={{
+                        padding: "0.65rem 0.9rem",
+                        background: "white",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                        borderRadius: 8,
+                        color: "#374151",
+                        fontFamily: "'DM Sans'",
+                        fontSize: "0.8rem",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        lineHeight: 1.45,
+                        transition: "all 0.15s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"; e.currentTarget.style.background = "white"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "white"; }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", paddingBottom: "1rem" }}>
+                {messages.map((msg, i) => (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                    {msg.role === "user" ? (
+                      <div style={{
+                        maxWidth: "72%",
+                        padding: "0.65rem 1rem",
+                        background: "#111111",
+                        borderRadius: "16px 16px 4px 16px",
+                        color: "white",
+                        fontSize: "0.875rem",
+                        lineHeight: 1.6,
+                      }}>
+                        {msg.content}
+                      </div>
+                    ) : (
+                      <div style={{ width: "100%" }}>
+                        <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
+                          Intelligence
                         </div>
-                      )}
-
-                      <div style={{ maxWidth: msg.role === "user" ? "68%" : "86%" }}>
-                        <div style={{
-                          padding: "0.7rem 1rem",
-                          borderRadius: msg.role === "user" ? "14px 3px 14px 14px" : "3px 14px 14px 14px",
-                          background: msg.role === "user" ? "#E8F4FD" : "#FAFAFA",
-                          border: msg.role === "assistant" ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(12,192,223,0.2)",
-                        }}>
-                          {msg.role === "user" ? (
-                            <p style={{ fontSize: "0.875rem", color: "#0D1B2A", lineHeight: 1.6, margin: 0 }}>
-                              {msg.content}
-                            </p>
-                          ) : (
-                            renderContent(msg.content)
-                          )}
+                        <div style={{ fontSize: "0.9rem", color: "#111111", lineHeight: 1.75 }}>
+                          {renderContent(msg.content)}
                         </div>
-
-                        {/* Source pill */}
                         {msg.sources && msg.sources.length > 0 && (
                           <button
                             onClick={() => {
@@ -295,95 +482,203 @@ export default function IntelligencePage() {
                             }}
                             style={{
                               display: "inline-flex", alignItems: "center", gap: "0.3rem",
-                              marginTop: "0.4rem", padding: "0.2rem 0.55rem",
-                              background: "rgba(12,192,223,0.06)",
-                              border: "1px solid rgba(12,192,223,0.2)",
+                              marginTop: "0.65rem", padding: "0.2rem 0.6rem",
+                              background: "transparent",
+                              border: "1px solid rgba(0,0,0,0.1)",
                               borderRadius: 20, cursor: "pointer",
-                              color: "#0aa8bf", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 600,
+                              color: "#9CA3AF", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 500,
                               transition: "all 0.15s",
-                            }}>
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,0,0,0.2)"; (e.currentTarget as HTMLButtonElement).style.color = "#374151"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,0,0,0.1)"; (e.currentTarget as HTMLButtonElement).style.color = "#9CA3AF"; }}>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
                             {msg.sources.length} source{msg.sources.length !== 1 ? "s" : ""}
                           </button>
                         )}
                       </div>
+                    )}
+                  </div>
+                ))}
+
+                {loading && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Intelligence</div>
+                    <div style={{ display: "flex", gap: "0.3rem", alignItems: "center", padding: "0.5rem 0" }}>
+                      {[0, 1, 2].map(j => (
+                        <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#9CA3AF", animation: `bounce 1.2s ${j * 0.2}s infinite` }} />
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                )}
 
-                  {loading && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem" }}>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(12,192,223,0.08)", border: "1.5px solid rgba(12,192,223,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0cc0df" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
-                      </div>
-                      <div style={{ padding: "0.7rem 1rem", background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "3px 14px 14px 14px" }}>
-                        <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
-                          {[0, 1, 2].map(j => (
-                            <div key={j} style={{ width: 5, height: 5, borderRadius: "50%", background: "#0cc0df", animation: `bounce 1.2s ${j * 0.2}s infinite` }} />
-                          ))}
-                        </div>
-                      </div>
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Input bar — lives inside the left column so email panel can be full height */}
+        <div style={{ flexShrink: 0, borderTop: "1px solid rgba(0,0,0,0.07)", background: "white", padding: "0.75rem 1.5rem 1rem" }}>
+          <div style={{ maxWidth: 780, margin: "0 auto" }}>
+
+            {/* Draft Email button / purpose prompt */}
+            {messages.length > 0 && !showDraftEmail && (
+              <div style={{ marginBottom: "0.4rem" }}>
+                {showPurposeInput ? (
+                  <div style={{
+                    display: "flex", flexDirection: "column", gap: "0.4rem",
+                    padding: "0.6rem 0.75rem",
+                    background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10,
+                  }}>
+                    <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 600, color: "#374151", fontFamily: "'DM Sans'" }}>
+                      What is the purpose of this email?
+                    </p>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={emailPurpose}
+                      onChange={e => setEmailPurpose(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && emailPurpose.trim()) generateDraft(emailPurpose);
+                        if (e.key === "Escape") { setShowPurposeInput(false); setEmailPurpose(""); }
+                      }}
+                      placeholder="e.g. Inform client of settlement offer, follow up on outstanding invoice…"
+                      style={{
+                        width: "100%", padding: "0.4rem 0.6rem",
+                        border: "1px solid rgba(0,0,0,0.12)", borderRadius: 7,
+                        fontFamily: "'DM Sans'", fontSize: "0.8rem", color: "#111111",
+                        background: "white", outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => { setShowPurposeInput(false); setEmailPurpose(""); }}
+                        style={{
+                          padding: "0.3rem 0.7rem", background: "transparent",
+                          border: "1px solid rgba(0,0,0,0.1)", borderRadius: 7,
+                          fontFamily: "'DM Sans'", fontSize: "0.75rem", color: "#6B7280", cursor: "pointer",
+                        }}>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => generateDraft(emailPurpose)}
+                        disabled={!emailPurpose.trim()}
+                        style={{
+                          padding: "0.3rem 0.85rem", background: emailPurpose.trim() ? "#111111" : "rgba(0,0,0,0.06)",
+                          border: "none", borderRadius: 7,
+                          fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 500,
+                          color: emailPurpose.trim() ? "white" : "#9CA3AF",
+                          cursor: emailPurpose.trim() ? "pointer" : "not-allowed",
+                        }}>
+                        Generate Email
+                      </button>
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => setShowPurposeInput(true)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.35rem",
+                        padding: "0.3rem 0.65rem", background: "transparent",
+                        border: "1px solid rgba(0,0,0,0.1)", borderRadius: 20,
+                        color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.75rem",
+                        fontWeight: 500, cursor: "pointer", transition: "all 0.15s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.22)"; e.currentTarget.style.color = "#111111"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"; e.currentTarget.style.color = "#374151"; }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                      Draft Email
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
+            {/* Document chips */}
+            {(documents.length > 0 || uploading) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem" }}>
+                {uploading && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.5rem 0.2rem 0.4rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 4, fontSize: "0.72rem", color: "#9CA3AF", fontFamily: "'DM Sans'" }}>
+                    <DocTypeIcon name={uploadingName} />
+                    <span>{uploadingName.length > 22 ? uploadingName.slice(0, 19) + "..." : uploadingName}</span>
+                    <span style={{ marginLeft: 2 }}>Processing...</span>
+                  </div>
+                )}
+                {documents.map(doc => (
+                  <div key={doc.id} style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.5rem 0.2rem 0.4rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 4, fontSize: "0.72rem", color: "#374151", fontFamily: "'DM Sans'" }}>
+                    <DocTypeIcon name={doc.name} />
+                    <span>{doc.name.length > 22 ? doc.name.slice(0, 19) + "..." : doc.name}</span>
+                    <button
+                      onClick={() => removeDocument(doc)}
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: 1, color: "#9CA3AF", display: "flex", marginLeft: 1 }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Input bar */}
-            <div style={{ padding: "0.875rem 1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.65rem", alignItems: "center", background: "white" }}>
+            {/* Input row */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: "0.5rem 0.5rem 0.5rem 0.75rem" }}>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                title="Attach document"
+                style={{ background: "none", border: "none", cursor: uploading ? "not-allowed" : "pointer", padding: "0.3rem", color: "#9CA3AF", display: "flex", flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="Ask anything about your calls and customers... (Enter to send)"
-                rows={2}
-                style={{
-                  flex: 1, padding: "0.7rem 0.9rem",
-                  background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.09)",
-                  borderRadius: 10, color: "#0D1B2A",
-                  fontFamily: "'DM Sans'", fontSize: "0.875rem",
-                  outline: "none", resize: "none", lineHeight: 1.5,
-                  boxSizing: "border-box" as const, transition: "border-color 0.15s",
+                onChange={e => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
                 }}
-                onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
-                onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)"}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                placeholder="Ask about your business data..."
+                rows={3}
+                style={{
+                  flex: 1, resize: "none", border: "none", outline: "none", background: "transparent",
+                  fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", color: "#111111",
+                  lineHeight: 1.6, padding: "0.25rem 0", overflowY: "hidden",
+                }}
               />
               <button
                 onClick={() => sendMessage()}
-                disabled={loading || !input.trim()}
+                disabled={!input.trim() || loading}
                 style={{
-                  padding: "0.7rem 1.1rem",
-                  background: loading || !input.trim() ? "#E5E7EB" : "#0D1B2A",
-                  border: "none", borderRadius: 9,
-                  color: loading || !input.trim() ? "#9CA3AF" : "white",
-                  fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600,
-                  cursor: loading || !input.trim() ? "not-allowed" : "pointer",
-                  transition: "all 0.15s", whiteSpace: "nowrap" as const,
-                  display: "flex", alignItems: "center", gap: "0.4rem",
-                }}
-                onMouseEnter={e => { if (!loading && input.trim()) (e.currentTarget as HTMLButtonElement).style.background = "#1a2f45"; }}
-                onMouseLeave={e => { if (!loading && input.trim()) (e.currentTarget as HTMLButtonElement).style.background = "#0D1B2A"; }}>
-                Send
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  width: 34, height: 34, borderRadius: 8,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  background: input.trim() && !loading ? "#111111" : "rgba(0,0,0,0.06)",
+                  border: "none", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
+                  transition: "all 0.15s",
+                }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={input.trim() && !loading ? "white" : "#9CA3AF"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
                 </svg>
               </button>
             </div>
-          </div>
 
-          {/* Sources side panel */}
-          <div style={{
-            width: !(activeSources && activeSources.length > 0) ? 0 : expandedSource !== null ? 420 : 272,
-            flexShrink: 0, overflow: "hidden",
-            opacity: activeSources && activeSources.length > 0 ? 1 : 0,
-            pointerEvents: activeSources && activeSources.length > 0 ? "auto" : "none",
-            transition: "opacity 0.2s, width 0.2s ease",
-          }}>
-            <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 14, overflow: "hidden" }}>
+            <p style={{ fontSize: "0.68rem", color: "#9CA3AF", textAlign: "center" as const, margin: "0.4rem 0 0", lineHeight: 1.4 }}>
+              Intelligence can make mistakes. Review important information.
+            </p>
+          </div>
+        </div>
+        </div>{/* end left column */}
+
+        {/* Sources side panel */}
+        {activeSources && activeSources.length > 0 && (
+          <div style={{ width: expandedSource !== null ? 400 : 260, flexShrink: 0, borderLeft: "1px solid rgba(0,0,0,0.07)", background: "white", overflowY: "auto", transition: "width 0.2s ease" }}>
+            <div style={{ position: "sticky" as const, top: 0, background: "white", zIndex: 1 }}>
 
               {/* Panel header */}
               <div style={{ padding: "0.8rem 0.9rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -428,13 +723,17 @@ export default function IntelligencePage() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
                             </svg>
+                          ) : src.type === "document" ? (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+                            </svg>
                           ) : (
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                             </svg>
                           )}
                           <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>
-                            {src.type === "call" ? "Call" : "Message"}
+                            {src.type === "call" ? "Call" : src.type === "document" ? "Document" : "Message"}
                           </span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -459,7 +758,106 @@ export default function IntelligencePage() {
             </div>
           </div>
 
-        </div>
+        )}
+
+        {/* ── Email draft panel ── */}
+        {showDraftEmail && (
+          <>
+          {/* Drag handle on the left edge of the panel */}
+          <div
+            onMouseDown={startDraftDrag}
+            style={{ width: 16, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "stretch", zIndex: 1 }}
+            onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.12)"; }}
+            onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}>
+            <div style={{ width: 3, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+          </div>
+          <div style={{ width: draftWidth, flexShrink: 0, borderLeft: "1px solid rgba(0,0,0,0.07)", background: "white", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" as const }}>
+
+            {/* Close button */}
+            <button
+              onClick={() => setShowDraftEmail(false)}
+              style={{ position: "absolute" as const, top: 8, right: 8, zIndex: 2, background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, cursor: "pointer", padding: "2px 5px", color: "#9CA3AF", display: "flex" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+
+            {/* Panel body */}
+            {draftLoading ? (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.6rem" }}>
+                <div style={{ display: "flex", gap: "0.3rem" }}>
+                  {[0, 1, 2].map(j => (
+                    <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#9CA3AF", animation: `bounce 1.2s ${j * 0.2}s infinite` }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: "0.78rem", color: "#9CA3AF", margin: 0 }}>Drafting email…</p>
+              </div>
+            ) : draftError ? (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.75rem", padding: "1.5rem" }}>
+                <p style={{ fontSize: "0.82rem", color: "#DC2626", textAlign: "center" as const, margin: 0 }}>{draftError}</p>
+                <button onClick={generateDraft}
+                  style={{ padding: "0.4rem 0.9rem", background: "#111111", border: "none", borderRadius: 7, color: "white", fontSize: "0.8rem", fontFamily: "'DM Sans'", cursor: "pointer" }}>
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem 0.9rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+
+                {/* Subject */}
+                <div>
+                  <p style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", margin: "0 0 0.3rem" }}>Subject</p>
+                  <input
+                    type="text"
+                    value={draftSubject}
+                    onChange={e => setDraftSubject(e.target.value)}
+                    style={{ width: "100%", padding: "0.45rem 0.6rem", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.82rem", color: "#111111", background: "white", outline: "none", boxSizing: "border-box" as const, fontWeight: 500 }}
+                  />
+                </div>
+
+                {/* Body */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 340 }}>
+                  <p style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", margin: "0 0 0.3rem" }}>Body</p>
+                  <div style={{ flex: 1, border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, overflow: "hidden" }}>
+                    <RichEmailEditor
+                      key={draftVersion}
+                      initialContent={draftBody}
+                      onChange={text => setDraftBody(text)}
+                    />
+                  </div>
+                </div>
+
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "0.4rem", paddingTop: "0.1rem" }}>
+                  <button
+                    onClick={() => {
+                      const full = `Subject: ${draftSubject}\n\n${draftBody}`;
+                      navigator.clipboard.writeText(full);
+                      setDraftCopied(true);
+                      setTimeout(() => setDraftCopied(false), 2200);
+                    }}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem", padding: "0.45rem 0", background: draftCopied ? "#059669" : "#111111", border: "none", borderRadius: 7, color: "white", fontSize: "0.78rem", fontFamily: "'DM Sans'", cursor: "pointer", fontWeight: 500, transition: "background 0.2s" }}>
+                    {draftCopied ? (
+                      <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Copied</>
+                    ) : (
+                      <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => generateDraft("")}
+                    style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.45rem 0.7rem", background: "transparent", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 7, color: "#374151", fontSize: "0.78rem", fontFamily: "'DM Sans'", cursor: "pointer", fontWeight: 500 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                    </svg>
+                    Regenerate
+                  </button>
+                </div>
+
+              </div>
+            )}
+          </div>
+          </>
+        )}
       </div>
 
       <style>{`
@@ -469,6 +867,7 @@ export default function IntelligencePage() {
         }
       `}</style>
     </div>
+
     </FeatureGate>
   );
 }
