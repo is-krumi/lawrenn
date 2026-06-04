@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getPlanFeatures } from "@/lib/plans";
+import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -108,15 +108,20 @@ export async function POST(request: Request) {
     const queryEmbedding = embedData.data?.[0]?.embedding;
 
     if (!queryEmbedding) {
-      return NextResponse.json({ error: "Failed to generate embedding" }, { status: 500 });
+      console.error("OpenAI embedding error:", JSON.stringify(embedData));
+      return NextResponse.json(
+        { error: "Failed to generate embedding", detail: embedData.error?.message ?? embedData },
+        { status: 500 }
+      );
     }
 
     // Step 3 — Similarity search
     const { data: matches, error: matchError } = await supabase.rpc("match_embeddings", {
-      query_embedding:   queryEmbedding,
-      match_business_id: business_id,
-      match_source_type: null,
-      match_count:       8,
+      query_embedding:  queryEmbedding,
+      match_threshold:  0.3,
+      match_count:      8,
+      p_business_id:    business_id,
+      p_customer_id:    null,
     });
 
     if (matchError) {
