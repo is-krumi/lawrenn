@@ -471,7 +471,7 @@ export default function IntelligencePage() {
                           Intelligence
                         </div>
                         <div style={{ fontSize: "0.9rem", color: "#111111", lineHeight: 1.75 }}>
-                          {renderContent(msg.content)}
+                          {renderContent(msg.content ?? "")}
                         </div>
                         {msg.sources && msg.sources.length > 0 && (
                           <button
@@ -795,7 +795,7 @@ export default function IntelligencePage() {
             ) : draftError ? (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.75rem", padding: "1.5rem" }}>
                 <p style={{ fontSize: "0.82rem", color: "#DC2626", textAlign: "center" as const, margin: 0 }}>{draftError}</p>
-                <button onClick={generateDraft}
+                <button onClick={() => generateDraft("")}
                   style={{ padding: "0.4rem 0.9rem", background: "#111111", border: "none", borderRadius: 7, color: "white", fontSize: "0.8rem", fontFamily: "'DM Sans'", cursor: "pointer" }}>
                   Try Again
                 </button>
