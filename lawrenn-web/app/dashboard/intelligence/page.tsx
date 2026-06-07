@@ -80,6 +80,27 @@ interface Message {
   sources?: Source[];
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
+function genId() { return crypto.randomUUID(); }
+
+function relTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 const SUGGESTED_QUESTIONS = [
   "How many calls did I get last week?",
   "What was my busiest day this month?",
@@ -191,6 +212,8 @@ export default function IntelligencePage() {
   const router = useRouter();
   const { businessId, businessName, loading: bizLoading } = useBusiness();
 
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string>(() => genId());
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -206,7 +229,9 @@ export default function IntelligencePage() {
   const [draftCopied,     setDraftCopied]     = useState(false);
   const [draftWidth,      setDraftWidth]      = useState(600);
   const [draftVersion,    setDraftVersion]    = useState(0);
-  const draftDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [sourcesWidth,    setSourcesWidth]    = useState(260);
+  const draftDragRef   = useRef<{ startX: number; startW: number } | null>(null);
+  const sourcesDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const [showPurposeInput, setShowPurposeInput] = useState(false);
   const [emailPurpose,     setEmailPurpose]     = useState("");
   const [uploading, setUploading] = useState(false);
@@ -215,10 +240,85 @@ export default function IntelligencePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const syncedRef = useRef<Map<string, number>>(new Map());
+  const hasInteracted = useRef(false);
 
   useEffect(() => {
     if (!bizLoading && !businessId) router.push("/login");
   }, [businessId, bizLoading, router]);
+
+  // Load sessions — localStorage first (instant), then Supabase (authoritative)
+  useEffect(() => {
+    if (!businessId) return;
+    let mounted = true;
+
+    // 1. Instant local load
+    const raw = localStorage.getItem(`intel_sessions_${businessId}`);
+    const local: ChatSession[] = raw ? JSON.parse(raw) : [];
+    if (local.length > 0) {
+      const activeId = localStorage.getItem(`intel_active_${businessId}`);
+      const active = local.find(s => s.id === activeId) ?? local[0];
+      setChatSessions(local);
+      setCurrentChatId(active.id);
+      setMessages(active.messages as Message[]);
+      for (const s of local) syncedRef.current.set(s.id, s.messages.length);
+    }
+
+    // 2. Supabase load — overwrite only if user hasn't interacted yet
+    fetch(`/api/intelligence/chats?business_id=${businessId}`)
+      .then(r => r.json())
+      .then(({ conversations }) => {
+        if (!mounted || !conversations) return;
+        const sessions: ChatSession[] = conversations;
+        setChatSessions(sessions);
+        localStorage.setItem(`intel_sessions_${businessId}`, JSON.stringify(sessions));
+        for (const s of sessions) syncedRef.current.set(s.id, s.messages.length);
+
+        if (!hasInteracted.current) {
+          const activeId = localStorage.getItem(`intel_active_${businessId}`);
+          const active = sessions.find(s => s.id === activeId) ?? sessions[0];
+          if (active) {
+            setCurrentChatId(active.id);
+            setMessages(active.messages as Message[]);
+          } else {
+            setMessages([]);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => { mounted = false; };
+  }, [businessId]);
+
+  // Auto-save whenever messages change (after at least one exchange)
+  useEffect(() => {
+    if (!businessId || !currentChatId || messages.length < 2) return;
+    const title = (messages.find(m => m.role === "user")?.content ?? "Untitled").slice(0, 60);
+    const storedMessages = messages.map(m => ({ role: m.role, content: m.content }));
+
+    // Update local state + localStorage
+    setChatSessions(prev => {
+      const exists = prev.find(s => s.id === currentChatId);
+      const updated = exists
+        ? prev.map(s => s.id === currentChatId ? { ...s, title, messages: storedMessages } : s)
+        : [{ id: currentChatId, title, createdAt: Date.now(), messages: storedMessages }, ...prev];
+      localStorage.setItem(`intel_sessions_${businessId}`, JSON.stringify(updated));
+      localStorage.setItem(`intel_active_${businessId}`, currentChatId);
+      return updated;
+    });
+
+    // Sync new messages to Supabase
+    const lastSynced = syncedRef.current.get(currentChatId) ?? 0;
+    const newMessages = storedMessages.slice(lastSynced);
+    if (newMessages.length > 0 || !syncedRef.current.has(currentChatId)) {
+      syncedRef.current.set(currentChatId, storedMessages.length);
+      fetch("/api/intelligence/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: currentChatId, business_id: businessId, title, new_messages: newMessages }),
+      }).catch(() => {});
+    }
+  }, [messages, currentChatId, businessId]);
 
   function removeDocument(doc: DocRecord) {
     setDocuments(prev => prev.filter(d => d.id !== doc.id));
@@ -294,7 +394,7 @@ export default function IntelligencePage() {
 
   const onDraftMouseMove = useCallback((e: MouseEvent) => {
     if (!draftDragRef.current) return;
-    const dx = draftDragRef.current.startX - e.clientX; // dragging left edge = inverse
+    const dx = draftDragRef.current.startX - e.clientX;
     setDraftWidth(Math.max(340, Math.min(1000, draftDragRef.current.startW + dx)));
   }, []);
 
@@ -304,14 +404,30 @@ export default function IntelligencePage() {
     document.body.style.userSelect = "";
   }, []);
 
+  const onSourcesMouseMove = useCallback((e: MouseEvent) => {
+    if (!sourcesDragRef.current) return;
+    const dx = sourcesDragRef.current.startX - e.clientX;
+    setSourcesWidth(Math.max(180, Math.min(540, sourcesDragRef.current.startW + dx)));
+  }, []);
+
+  const onSourcesMouseUp = useCallback(() => {
+    sourcesDragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
   useEffect(() => {
     window.addEventListener("mousemove", onDraftMouseMove);
     window.addEventListener("mouseup",   onDraftMouseUp);
+    window.addEventListener("mousemove", onSourcesMouseMove);
+    window.addEventListener("mouseup",   onSourcesMouseUp);
     return () => {
       window.removeEventListener("mousemove", onDraftMouseMove);
       window.removeEventListener("mouseup",   onDraftMouseUp);
+      window.removeEventListener("mousemove", onSourcesMouseMove);
+      window.removeEventListener("mouseup",   onSourcesMouseUp);
     };
-  }, [onDraftMouseMove, onDraftMouseUp]);
+  }, [onDraftMouseMove, onDraftMouseUp, onSourcesMouseMove, onSourcesMouseUp]);
 
   function startDraftDrag(e: React.MouseEvent) {
     e.preventDefault();
@@ -320,10 +436,47 @@ export default function IntelligencePage() {
     document.body.style.userSelect = "none";
   }
 
+  function startSourcesDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    sourcesDragRef.current = { startX: e.clientX, startW: sourcesWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  function startNewChat() {
+    const newId = genId();
+    setCurrentChatId(newId);
+    setMessages([]);
+    setActiveSources(null);
+    setShowDraftEmail(false);
+    if (businessId) localStorage.setItem(`intel_active_${businessId}`, newId);
+  }
+
+  function switchToChat(session: ChatSession) {
+    setCurrentChatId(session.id);
+    setMessages(session.messages as Message[]);
+    setActiveSources(null);
+    setShowDraftEmail(false);
+    if (businessId) localStorage.setItem(`intel_active_${businessId}`, session.id);
+  }
+
+  function deleteChat(id: string) {
+    if (!businessId) return;
+    setChatSessions(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      localStorage.setItem(`intel_sessions_${businessId}`, JSON.stringify(updated));
+      return updated;
+    });
+    syncedRef.current.delete(id);
+    fetch(`/api/intelligence/chats/${id}?business_id=${businessId}`, { method: "DELETE" }).catch(() => {});
+    if (id === currentChatId) startNewChat();
+  }
+
   async function sendMessage(text?: string) {
     const query = text ?? input.trim();
     if (!query || loading || !businessId) return;
 
+    hasInteracted.current = true;
     setInput("");
     setLoading(true);
     setMessages(prev => [...prev, { role: "user", content: query }]);
@@ -400,8 +553,57 @@ export default function IntelligencePage() {
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFileDrop(f); e.target.value = ""; }}
       />
 
-      {/* ── Main body: messages + sources ── */}
+      {/* ── Main body: sidebar + messages + sources ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* Chat history sidebar */}
+        <div style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(0,0,0,0.07)", background: "white", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "0.6rem 0.65rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+            <button
+              onClick={startNewChat}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem 0.65rem", background: "#F5F5F0", border: "none", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 500, cursor: "pointer" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Chat
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0.35rem 0.35rem" }}>
+            {chatSessions.length === 0 ? (
+              <p style={{ fontSize: "0.72rem", color: "#9CA3AF", textAlign: "center" as const, padding: "1.5rem 0.4rem", lineHeight: 1.55, margin: 0 }}>
+                No previous chats
+              </p>
+            ) : (
+              chatSessions.map(session => {
+                const isActive = session.id === currentChatId;
+                return (
+                  <div
+                    key={session.id}
+                    className="chat-session-row"
+                    style={{ position: "relative" as const, display: "flex", alignItems: "center", borderRadius: 7, background: isActive ? "#F3F4F6" : "transparent", marginBottom: 1 }}>
+                    <button
+                      onClick={() => switchToChat(session)}
+                      style={{ flex: 1, textAlign: "left" as const, padding: "0.45rem 0.55rem", background: "transparent", border: "none", borderRadius: 7, fontFamily: "'DM Sans'", cursor: "pointer", minWidth: 0, overflow: "hidden" }}>
+                      <p style={{ margin: 0, fontSize: "0.775rem", color: isActive ? "#111111" : "#374151", fontWeight: isActive ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                        {session.title}
+                      </p>
+                      <p style={{ margin: "0.1rem 0 0", fontSize: "0.67rem", color: "#9CA3AF", lineHeight: 1.3 }}>
+                        {relTime(session.createdAt)}
+                      </p>
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteChat(session.id); }}
+                      className="chat-delete-btn"
+                      title="Delete chat"
+                      style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0.3rem 0.4rem", color: "#9CA3AF", display: "flex", borderRadius: 4, opacity: 0, transition: "opacity 0.1s" }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
 
         {/* Left column: chat messages + input bar */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -457,9 +659,9 @@ export default function IntelligencePage() {
                       <div style={{
                         maxWidth: "72%",
                         padding: "0.65rem 1rem",
-                        background: "#111111",
+                        background: "#F5F5F0",
                         borderRadius: "16px 16px 4px 16px",
-                        color: "white",
+                        color: "#111111",
                         fontSize: "0.875rem",
                         lineHeight: 1.6,
                       }}>
@@ -677,7 +879,16 @@ export default function IntelligencePage() {
 
         {/* Sources side panel */}
         {activeSources && activeSources.length > 0 && (
-          <div style={{ width: expandedSource !== null ? 400 : 260, flexShrink: 0, borderLeft: "1px solid rgba(0,0,0,0.07)", background: "white", overflowY: "auto", transition: "width 0.2s ease" }}>
+          <>
+          {/* Drag handle */}
+          <div
+            onMouseDown={startSourcesDrag}
+            style={{ width: 16, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "stretch", zIndex: 1 }}
+            onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.12)"; }}
+            onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}>
+            <div style={{ width: 3, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+          </div>
+          <div style={{ width: sourcesWidth, flexShrink: 0, borderLeft: "1px solid rgba(0,0,0,0.07)", background: "white", overflowY: "auto" }}>
             <div style={{ position: "sticky" as const, top: 0, background: "white", zIndex: 1 }}>
 
               {/* Panel header */}
@@ -757,7 +968,7 @@ export default function IntelligencePage() {
               </div>
             </div>
           </div>
-
+          </>
         )}
 
         {/* ── Email draft panel ── */}
@@ -865,6 +1076,8 @@ export default function IntelligencePage() {
           0%, 60%, 100% { transform: translateY(0); }
           30% { transform: translateY(-5px); }
         }
+        .chat-session-row:hover .chat-delete-btn { opacity: 1 !important; }
+        .chat-session-row:hover { background: #F9FAFB; }
       `}</style>
     </div>
 
