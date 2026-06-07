@@ -197,18 +197,20 @@ export default function DashboardNav() {
               <Link key={href} href={href} prefetch={true}
                 style={{
                   display: "flex", alignItems: "center", gap: "0.6rem",
-                  padding: "0.5rem 1.25rem",
-                  color: active ? "#111111" : "#9CA3AF",
+                  padding: "0.5rem 1rem",
+                  margin: "0.05rem 0.5rem",
+                  borderRadius: 7,
+                  color: "#111111",
                   textDecoration: "none",
                   fontSize: "0.82rem",
                   fontWeight: active ? 600 : 400,
                   letterSpacing: "0.01em",
-                  transition: "color 0.12s",
-                  borderLeft: active ? "2px solid #111111" : "2px solid transparent",
+                  transition: "background 0.12s, color 0.12s",
+                  background: active ? "#F5F5F0" : "transparent",
                   position: "relative",
                 }}
-                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.color = "#374151"; }}
-                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.color = "#9CA3AF"; }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
               >
                 {icon}
                 <span>{label}</span>

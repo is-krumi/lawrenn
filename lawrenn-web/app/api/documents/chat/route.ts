@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { NextResponse } from "next/server";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -39,6 +39,7 @@ RULES FOR EDITS:
 - "search" must be exact text that appears verbatim in the document — copy it character-for-character
 - For a title change: use "replace" with the current title text as "search"
 - For a style change (make heading): use "set_style" with the paragraph text as "search"
+- To DELETE or REMOVE text: use "replace" with replace_with set to "" (empty string)
 - If the current text is unclear, make your best guess and say so in the reply
 - Never invent text that isn't in the document
 - For questions or summaries, return "edits": []
@@ -49,6 +50,12 @@ User: "Change the title to Retainer Agreement"
 
 User: "Make the first paragraph a heading"
 → { "reply": "Applied Heading 1 style.", "edits": [{ "type": "set_style", "search": "This agreement is entered", "style_id": "Heading1" }] }
+
+User: "Remove the confidentiality clause"
+→ { "reply": "Removed the confidentiality clause.", "edits": [{ "type": "replace", "search": "All information shared under this agreement shall remain confidential.", "replace_with": "" }] }
+
+User: "Delete the last sentence in section 2"
+→ { "reply": "Deleted the sentence.", "edits": [{ "type": "replace", "search": "<exact last sentence text>", "replace_with": "" }] }
 
 User: "What is this document about?"
 → { "reply": "This is a retainer agreement between...", "edits": [] }

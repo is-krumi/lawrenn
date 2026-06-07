@@ -1,12 +1,12 @@
 "use client";
 
-import "@eigenpal/docx-js-editor/styles.css";
-import { useState, useRef, useCallback, useEffect } from "react";
-import dynamic from "next/dynamic";
-import type { DocxEditorRef } from "@eigenpal/docx-js-editor/react";
 import FeatureGate from "@/components/FeatureGate";
-import { listDocMeta, getDoc, saveDoc, deleteDoc } from "./docStore";
+import type { DocxEditorRef } from "@eigenpal/docx-js-editor/react";
+import "@eigenpal/docx-js-editor/styles.css";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DocMeta } from "./docStore";
+import { deleteDoc, getDoc, listDocMeta, saveDoc } from "./docStore";
 
 const DocxEditor = dynamic(
   () => import("@eigenpal/docx-js-editor/react").then(m => ({ default: m.DocxEditor })),
@@ -48,6 +48,7 @@ export default function DocumentsPage() {
   } | null>(null);
   const [selLoading, setSelLoading] = useState(false);
   const [selPrompt, setSelPrompt]   = useState("");
+  const [selAsk, setSelAsk]         = useState("");
 
   const editorRef     = useRef<DocxEditorRef>(null);
   const fileInputRef  = useRef<HTMLInputElement>(null);
@@ -164,9 +165,9 @@ export default function DocumentsPage() {
     }
     function onMouseDown(e: MouseEvent) {
       if ((e.target as Element).closest?.("[data-sel-bubble]")) return;
-      setSelBubble(null); setSelPrompt(""); pendingSelPos.current = null;
+      setSelBubble(null); setSelPrompt(""); setSelAsk(""); pendingSelPos.current = null;
     }
-    function onScroll() { setSelBubble(null); setSelPrompt(""); pendingSelPos.current = null; }
+    function onScroll() { setSelBubble(null); setSelPrompt(""); setSelAsk(""); pendingSelPos.current = null; }
     // capture=true so we run before ProseMirror's dblclick handler (which fires onSelectionChange)
     document.addEventListener("mouseup",   captureSelPos);
     document.addEventListener("dblclick",  captureSelPos, true);
@@ -183,7 +184,7 @@ export default function DocumentsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleEditorSelectionChange(state: any) {
     if (!state?.hasSelection) {
-      setSelBubble(null); setSelPrompt(""); pendingSelPos.current = null;
+      setSelBubble(null); setSelPrompt(""); setSelAsk(""); pendingSelPos.current = null;
       return;
     }
     const editor = editorRef.current;
@@ -389,10 +390,43 @@ export default function DocumentsPage() {
       await persistCurrentDoc();
       setSelBubble(null);
       setSelPrompt("");
+      setSelAsk("");
     } catch (e) {
       console.error("[selectionEdit]", e);
     } finally {
       setSelLoading(false);
+    }
+  }
+
+  // ── Selection bubble ask ──────────────────────────────────────────────────
+  async function askAboutSelection(q: string) {
+    if (!selBubble || !q.trim()) return;
+    const { text, paragraphText } = selBubble;
+    // Show only the user's question in the chat; include the selection as context for the API only
+    const apiQuestion = `Regarding this highlighted text: "${text}"\n\n${q}`;
+    setSelBubble(null);
+    setSelPrompt("");
+    setSelAsk("");
+    setLeftTab("ai");
+    setChat(prev => [...prev, { role: "user", content: q }]);
+    setAiLoading(true);
+    try {
+      // Prefer live editor text; fall back to paragraphText (always fresh, captured at selection
+      // time) rather than docText which can be stale from a previously loaded document.
+      const liveText = editorRef.current?.getAgent()?.getText() || paragraphText;
+      const res = await fetch("/api/documents/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: apiQuestion, documentText: liveText, chatHistory: [] }),
+      });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
+      const data = await res.json();
+      setChat(prev => [...prev, { role: "assistant", content: data.answer || "No response." }]);
+    } catch (err) {
+      console.error("[askAboutSelection]", err);
+      setChat(prev => [...prev, { role: "assistant", content: "Failed to get a response. Please try again." }]);
+    } finally {
+      setAiLoading(false);
     }
   }
 
@@ -565,8 +599,8 @@ export default function DocumentsPage() {
                       <div style={{
                         maxWidth: "88%", padding: "0.5rem 0.7rem",
                         borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                        background: msg.role === "user" ? "#111111" : "#F3F4F6",
-                        color: msg.role === "user" ? "white" : "#111111",
+                        background: msg.role === "user" ? "#F5F5F0" : "#F3F4F6",
+                        color: "#111111",
                         fontSize: "0.78rem", lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif", whiteSpace: "pre-wrap",
                       }}>
                         {msg.content}
@@ -801,7 +835,7 @@ export default function DocumentsPage() {
               onChange={e => setSelPrompt(e.target.value)}
               onKeyDown={e => {
                 if (e.key === "Enter" && selPrompt.trim()) { e.preventDefault(); applySelectionEdit(selPrompt.trim()); }
-                if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); }
+                if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
                 if (e.key === "Backspace" && selPrompt === "") {
                   // User wants to delete the selected text — apply it via PM and close bubble
                   e.preventDefault();
@@ -816,6 +850,7 @@ export default function DocumentsPage() {
                   }
                   setSelBubble(null);
                   setSelPrompt("");
+                  setSelAsk("");
                 }
               }}
               style={{
@@ -835,6 +870,40 @@ export default function DocumentsPage() {
                 cursor: selLoading || !selPrompt.trim() ? "default" : "pointer",
               }}>
               {selLoading ? "…" : "Go"}
+            </button>
+          </div>
+
+          {/* Ask divider */}
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px -2px 0" }} />
+
+          {/* Ask row */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.07em", color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}>ASK</span>
+            <input
+              type="text" value={selAsk} placeholder="Ask about this…"
+              disabled={selLoading}
+              onChange={e => setSelAsk(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && selAsk.trim()) { e.preventDefault(); askAboutSelection(selAsk.trim()); }
+                if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
+              }}
+              style={{
+                flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 5, color: "white", fontSize: "0.72rem",
+                fontFamily: "'DM Sans', sans-serif", padding: "4px 8px", outline: "none",
+              }}
+            />
+            <button
+              type="button" disabled={selLoading || !selAsk.trim()}
+              onMouseDown={e => { e.preventDefault(); if (selAsk.trim()) askAboutSelection(selAsk.trim()); }}
+              style={{
+                background: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.07)" : "rgba(99,102,241,0.8)",
+                border: "none", borderRadius: 5,
+                color: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.35)" : "white",
+                fontSize: "0.8rem", fontFamily: "'DM Sans', sans-serif", padding: "3px 10px",
+                cursor: selLoading || !selAsk.trim() ? "default" : "pointer",
+              }}>
+              &#8594;
             </button>
           </div>
         </div>
