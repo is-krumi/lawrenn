@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const userId    = claims.sub;
     const userEmail = claims.email ?? "";
 
-    const { email, role, business_id } = await request.json();
+    const { email, role, business_id, resend = false } = await request.json();
     if (!email || !business_id) {
       return NextResponse.json({ error: "email and business_id are required" }, { status: 400 });
     }
@@ -99,30 +99,51 @@ export async function POST(request: Request) {
     // 3. Duplicate invite check
     const { data: existing } = await supabase
       .from("business_members")
-      .select("id")
+      .select("id, accepted_at")
       .eq("business_id", business_id)
       .eq("invited_email", email)
       .maybeSingle();
 
-    if (existing) {
-      return NextResponse.json({ error: "This email has already been invited." }, { status: 400 });
+    if (existing && !resend) {
+      const alreadyAccepted = !!existing.accepted_at;
+      return NextResponse.json({
+        error: alreadyAccepted
+          ? "This person has already joined your firm."
+          : "This email has already been invited.",
+        code: alreadyAccepted ? "already_member" : "already_invited",
+      }, { status: 400 });
     }
 
-    // 4. Insert invite row (accepted_at left null until they accept)
-    const { data: invitation, error: insertError } = await supabase
-      .from("business_members")
-      .insert({
-        business_id,
-        role:          role ?? "member",
-        invited_email: email,
-        invited_at:    new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("[invite-member] insert error:", insertError.message);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    // 4a. Resend — refresh invited_at and re-send, no new row
+    let invitation: any;
+    if (existing && resend) {
+      const { data: updated, error: updateError } = await supabase
+        .from("business_members")
+        .update({ invited_at: new Date().toISOString(), role: role ?? "member" })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+      invitation = updated;
+    } else {
+      // 4b. First invite — insert a new row
+      const { data: inserted, error: insertError } = await supabase
+        .from("business_members")
+        .insert({
+          business_id,
+          role:          role ?? "member",
+          invited_email: email,
+          invited_at:    new Date().toISOString(),
+        })
+        .select()
+        .single();
+      if (insertError) {
+        console.error("[invite-member] insert error:", insertError.message);
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+      invitation = inserted;
     }
 
     // 5. Send invite email via Resend
