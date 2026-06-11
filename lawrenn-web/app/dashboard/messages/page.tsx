@@ -52,9 +52,7 @@ export default function MessagesPage() {
         filter: `business_id=eq.${businessId}`,
       }, (payload) => {
         const msg = payload.new as any;
-        // Update thread list
         loadThreads(businessId!);
-        // Add to open thread if matches
         setSelected(curr => {
           if (curr && msg.customer_id === curr.customer_id) {
             setMessages(prev => {
@@ -76,29 +74,19 @@ export default function MessagesPage() {
     return () => { supabase.removeChannel(inboxChannel); };
   }, [businessId, bizLoading, router]);
 
-  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function loadThreads(bizId: string) {
-    // Get latest message per customer
     const { data } = await supabase
       .from("messages")
-      .select(`
-        customer_id,
-        body,
-        sent_at,
-        direction,
-        read,
-        customers (name, phone)
-      `)
+      .select(`customer_id, body, sent_at, direction, read, customers (name, phone)`)
       .eq("business_id", bizId)
       .order("sent_at", { ascending: false });
 
     if (!data) return;
 
-    // Group by customer_id — keep latest per customer
     const threadMap = new Map<string, Thread>();
     for (const msg of data as any[]) {
       if (!msg.customer_id) continue;
@@ -113,7 +101,6 @@ export default function MessagesPage() {
           direction:      msg.direction,
         });
       }
-      // Count unreads
       if (!msg.read && msg.direction === "inbound") {
         const t = threadMap.get(msg.customer_id)!;
         t.unread_count++;
@@ -139,14 +126,12 @@ export default function MessagesPage() {
 
     setMessages((data as any) ?? []);
 
-    // Mark as read
     await supabase
       .from("messages")
       .update({ read: true })
       .eq("customer_id", thread.customer_id)
       .eq("read", false);
 
-    // Update unread count in threads
     setThreads(prev => prev.map(t =>
       t.customer_id === thread.customer_id ? { ...t, unread_count: 0 } : t
     ));
@@ -215,7 +200,6 @@ export default function MessagesPage() {
     const today = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-
     if (d.toDateString() === today.toDateString()) {
       return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
     }
@@ -233,14 +217,14 @@ export default function MessagesPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem", height: "calc(100vh - 52px)", display: "flex", flexDirection: "column" }}>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem", height: "calc(100vh - 56px)", display: "flex", flexDirection: "column" }}>
-
+        {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
-          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>
-            Messages {totalUnread > 0 && <span style={{ fontSize: "1.2rem", color: "#EF4444" }}>({totalUnread} unread)</span>}
+          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.5rem", letterSpacing: "0.06em", color: "#111111", marginBottom: "0.25rem" }}>
+            MESSAGES{totalUnread > 0 && <span style={{ fontSize: "1rem", color: "#EF4444", fontFamily: "'DM Sans'", fontWeight: 700, letterSpacing: 0, marginLeft: "0.5rem" }}>{totalUnread} unread</span>}
           </h1>
-          <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>SMS conversations with your customers</p>
+          <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>SMS conversations with your clients</p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: "1.5rem", flex: 1, minHeight: 0 }}>
@@ -250,61 +234,71 @@ export default function MessagesPage() {
 
             {/* Search */}
             <div style={{ padding: "0.75rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ width: "100%", padding: "0.6rem 0.8rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none", boxSizing: "border-box" }}
-              />
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", display: "flex" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{ width: "100%", padding: "0.6rem 0.75rem 0.6rem 2.2rem", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.82rem", outline: "none", boxSizing: "border-box" as const }}
+                  onFocus={e => e.currentTarget.style.borderColor = "#111111"}
+                  onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"}
+                />
+              </div>
             </div>
 
             {/* Threads */}
             <div style={{ overflowY: "auto", flex: 1 }}>
               {filteredThreads.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-                  <p style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💬</p>
                   <p style={{ fontSize: "0.875rem", color: "#9CA3AF" }}>No conversations yet</p>
                 </div>
               ) : (
-                filteredThreads.map((thread, i) => (
-                  <div key={thread.customer_id} onClick={() => selectThread(thread)}
-                    style={{
-                      padding: "0.875rem 1rem",
-                      borderBottom: i < filteredThreads.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
-                      cursor: "pointer",
-                      background: selected?.customer_id === thread.customer_id ? "#F0FAFE" : "white",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={e => { if (selected?.customer_id !== thread.customer_id) e.currentTarget.style.background = "#F9FAFB"; }}
-                    onMouseLeave={e => { if (selected?.customer_id !== thread.customer_id) e.currentTarget.style.background = "white"; }}>
+                filteredThreads.map((thread, i) => {
+                  const isActive = selected?.customer_id === thread.customer_id;
+                  return (
+                    <div key={thread.customer_id} onClick={() => selectThread(thread)}
+                      style={{
+                        padding: "0.875rem 1rem",
+                        borderBottom: i < filteredThreads.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
+                        cursor: "pointer",
+                        background: isActive ? "#F5F5F0" : "white",
+                        transition: "background 0.12s",
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "white"; }}>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
-                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #0cc0df, #0D1B2A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.85rem", flexShrink: 0, position: "relative" }}>
-                        {(thread.customer_name ?? thread.customer_phone).charAt(0).toUpperCase()}
-                        {thread.unread_count > 0 && (
-                          <span style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, background: "#EF4444", borderRadius: "50%", fontSize: "0.6rem", fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {thread.unread_count}
-                          </span>
-                        )}
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.15rem" }}>
-                          <p style={{ fontSize: "0.875rem", fontWeight: thread.unread_count > 0 ? 700 : 600, color: "#0D1B2A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                            {thread.customer_name ?? thread.customer_phone}
-                          </p>
-                          <span style={{ fontSize: "0.72rem", color: "#9CA3AF", flexShrink: 0, marginLeft: "0.5rem" }}>
-                            {formatTime(thread.last_message_at)}
-                          </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                        {/* Avatar */}
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.85rem", flexShrink: 0, position: "relative" as const }}>
+                          {(thread.customer_name ?? thread.customer_phone).charAt(0).toUpperCase()}
+                          {thread.unread_count > 0 && (
+                            <span style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, background: "#EF4444", borderRadius: "50%", fontSize: "0.6rem", fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {thread.unread_count}
+                            </span>
+                          )}
                         </div>
-                        <p style={{ fontSize: "0.78rem", color: thread.unread_count > 0 ? "#374151" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: thread.unread_count > 0 ? 600 : 400 }}>
-                          {thread.direction === "outbound" ? "You: " : ""}{thread.last_message}
-                        </p>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.15rem" }}>
+                            <p style={{ fontSize: "0.875rem", fontWeight: thread.unread_count > 0 ? 700 : 600, color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, margin: 0 }}>
+                              {thread.customer_name ?? thread.customer_phone}
+                            </p>
+                            <span style={{ fontSize: "0.72rem", color: "#9CA3AF", flexShrink: 0, marginLeft: "0.5rem" }}>
+                              {formatTime(thread.last_message_at)}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: "0.78rem", color: thread.unread_count > 0 ? "#374151" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: thread.unread_count > 0 ? 600 : 400, margin: 0 }}>
+                            {thread.direction === "outbound" ? "You: " : ""}{thread.last_message}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -312,44 +306,45 @@ export default function MessagesPage() {
           {/* Message thread */}
           <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)", borderRadius: 12, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {!selected ? (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.75rem" }}>
-                <p style={{ fontSize: "2.5rem" }}>💬</p>
-                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0D1B2A" }}>Select a conversation</p>
-                <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>Choose a customer from the left to view their messages</p>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "0.5rem" }}>
+                <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#111111", margin: 0 }}>Select a conversation</p>
+                <p style={{ fontSize: "0.85rem", color: "#9CA3AF", margin: 0 }}>Choose a client from the left to view their messages</p>
               </div>
             ) : (
               <>
                 {/* Thread header */}
                 <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #0cc0df, #0D1B2A)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.875rem" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: "0.875rem", flexShrink: 0 }}>
                     {(selected.customer_name ?? selected.customer_phone).charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0D1B2A" }}>
+                    <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#111111", margin: 0 }}>
                       {selected.customer_name ?? selected.customer_phone}
                     </p>
-                    <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>{selected.customer_phone}</p>
+                    <p style={{ fontSize: "0.75rem", color: "#9CA3AF", margin: "0.1rem 0 0" }}>{selected.customer_phone}</p>
                   </div>
-                  <a href="/dashboard/customers" style={{ marginLeft: "auto", fontSize: "0.8rem", color: "#0cc0df", textDecoration: "none", fontWeight: 600 }}>
+                  <a href="/dashboard/customers" style={{ marginLeft: "auto", fontSize: "0.78rem", color: "#6B7280", textDecoration: "none", fontWeight: 500, border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "0.3rem 0.7rem", transition: "all 0.12s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#111111"; (e.currentTarget as HTMLAnchorElement).style.color = "#111111"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(0,0,0,0.1)"; (e.currentTarget as HTMLAnchorElement).style.color = "#6B7280"; }}>
                     View profile
                   </a>
                 </div>
 
                 {/* Messages */}
-                <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
                   {messages.map(msg => (
                     <div key={msg.id} style={{ display: "flex", justifyContent: msg.direction === "outbound" ? "flex-end" : "flex-start" }}>
                       <div style={{
                         maxWidth: "70%",
-                        padding: "0.6rem 0.9rem",
-                        borderRadius: msg.direction === "outbound" ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-                        background: msg.direction === "outbound" ? "#E8F4FD" : "#F3F4F6",
-                        border: msg.direction === "outbound" ? "1px solid rgba(12,192,223,0.2)" : "none",
+                        padding: "0.6rem 0.85rem",
+                        borderRadius: msg.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
+                        background: msg.direction === "outbound" ? "#F5F5F0" : "transparent",
+                        border: msg.direction === "outbound" ? "none" : "1px solid rgba(0,0,0,0.08)",
                       }}>
-                        <p style={{ fontSize: "0.875rem", color: "#0D1B2A", lineHeight: 1.5, margin: 0 }}>
+                        <p style={{ fontSize: "0.875rem", color: "#111111", lineHeight: 1.5, margin: 0 }}>
                           {msg.body}
                         </p>
-                        <p style={{ fontSize: "0.65rem", color: msg.direction === "outbound" ? "#6B7280" : "#9CA3AF", marginTop: "0.25rem", textAlign: msg.direction === "outbound" ? "right" : "left" }}>
+                        <p style={{ fontSize: "0.65rem", color: "#9CA3AF", marginTop: "0.25rem", textAlign: msg.direction === "outbound" ? "right" as const : "left" as const, margin: "0.25rem 0 0" }}>
                           {new Date(msg.sent_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                         </p>
                       </div>
@@ -359,20 +354,20 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Reply box */}
-                <div style={{ padding: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                <div style={{ padding: "0.875rem 1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: "0.65rem", alignItems: "flex-end" }}>
                   <textarea
                     value={replyText}
                     onChange={e => setReplyText(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
-                    placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+                    placeholder="Type a message…"
                     rows={2}
-                    style={{ flex: 1, padding: "0.7rem 0.9rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 10, color: "#0D1B2A", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none", resize: "none", lineHeight: 1.5, boxSizing: "border-box" }}
-                    onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                    style={{ flex: 1, padding: "0.65rem 0.875rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none", resize: "none", lineHeight: 1.5, boxSizing: "border-box" as const }}
+                    onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                     onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
                   />
                   <button onClick={sendReply} disabled={sending || !replyText.trim()}
-                    style={{ padding: "0.7rem 1.25rem", background: sending || !replyText.trim() ? "rgba(12,192,223,0.4)" : "#0cc0df", border: "none", borderRadius: 10, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.2s", whiteSpace: "nowrap", height: "fit-content" }}>
-                    {sending ? "..." : "Send"}
+                    style={{ padding: "0.65rem 1.25rem", background: sending || !replyText.trim() ? "rgba(0,0,0,0.08)" : "#111111", border: "none", borderRadius: 10, color: sending || !replyText.trim() ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: sending || !replyText.trim() ? "not-allowed" : "pointer", transition: "all 0.15s", whiteSpace: "nowrap", height: "fit-content" }}>
+                    {sending ? "Sending…" : "Send"}
                   </button>
                 </div>
               </>

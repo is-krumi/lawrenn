@@ -117,14 +117,14 @@ export default function DemoPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #f0fafe 0%, #ffffff 60%)", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F5F5F0", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Nav */}
-      <nav style={{ padding: "0 5%", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
+      <nav style={{ padding: "0 5%", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.08)", background: "rgba(245,245,240,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
         <a href="/" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.05em", color: "#0D1B2A", textDecoration: "none" }}>
-          RENN<span style={{ color: "#0cc0df" }}>OPS</span>
+          LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
         </a>
-        <a href="/" style={{ fontSize: "0.875rem", color: "#6B7280", textDecoration: "none" }}>← Back to home</a>
+        <a href="/" style={{ fontSize: "0.875rem", color: "rgba(17,17,17,0.5)", textDecoration: "none" }}>← Back to home</a>
       </nav>
 
       <div className="demo-outer">
@@ -149,7 +149,7 @@ export default function DemoPage() {
               <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(17,17,17,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.75rem" }}>What to expect</p>
               {[
                 "We'll walk through a live Lawrenn session tailored to your practice area",
-                "You'll see document drafting, contract analysis, and research in real time",
+                "You'll see AI call answering, intake automation, and client messaging in real time",
                 "We'll walk through the full setup — takes less than 15 minutes",
                 "No pressure — just a live demo of the product",
               ].map((item, i) => (
@@ -170,12 +170,12 @@ export default function DemoPage() {
                 SEE LAWRENN<br />IN ACTION
               </h1>
               <p style={{ color: "#6B7280", fontSize: "1rem", lineHeight: 1.7, marginBottom: "2rem" }}>
-                We'll walk through a live Lawrenn session — document drafting, legal research, and client intake — tailored to your practice area.
+                We'll walk through a live Lawrenn session — AI call answering, client intake automation, and client communication — tailored to your practice area.
               </p>
 
               {[
-                { icon: "📄", title: "Live document drafting",    desc: "Watch an NDA or brief generate in under 30 seconds" },
-                { icon: "🔍", title: "Legal research demo",       desc: "See AI find on-point case law across major databases" },
+                { icon: "📞", title: "Live call answering demo",  desc: "See Lawrenn answer a call and generate a full intake memo in real time" },
+                { icon: "💬", title: "Client communication",      desc: "Watch AI draft a follow-up SMS ready to approve in one click" },
                 { icon: "⚡", title: "15-minute setup",           desc: "If you want to start, you'll be live before we hang up" },
                 { icon: "🚫", title: "No pressure",               desc: "Just a demo — no credit card, no commitment" },
               ].map(({ icon, title, desc }) => (
@@ -234,7 +234,7 @@ export default function DemoPage() {
                                   transition: "all 0.15s",
                                   textAlign: "center",
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.borderColor = "#0cc0df"; e.currentTarget.style.background = "rgba(12,192,223,0.04)"; e.currentTarget.style.color = "#0cc0df"; }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = "#111111"; e.currentTarget.style.background = "rgba(17,17,17,0.04)"; e.currentTarget.style.color = "#111111"; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.color = "#374151"; }}>
                                 {new Date(slot.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })}
                               </button>
@@ -248,9 +248,9 @@ export default function DemoPage() {
               ) : (
                 /* Details form */
                 <>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "rgba(12,192,223,0.06)", border: "1px solid rgba(12,192,223,0.2)", borderRadius: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8 }}>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#0cc0df", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.15rem" }}>Selected time</p>
+                      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(17,17,17,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.15rem" }}>Selected time</p>
                       <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0D1B2A" }}>
                         {new Date(selectedSlot.start).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })} ET
                       </p>
@@ -267,23 +267,23 @@ export default function DemoPage() {
                       <input type="text" placeholder="Mike Johnson" value={form.name}
                         onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                         style={inputSt}
-                        onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                        onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                         onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.35rem" }}>Business email *</label>
-                      <input type="email" placeholder="mike@yourbusiness.com" value={form.email}
+                      <input type="email" placeholder="mike@smithlawfirm.com" value={form.email}
                         onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                         style={inputSt}
-                        onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                        onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                         onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.35rem" }}>Business name</label>
-                      <input type="text" placeholder="Mike's HVAC" value={form.business}
+                      <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.35rem" }}>Firm name</label>
+                      <input type="text" placeholder="Smith Family Law" value={form.business}
                         onChange={e => setForm(p => ({ ...p, business: e.target.value }))}
                         style={inputSt}
-                        onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                        onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                         onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                     </div>
                     <div>
@@ -291,13 +291,13 @@ export default function DemoPage() {
                       <input type="tel" placeholder="(716) 555-0100" value={form.phone}
                         onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                         style={inputSt}
-                        onFocus={e => e.currentTarget.style.borderColor = "#0cc0df"}
+                        onFocus={e => e.currentTarget.style.borderColor = "#111111"}
                         onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                     </div>
                   </div>
 
                   <button onClick={handleBook} disabled={booking}
-                    style={{ width: "100%", padding: "0.9rem", background: booking ? "rgba(12,192,223,0.6)" : "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: booking ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+                    style={{ width: "100%", padding: "0.9rem", background: booking ? "rgba(17,17,17,0.5)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 700, cursor: booking ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                     {booking ? "Booking..." : "Confirm demo"}
                   </button>
 

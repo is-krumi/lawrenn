@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { useBusiness } from "@/context/BusinessContext";
+import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,10 +116,6 @@ export default function Dashboard() {
     return d.toDateString() === new Date().toDateString();
   });
 
-  const weekRevenue = jobs
-    .filter(j => j.status === "complete" || j.status === "invoiced")
-    .reduce((sum, j) => sum + (j.amount ?? 0), 0);
-
   const todayCalls = calls.filter(c => {
     return new Date(c.created_at).toDateString() === new Date().toDateString();
   });
@@ -201,12 +197,11 @@ export default function Dashboard() {
         </div>
 
         {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1px", background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden", marginBottom: "2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden", marginBottom: "2.5rem" }}>
           {[
-            { label: "Calls today",       value: todayCalls.length,                  sub: "AI answered"        },
-            { label: "Matters this week", value: jobs.length,                        sub: `${aiRate}% via AI`  },
-            { label: "Revenue this week", value: `$${weekRevenue.toLocaleString()}`, sub: "completed matters"  },
-            { label: "Today's schedule",  value: todayJobs.length,                   sub: "matters scheduled"  },
+            { label: "Calls today",       value: todayCalls.length,  sub: "AI answered"        },
+            { label: "Matters this week", value: jobs.length,         sub: `${aiRate}% via AI`  },
+            { label: "Today's schedule",  value: todayJobs.length,    sub: "matters scheduled"  },
           ].map(({ label, value, sub }) => (
             <div key={label} style={{ background: "white", padding: "1.5rem 1.25rem" }}>
               <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.6rem" }}>{label}</p>

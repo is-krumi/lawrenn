@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
 
+// Anon client — only used to read the current session token
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -15,6 +16,8 @@ interface BusinessContextType {
   settings:         any;
   subscriptionTier: string | null;
   planFeatures:     any;
+  userRole:         string | null;
+  memberCount:      number;
   loading:          boolean;
 }
 
@@ -25,6 +28,8 @@ const BusinessContext = createContext<BusinessContextType>({
   settings:         null,
   subscriptionTier: null,
   planFeatures:     null,
+  userRole:         null,
+  memberCount:      0,
   loading:          true,
 });
 
@@ -36,23 +41,23 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     settings:         null,
     subscriptionTier: null,
     planFeatures:     null,
+    userRole:         null,
+    memberCount:      0,
     loading:          true,
   });
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setState(s => ({ ...s, loading: false })); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setState(s => ({ ...s, loading: false })); return; }
 
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id, name, twilio_number, settings, subscription_tier")
-        .eq("owner_id", user.id)
-        .single();
+      const res = await fetch("/api/my-business", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
 
-      const { data: planFeatures } = biz
-        ? await supabase.rpc("get_business_limits", { p_business_id: biz.id }).single()
-        : { data: null };
+      if (!res.ok) { setState(s => ({ ...s, loading: false })); return; }
+
+      const { business: biz, userRole, planFeatures, memberCount } = await res.json();
 
       setState({
         businessId:       biz?.id ?? null,
@@ -61,6 +66,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         settings:         biz?.settings ?? null,
         subscriptionTier: biz?.subscription_tier ?? null,
         planFeatures:     planFeatures ?? null,
+        userRole:         userRole ?? null,
+        memberCount:      memberCount ?? 0,
         loading:          false,
       });
     }

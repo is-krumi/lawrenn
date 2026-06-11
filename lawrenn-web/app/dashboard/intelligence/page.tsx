@@ -827,7 +827,7 @@ export default function IntelligencePage() {
             )}
 
             {/* Input row */}
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, padding: "0.5rem 0.5rem 0.5rem 0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 14, padding: "0.75rem 0.6rem 0.75rem 1rem" }}>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
@@ -843,15 +843,15 @@ export default function IntelligencePage() {
                 onChange={e => {
                   setInput(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 220) + "px";
                 }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                 placeholder="Ask about your business data..."
-                rows={3}
+                rows={4}
                 style={{
                   flex: 1, resize: "none", border: "none", outline: "none", background: "transparent",
-                  fontFamily: "'DM Sans', sans-serif", fontSize: "0.875rem", color: "#111111",
-                  lineHeight: 1.6, padding: "0.25rem 0", overflowY: "hidden",
+                  fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem", color: "#111111",
+                  lineHeight: 1.65, padding: "0.25rem 0", overflowY: "hidden",
                 }}
               />
               <button

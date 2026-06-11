@@ -17,16 +17,16 @@ const faqs: FaqItem[] = [
     a: "Absolutely. All data is encrypted at rest and in transit using AES-256. We enter into standard Data Processing Agreements and are SOC 2 Type II certified. Lawrenn is designed with attorney-client privilege in mind — your data is never used to train our models.",
   },
   {
-    q: "Can the AI replace my legal judgment?",
-    a: "No — and it's not designed to. Lawrenn functions as an AI co-counsel that accelerates your work. Every document, research output, or analysis requires your review and approval before it reaches a client. The attorney remains fully responsible for all work product.",
+    q: "How does AI call answering work?",
+    a: "Lawrenn connects to your firm's phone number and answers every incoming call 24/7 with a professional greeting. The AI engages the caller, captures key information about their matter, and generates a structured intake memo that's immediately available in your dashboard.",
   },
   {
-    q: "What practice areas does Lawrenn support?",
-    a: "Lawrenn is purpose-built for corporate, transactional, litigation, real estate, and employment law, with strong capabilities across IP, bankruptcy, and family law. We continuously expand coverage based on firm feedback.",
+    q: "What types of calls does Lawrenn handle?",
+    a: "Lawrenn handles new matter inquiries, existing client check-ins, appointment requests, and general questions. For calls that require immediate attorney attention, the AI can flag them as urgent and send you an instant notification.",
   },
   {
-    q: "How does time capture and billing work?",
-    a: "Lawrenn monitors your activity within each matter and automatically generates draft time entries with narrative descriptions. You review, edit, and approve each entry before it posts to your billing system.",
+    q: "Can I customize the intake questions?",
+    a: "Yes. You can configure the questions Lawrenn asks based on practice area — personal injury, family law, estate planning, employment, and more. Firm and Enterprise plans include full custom question sets and intake flows.",
   },
   {
     q: "Can I cancel anytime?",
@@ -39,26 +39,10 @@ const NAV_PRODUCTS = [
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
       </svg>
     ),
-    name: "Document Drafting", desc: "Contracts, briefs, and memos in seconds", href: "#how",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-    ),
-    name: "Legal Research", desc: "AI-powered case law and statute search", href: "#features",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-    name: "Contract Analysis", desc: "Instant risk review and key term extraction", href: "#features",
+    name: "AI Call Answering", desc: "24/7 call handling — never miss a potential client", href: "#how",
   },
   {
     icon: (
@@ -66,7 +50,15 @@ const NAV_PRODUCTS = [
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
-    name: "Client Intake", desc: "Automated conflicts, intake, and engagement letters", href: "#features",
+    name: "Client Intake", desc: "Structured intake memos generated from every call", href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+    ),
+    name: "Client Communication", desc: "AI-drafted SMS follow-ups and client messaging", href: "#features",
   },
   {
     icon: (
@@ -74,15 +66,23 @@ const NAV_PRODUCTS = [
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
-    name: "Matter Management", desc: "Deadlines, documents, and communications in one place", href: "#features",
+    name: "Matter Management", desc: "Every client, call, and message in one place", href: "#features",
   },
   {
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
     ),
-    name: "Time & Billing", desc: "Auto-capture billable hours and generate invoices", href: "#features",
+    name: "Practice Intelligence", desc: "Ask your call and client data in plain English", href: "#features",
+  },
+  {
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+    name: "Call Analytics", desc: "Volume trends, outcomes, and busiest hours at a glance", href: "#features",
   },
 ];
 
@@ -473,13 +473,13 @@ interface ScrollCard {
 }
 
 const SCROLL_CARDS: ScrollCard[] = [
-  { name: "Meridian Legal Partners",  reviewer: "David K.",  role: "Managing Partner",   text: "Contract review that used to take a full day now takes 20 minutes. We handle 3x the deal volume with the same headcount." },
-  { name: "Calloway Litigation Group", reviewer: "Sandra T.", role: "Senior Partner",     text: "The research engine alone justified the cost in week one. Finding on-point precedent used to take hours. Now it takes minutes." },
-  { name: "Vance Corporate Law",       reviewer: "Chris R.",  role: "General Counsel",    text: "Deployed firm-wide in two weeks. It actually understands legal nuance — it's not a generic chatbot with a law school degree." },
-  { name: "Sterling Family Law",       reviewer: "Maria L.",  role: "Principal Attorney", text: "Client intake is now fully automated. Engagement letters generate themselves. I've reclaimed 10 hours a week." },
-  { name: "Ashford Real Estate Law",   reviewer: "Tom B.",    role: "Partner",            text: "Billable hours are up 22% since we deployed. The AI catches things we used to miss. Worth every dollar." },
-  { name: "Hargrove & Associates",     reviewer: "James H.",  role: "Managing Partner",   text: "We ran a 2-week pilot and extended immediately. The document drafting alone saves my associates 6 hours a week each." },
-  { name: "Blackwell IP Group",        reviewer: "Priya N.",  role: "IP Counsel",         text: "Patent claim drafting used to take half a day. Lawrenn produces a solid first draft in minutes. The quality is genuinely impressive." },
+  { name: "Sterling Family Law",       reviewer: "Maria L.",  role: "Principal Attorney", text: "We used to miss calls constantly on nights and weekends. Lawrenn catches every call and sends an intake memo to my phone instantly. Haven't missed a lead in months." },
+  { name: "Calloway Immigration Group",reviewer: "Sandra T.", role: "Senior Partner",     text: "The intake memos Lawrenn generates are genuinely impressive. By the time I call a client back, I already know the key facts. Saves 20 minutes per intake call." },
+  { name: "Vance Employment Law",      reviewer: "Chris R.",  role: "Managing Partner",   text: "Client follow-ups used to fall through the cracks. Now Lawrenn drafts the follow-up after every call and I approve it in one click. Response time went from days to hours." },
+  { name: "Meridian Injury Partners",  reviewer: "David K.",  role: "Managing Partner",   text: "We added 30% more new matters in the first month without hiring anyone. Lawrenn answers every call, qualifies the lead, and opens the matter automatically." },
+  { name: "Ashford Estate Planning",   reviewer: "Tom B.",    role: "Partner",            text: "Deployed in under a week. The AI greets callers professionally and asks exactly the right intake questions. Clients often don't realize they're talking to AI." },
+  { name: "Hargrove & Associates",     reviewer: "James H.",  role: "Managing Partner",   text: "The Practice Intelligence feature alone is worth it. I can ask 'how many PI calls came in this week and what's the average quality score' and get an instant answer." },
+  { name: "Blackwell Civil Litigation",reviewer: "Priya N.",  role: "Partner",            text: "We were skeptical at first. After 30 days we couldn't imagine going back. Every potential client gets a response, every intake is captured, nothing falls through the cracks." },
 ];
 
 function LogoScroller() {
@@ -517,31 +517,31 @@ function LogoScroller() {
 // ── LiveFeed ───────────────────────────────────────────────────────────────
 const FEED_ITEMS = [
   {
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
-    color: "rgba(16,185,129,0.1)", title: "NDA drafted — Meridian Capital LLC", sub: "2 pages · completed in 28 seconds",
-    badge: "Drafted", bc: "#10b981", bbg: "rgba(16,185,129,0.1)",
-    detail: "AI generated a mutual NDA from a brief plain-English description. Ready for attorney review in under 30 seconds.",
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+    color: "rgba(16,185,129,0.1)", title: "New intake — Marcus J. Chen (Personal Injury)", sub: "Call answered · Intake memo generated · Matter opened",
+    badge: "Intake", bc: "#10b981", bbg: "rgba(16,185,129,0.1)",
+    detail: "Lawrenn answered the call at 11:42 PM, captured the key facts of the accident, ran a conflict check, and opened a new matter — all before the attorney woke up.",
     ago: "2 min ago",
   },
   {
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
-    color: "rgba(0,0,0,0.05)", title: "Research complete — Johnson v. Acme", sub: "9 on-point precedents found · 3 jurisdictions",
-    badge: "Complete", bc: "#374151", bbg: "rgba(0,0,0,0.06)",
-    detail: "Full case law analysis with citations, holdings, and relevance scores. What used to take 4 hours done in 3 minutes.",
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+    color: "rgba(0,0,0,0.05)", title: "Follow-up sent — Rebecca Johnson (Employment)", sub: "AI-drafted SMS · Approved in one click · Delivered",
+    badge: "Sent", bc: "#374151", bbg: "rgba(0,0,0,0.06)",
+    detail: "After the intake call, Lawrenn drafted a personalized follow-up SMS referencing the caller's situation. The attorney approved it in under 10 seconds.",
     ago: "9 min ago",
   },
   {
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>,
-    color: "rgba(245,158,11,0.1)", title: "Matter opened — Estate of P. Williams", sub: "Intake complete · Conflicts cleared · Engagement letter sent",
+    color: "rgba(245,158,11,0.1)", title: "Matter opened — Estate of P. Williams", sub: "Intake complete · Conflicts cleared · Engagement letter ready",
     badge: "Active", bc: "#f59e0b", bbg: "rgba(245,158,11,0.1)",
-    detail: "New client intake completed, conflict check passed, and engagement letter generated and sent — all automatically.",
+    detail: "New client intake completed, conflict check passed, and engagement letter drafted — all automatically. Attorney just needs to review and send.",
     ago: "31 min ago",
   },
   {
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>,
-    color: "rgba(99,102,241,0.1)", title: "Invoice sent — Smith Holdings LLC", sub: "4.5 hrs @ $475/hr · Invoice #3291",
-    badge: "Sent", bc: "#818cf8", bbg: "rgba(99,102,241,0.1)",
-    detail: "Time entries auto-drafted from matter activity. Attorney reviewed and approved. Invoice sent in one click.",
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
+    color: "rgba(99,102,241,0.1)", title: "Call summary ready — Smith Holdings LLC", sub: "3:42 call · AI summary + intake memo generated",
+    badge: "Summary", bc: "#818cf8", bbg: "rgba(99,102,241,0.1)",
+    detail: "Full call transcript, AI-generated summary, key facts, and recommended next steps delivered to the attorney's dashboard within 60 seconds of the call ending.",
     ago: "44 min ago",
   },
 ];
@@ -618,8 +618,8 @@ function LiveFeed() {
 
       {/* Footer */}
       <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "0.78rem", color: "rgba(17,17,17,0.35)" }}>Billable time recovered by AI this week</span>
-        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "var(--navy)", letterSpacing: "0.05em" }}>${revenue.toLocaleString()}</span>
+        <span style={{ fontSize: "0.78rem", color: "rgba(17,17,17,0.35)" }}>Potential new matters captured this week</span>
+        <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", color: "var(--navy)", letterSpacing: "0.05em" }}>{revenue.toLocaleString()}</span>
       </div>
 
       {/* Dot indicators */}
@@ -740,7 +740,7 @@ export default function Home() {
         </h1>
 
         <p style={{ fontSize: "1.15rem", color: "rgba(17,17,17,0.55)", maxWidth: 540, lineHeight: 1.7, marginBottom: "2.5rem", fontWeight: 400 }}>
-          Lawrenn brings enterprise AI to every stage of legal practice — from client intake to final invoice. Draft faster, research deeper, and deliver more for every client.
+          Lawrenn answers your calls 24/7, captures every client intake, and keeps your communications organized — so you never miss a potential client and can focus on practicing law.
         </p>
 
         <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "3.5rem" }}>
@@ -768,10 +768,10 @@ export default function Home() {
       {/* ── STATS ── */}
       <div className="lp-stats" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", padding: "2.5rem 5%", background: "white", gap: "2rem" }}>
         {[
-          { num: "60%", label: "of attorney time is spent on non-billable, administrative tasks" },
-          { num: "10x", label: "faster document review with AI-powered analysis" },
-          { num: "30s", label: "for Lawrenn to draft a standard NDA or engagement letter" },
-          { num: "8x", label: "average ROI on Lawrenn Pro plan in the first 30 days" },
+          { num: "42%", label: "of inbound calls to law firms go unanswered — every one is a potential lost matter" },
+          { num: "24/7", label: "availability for every call — Lawrenn answers nights, weekends, and holidays" },
+          { num: "3 min", label: "average time for Lawrenn to complete a full structured client intake" },
+          { num: "8x", label: "average ROI in the first 30 days — one new matter covers months of cost" },
         ].map(({ num, label }, i) => (
           <SL key={i} delay={i * 0.1} style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3rem", letterSpacing: "0.02em", color: "var(--navy)", lineHeight: 1, marginBottom: "0.4rem" }}>
@@ -788,16 +788,16 @@ export default function Home() {
       {/* ── HOW IT WORKS ── */}
       <section id="how" style={{ padding: "6rem 5%", background: "var(--off-white)" }}>
         <SL>{sectionLabel("How it works")}</SL>
-        <SL>{sectionTitle(["CONNECT ONCE.", "WORK SMARTER FOREVER."])}</SL>
-        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Link your matters and documents. Lawrenn handles the research, drafting, and administration — around the clock.</p></SL>
+        <SL>{sectionTitle(["SET UP IN MINUTES.", "NEVER MISS A CLIENT AGAIN."])}</SL>
+        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Route your calls through Lawrenn and every inquiry is captured, qualified, and ready for your review — around the clock.</p></SL>
 
         <div className="lp-how">
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {[
-              { n: "01", t: "Connect your matters and documents", d: "Import from your existing practice management system, or start fresh. Full setup takes less than 15 minutes." },
-              { n: "02", t: "AI researches, drafts, and analyzes", d: "From contract review to brief drafting to case law research — Lawrenn works in seconds, not hours." },
-              { n: "03", t: "Review, refine, and approve", d: "You're always in control. Every AI output requires your review and approval before it reaches a client." },
-              { n: "04", t: "Track time and bill automatically", d: "Every matter interaction is logged. Time entries auto-generate. Review, approve, and invoice in one click." },
+              { n: "01", t: "Connect your phone number", d: "Route your firm's calls through Lawrenn in under 5 minutes. No hardware, no IT team required." },
+              { n: "02", t: "AI answers, qualifies, and captures", d: "Every caller gets a professional response. Lawrenn gathers the key facts and creates a structured intake memo." },
+              { n: "03", t: "Review intakes and reply to clients", d: "See new intake memos instantly. Respond to clients by SMS with AI-drafted messages — approved in one click." },
+              { n: "04", t: "Track every client interaction", d: "Every call, message, and follow-up is logged automatically so nothing falls through the cracks." },
             ].map(({ n, t, d }, i) => (
               <SL key={i} delay={i * 0.1}>
                 <div style={{
@@ -837,33 +837,33 @@ export default function Home() {
       <section id="features" style={{ padding: "6rem 5%", background: "white" }}>
         <SL>{sectionLabel("Features")}</SL>
         <SL>{sectionTitle(["EVERYTHING YOUR", "PRACTICE NEEDS."])}</SL>
-        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Purpose-built for legal professionals. Not a generic AI tool with a law school vocabulary.</p></SL>
+        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Built for law firms, not generic businesses. Every feature is designed around how attorneys actually work.</p></SL>
 
         <div className="lp-features">
           {[
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
-              title: "AI Document Drafting", body: "Generate contracts, briefs, demand letters, and legal memos in seconds. Trained on millions of legal documents and continuously refined by practicing attorneys.", tag: "NDA in 30 seconds"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
-              title: "Contract Analysis & Review", body: "Upload any agreement and receive an instant plain-English summary of key terms, obligations, renewal dates, and risk flags — in under a minute.", tag: "Instant risk review"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
-              title: "Legal Research Engine", body: "Find relevant case law, statutes, regulations, and secondary sources with AI-powered search across major legal databases. Citations included.", tag: "Millions of sources"
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+              title: "AI Call Answering", body: "Never miss a potential client. Lawrenn answers every call 24/7 with a professional greeting, handles common questions, and captures caller information.", tag: "24/7 availability"
             },
             {
               icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>,
-              title: "Client Intake & Conflicts", body: "Automate new matter intake, run conflict checks, and generate engagement letters without manual intervention. Never miss a conflict again.", tag: "Zero missed conflicts"
+              title: "Automated Client Intake", body: "Every call describing a legal matter generates a structured intake memo — issue summary, key facts, urgency level, and recommended next steps.", tag: "Intake in 3 minutes"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+              title: "Client Communication", body: "Reply to clients by SMS from your dashboard. Lawrenn drafts follow-up messages based on call context so you can respond thoughtfully in seconds.", tag: "Smart messaging"
             },
             {
               icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
-              title: "Matter Management", body: "Track deadlines, documents, communications, and billing for every active matter in one unified view. Available on mobile and desktop.", tag: "All matters, one view"
+              title: "Matter Management", body: "Every intake, call, and message is organized by client. Track the full history of every matter from first contact so nothing ever falls through the cracks.", tag: "Full client history"
             },
             {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>,
-              title: "Time Capture & Billing", body: "AI automatically drafts time entries as you work. Review, approve, and send invoices with one click. Never leave billable hours unrecorded.", tag: "+40% billable recovery"
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
+              title: "Practice Intelligence", body: "Ask questions about your practice in plain English — how many calls this week, which clients haven't heard back, most common matter types, and more.", tag: "Ask your data"
+            },
+            {
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
+              title: "AI-Drafted Follow-Ups", body: "After every intake call, Lawrenn drafts a professional client follow-up email — personalized, on-point, and ready to send with one click.", tag: "Follow-up in one click"
             },
           ].map(({ icon, title, body, tag }, i) => (
             <SL key={i} delay={(i % 3) * 0.1}>
@@ -886,12 +886,12 @@ export default function Home() {
           <SL>
             {sectionLabel("ROI Calculator")}
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3.2rem)", letterSpacing: "0.02em", lineHeight: 1.05, marginBottom: "1.25rem" }}>
-              HOW MUCH ARE YOUR<br />ATTORNEYS LEAVING<br />ON THE TABLE?
+              HOW MANY CLIENTS<br />ARE YOU MISSING<br />RIGHT NOW?
             </div>
             <p style={{ color: "rgba(17,17,17,0.5)", lineHeight: 1.7, marginBottom: "1.5rem", fontSize: "0.95rem" }}>
-              The average attorney loses 15+ hours of billable time per week to non-billable administrative work. At typical billing rates, that&apos;s a significant revenue gap that Lawrenn closes.
+              The average law firm misses 42% of inbound calls. Each missed call is a potential matter worth thousands. Lawrenn answers every call, captures every intake, and converts inquiries into clients.
             </p>
-            {["Lawrenn captures billable hours attorneys currently write off", "Most firms see 8x ROI in the first month of deployment", "One additional billed hour per attorney per week covers the annual cost"].map((b, i) => (
+            {["Lawrenn answers every call 24/7 — even nights and weekends", "Most firms see new matter volume increase 20–30% within 30 days", "One new matter per month more than covers the annual cost"].map((b, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", fontSize: "0.9rem", color: "rgba(17,17,17,0.65)", marginBottom: "0.75rem" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> {b}
               </div>
@@ -909,9 +909,9 @@ export default function Home() {
 
         <div className="lp-pricing">
           {[
-            { tier: "Solo", price: PLAN_FEATURES.starter.price, desc: "AI legal assistant for solo practitioners. Draft, research, and manage matters without the overhead.", features: [`Up to ${PLAN_FEATURES.starter.monthlyCallCap} AI-drafted documents/mo`, "Contract analysis & review", "Legal research access", "Client intake automation", "Basic matter management", `${PLAN_FEATURES.starter.maxTeamMembers} team member`, "Time capture & billing drafts", "24/7 availability"], featured: false },
-            { tier: "Firm", price: PLAN_FEATURES.pro.price, desc: "The full Lawrenn suite for growing practices. Everything you need to scale without adding headcount.", features: [`Up to ${PLAN_FEATURES.pro.monthlyCallCap} AI-drafted documents/mo`, "Full contract analysis & risk flags", "Complete legal research suite", "Automated intake & conflict checks", "Proposal & engagement automation", `Up to ${PLAN_FEATURES.pro.maxTeamMembers} team members`, "AI-generated work summaries", "Revenue & billing analytics"], featured: true },
-            { tier: "Enterprise", price: PLAN_FEATURES.growth.price, desc: "Enterprise legal AI for firms that demand maximum output, deep insights, and firm-wide deployment.", features: [`Up to ${PLAN_FEATURES.growth.monthlyCallCap} AI-drafted documents/mo`, "Everything in Firm", "Lawrenn Intelligence (practice insights)", "Unlimited team members", "Advanced reporting & analytics", "Custom document templates", "Priority support", "API access", "Early feature access"], featured: false },
+            { tier: "Solo", price: PLAN_FEATURES.starter.price, desc: "AI call answering and client intake for solo practitioners. Never miss a potential client again.", features: [`Up to ${PLAN_FEATURES.starter.monthlyCallCap} AI-answered calls/mo`, "Full client intake automation", "Intake memo generation", "SMS client messaging", "Basic matter management", `${PLAN_FEATURES.starter.maxTeamMembers} team member`, "Call recordings & transcripts", "24/7 availability"], featured: false },
+            { tier: "Firm", price: PLAN_FEATURES.pro.price, desc: "The full Lawrenn suite for growing practices. Automate intake, manage communications, and grow without adding overhead.", features: [`Up to ${PLAN_FEATURES.pro.monthlyCallCap} AI-answered calls/mo`, "Everything in Solo", "AI-drafted client follow-ups", "Practice Intelligence (ask your data)", "Advanced call analytics", `Up to ${PLAN_FEATURES.pro.maxTeamMembers} team members`, "Custom intake questions", "Priority SMS response drafting"], featured: true },
+            { tier: "Enterprise", price: PLAN_FEATURES.growth.price, desc: "Firm-wide AI client management for practices that need maximum capacity, deep insights, and scalable deployment.", features: [`Up to ${PLAN_FEATURES.growth.monthlyCallCap} AI-answered calls/mo`, "Everything in Firm", "Unlimited team members", "Multi-location support", "Advanced reporting & analytics", "Custom AI voice & persona", "Priority support", "API access", "Early feature access"], featured: false },
           ].map(({ tier, price, desc, features, featured }, i) => (
             <SL key={i} delay={i * 0.1}>
               <div style={{ background: featured ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.02)", border: `1px solid ${featured ? "rgba(0,0,0,0.2)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>
@@ -944,13 +944,13 @@ export default function Home() {
       {/* ── TESTIMONIALS ── */}
       <section style={{ padding: "6rem 5%", background: "var(--off-white)" }}>
         <SL>{sectionLabel("Social proof")}</SL>
-        <SL>{sectionTitle(["FIRMS THAT MADE", "THE SWITCH."])}</SL>
+        <SL>{sectionTitle(["ATTORNEYS WHO", "NEVER MISS A CALL."])}</SL>
 
         <div className="lp-testimonials">
           {[
-            { text: "Contract review used to take our associates a full day on complex deals. Lawrenn does preliminary review in minutes. We now handle 3x the transaction volume without adding headcount.", name: "Alexandra R.", role: "Managing Partner · Corporate Practice" },
-            { text: "The research engine alone justified the cost in week one. Finding on-point case law that used to take four hours now takes under 20 minutes. My clients notice the faster turnaround.", name: "James T.", role: "Litigation Partner" },
-            { text: "Deployed firm-wide in two weeks. The AI understands legal nuance — it's not a generic chatbot that happens to know some law terms. It actually thinks like a lawyer.", name: "Karen M.", role: "General Counsel, Fortune 500" },
+            { text: "We used to miss calls constantly — potential clients would call once and never call back. Lawrenn catches every call and sends an intake memo to my phone instantly. We haven't missed a lead in 3 months.", name: "Sarah T.", role: "Solo Practitioner · Personal Injury" },
+            { text: "The intake memos Lawrenn generates are genuinely impressive. By the time I call the client back, I already know the key facts of their situation. It saves 20 minutes per intake call.", name: "Marcus W.", role: "Immigration Attorney" },
+            { text: "Client follow-ups used to fall through the cracks. Now Lawrenn drafts the follow-up after every call and I approve it with one click. My response time went from days to hours.", name: "Diana C.", role: "Managing Partner · Family Law" },
           ].map(({ text, name, role }, i) => (
             <SL key={i} delay={i * 0.1}>
               <div style={{ background: "white", border: "1px solid var(--border)", borderRadius: 12, padding: "1.75rem" }}>
@@ -982,10 +982,10 @@ export default function Home() {
         <SL>
           <div style={{ maxWidth: 640, margin: "0 auto", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 20, padding: "3.5rem", position: "relative", overflow: "hidden" }}>
             <h2 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3rem)", letterSpacing: "0.02em", marginBottom: "1rem" }}>
-              READY TO TRANSFORM<br />YOUR PRACTICE?
+              STOP MISSING<br />POTENTIAL CLIENTS.
             </h2>
             <p style={{ color: "rgba(17,17,17,0.5)", fontSize: "1rem", lineHeight: 1.7, marginBottom: "2rem", maxWidth: 440, margin: "0 auto 2rem" }}>
-              Start your 14-day free trial today. No credit card required. Setup takes less than 15 minutes.
+              Get set up in under 15 minutes. Lawrenn starts answering calls and capturing intakes the same day. No credit card required.
             </p>
             <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button onClick={() => setShowTrial(true)} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.9rem 2rem", background: "#111111", border: "none", borderRadius: 8, color: "white", fontSize: "1rem", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s" }}
@@ -1010,7 +1010,7 @@ export default function Home() {
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
             LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
           </div>
-          <p style={{ fontSize: "0.85rem", color: "rgba(17,17,17,0.35)", maxWidth: 260, lineHeight: 1.6 }}>The AI platform built for law.</p>
+          <p style={{ fontSize: "0.85rem", color: "rgba(17,17,17,0.35)", maxWidth: 260, lineHeight: 1.6 }}>AI client intake and communication for law firms.</p>
         </div>
 
         <div className="lp-footer-links">
