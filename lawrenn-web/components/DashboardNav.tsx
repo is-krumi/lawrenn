@@ -90,15 +90,6 @@ const NAV_LINKS_CONFIG = [
       </svg>
     ),
   },
-  {
-    label: "Settings", href: "/dashboard/settings",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-      </svg>
-    ),
-  },
 ];
 
 const SECTION_LABELS: Record<string, string> = {
@@ -231,19 +222,42 @@ export default function DashboardNav() {
           })}
         </nav>
 
-        {/* Sign out */}
-        <div style={{ padding: "1rem 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+        {/* Settings + Sign out */}
+        <div style={{ padding: "0.5rem 0", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+          {(() => {
+            const settingsActive = pathname.startsWith("/dashboard/settings");
+            return (
+              <Link href="/dashboard/settings"
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.6rem",
+                  padding: "0.5rem 1rem", margin: "0.05rem 0.5rem", borderRadius: 7,
+                  color: "#111111", textDecoration: "none",
+                  fontSize: "0.82rem", fontWeight: settingsActive ? 600 : 400,
+                  letterSpacing: "0.01em", transition: "background 0.12s",
+                  background: settingsActive ? "#F5F5F0" : "transparent",
+                }}
+                onMouseEnter={e => { if (!settingsActive) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
+                onMouseLeave={e => { if (!settingsActive) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+                Settings
+              </Link>
+            );
+          })()}
           <button onClick={signOut}
             style={{
               display: "flex", alignItems: "center", gap: "0.6rem",
-              width: "100%", padding: "0.5rem 1.25rem",
-              background: "transparent", border: "none",
-              color: "#9CA3AF", fontFamily: "'DM Sans'",
-              fontSize: "0.82rem", cursor: "pointer", transition: "color 0.12s",
-              textAlign: "left", letterSpacing: "0.01em",
+              width: "calc(100% - 1rem)", padding: "0.5rem 1rem", margin: "0.05rem 0.5rem",
+              background: "transparent", border: "none", borderRadius: 7,
+              color: "#111111", fontFamily: "'DM Sans'",
+              fontSize: "0.82rem", cursor: "pointer", transition: "background 0.12s",
+              textAlign: "left", letterSpacing: "0.01em", boxSizing: "border-box" as const,
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#374151"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#9CA3AF"; }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.04)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>

@@ -42,7 +42,9 @@ export default function CustomersPage() {
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneValue, setPhoneValue]     = useState("");
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
-  const [editingJobAmount, setEditingJobAmount] = useState("");
+  const [editingJobField, setEditingJobField] = useState<"name" | "date" | null>(null);
+  const [editingJobName, setEditingJobName] = useState("");
+  const [editingJobDate, setEditingJobDate] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);  const [deleteUnlocked, setDeleteUnlocked] = useState(false);  const [aiSummary, setAiSummary]         = useState<string | null>(null);
   const [aiAction, setAiAction]           = useState<string | null>(null);
   const [aiIntelligence, setAiIntelligence] = useState<Record<string, string> | null>(null);
@@ -330,12 +332,20 @@ async function sendReply() {
     setSelected(prev => prev ? { ...prev, phone } : null);
   }
 
-  async function saveJobAmount(jobId: string, amountStr: string) {
-    if (!selected) return;
-    const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount < 0) return;
-    await supabase.from("jobs").update({ amount }).eq("id", jobId);
-    const updatedJobs = selected.jobs.map(j => j.id === jobId ? { ...j, amount } : j);
+  async function saveJobName(jobId: string, name: string) {
+    if (!selected || !name.trim()) return;
+    const type = name.trim();
+    await supabase.from("jobs").update({ type }).eq("id", jobId);
+    const updatedJobs = selected.jobs.map(j => j.id === jobId ? { ...j, type } : j);
+    setSelected(prev => prev ? { ...prev, jobs: updatedJobs } : null);
+    setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, jobs: updatedJobs } : c));
+  }
+
+  async function saveJobDate(jobId: string, dateStr: string) {
+    if (!selected || !dateStr) return;
+    const created_at = new Date(dateStr).toISOString();
+    await supabase.from("jobs").update({ created_at }).eq("id", jobId);
+    const updatedJobs = selected.jobs.map(j => j.id === jobId ? { ...j, created_at } : j);
     setSelected(prev => prev ? { ...prev, jobs: updatedJobs } : null);
     setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, jobs: updatedJobs } : c));
   }
@@ -643,52 +653,66 @@ async function sendReply() {
               </div>
 
               {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div style={{ marginBottom: "1rem" }}>
                 <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem" }}>
                   <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Matters</p>
                   <p style={{ fontSize: "1.4rem", fontFamily: "'Bebas Neue'", color: "#111111", letterSpacing: "0.02em" }}>{jobCount(selected)}</p>
-                </div>
-                <div style={{ background: "#F9FAFB", borderRadius: 8, padding: "0.75rem" }}>
-                  <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Total Fees</p>
-                  <p style={{ fontSize: "1.4rem", fontFamily: "'Bebas Neue'", color: "#10B981", letterSpacing: "0.02em" }}>${totalRevenue(selected).toLocaleString()}</p>
                 </div>
               </div>
 
               {/* Job history */}
               {selected.jobs?.length > 0 && (
                 <div style={{ marginBottom: "1rem" }}>
-                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Matter history <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "#9CA3AF" }}>· click fee to edit</span></p>
+                  <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>Matter history <span style={{ fontSize: "0.72rem", fontWeight: 400, color: "#9CA3AF" }}>· click to edit</span></p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     {selected.jobs.slice(0, 4).map(job => (
-                      <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "#F9FAFB", borderRadius: 6 }}>
-                        <span style={{ fontSize: "0.82rem", color: "#374151" }}>{job.type}</span>
-                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                          {editingJobId === job.id ? (
-                            <input
-                              type="number"
-                              autoFocus
-                              value={editingJobAmount}
-                              onChange={e => setEditingJobAmount(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter") { saveJobAmount(job.id, editingJobAmount); setEditingJobId(null); }
-                                if (e.key === "Escape") setEditingJobId(null);
-                              }}
-                              onBlur={() => { saveJobAmount(job.id, editingJobAmount); setEditingJobId(null); }}
-                              style={{ width: 80, padding: "0.2rem 0.4rem", background: "white", border: "1.5px solid #111111", borderRadius: 4, color: "#10B981", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600, outline: "none" }}
-                            />
-                          ) : (
-                            <span
-                              onClick={() => { setEditingJobId(job.id); setEditingJobAmount(String(job.amount ?? 0)); }}
-                              title="Click to edit"
-                              style={{ fontSize: "0.78rem", color: "#10B981", fontWeight: 600, cursor: "pointer", padding: "0.1rem 0.25rem", borderRadius: 3 }}
-                              onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.08)"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            >
-                              ${job.amount > 0 ? job.amount : "—"}
-                            </span>
-                          )}
-                          <span style={{ fontSize: "0.72rem", color: "#9CA3AF" }}>{formatDate(job.created_at)}</span>
-                        </div>
+                      <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", background: "#F9FAFB", borderRadius: 6, gap: "0.5rem" }}>
+                        {/* Name */}
+                        {editingJobId === job.id && editingJobField === "name" ? (
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editingJobName}
+                            onChange={e => setEditingJobName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") { saveJobName(job.id, editingJobName); setEditingJobId(null); setEditingJobField(null); }
+                              if (e.key === "Escape") { setEditingJobId(null); setEditingJobField(null); }
+                            }}
+                            onBlur={() => { saveJobName(job.id, editingJobName); setEditingJobId(null); setEditingJobField(null); }}
+                            style={{ flex: 1, padding: "0.2rem 0.4rem", background: "white", border: "1.5px solid #111111", borderRadius: 4, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.82rem", outline: "none" }}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => { setEditingJobId(job.id); setEditingJobField("name"); setEditingJobName(job.type); }}
+                            title="Click to edit"
+                            style={{ flex: 1, fontSize: "0.82rem", color: "#374151", cursor: "pointer", padding: "0.1rem 0.25rem", borderRadius: 3 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >{job.type}</span>
+                        )}
+                        {/* Date */}
+                        {editingJobId === job.id && editingJobField === "date" ? (
+                          <input
+                            type="date"
+                            autoFocus
+                            value={editingJobDate}
+                            onChange={e => setEditingJobDate(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") { saveJobDate(job.id, editingJobDate); setEditingJobId(null); setEditingJobField(null); }
+                              if (e.key === "Escape") { setEditingJobId(null); setEditingJobField(null); }
+                            }}
+                            onBlur={() => { saveJobDate(job.id, editingJobDate); setEditingJobId(null); setEditingJobField(null); }}
+                            style={{ padding: "0.2rem 0.4rem", background: "white", border: "1.5px solid #111111", borderRadius: 4, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.72rem", outline: "none" }}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => { setEditingJobId(job.id); setEditingJobField("date"); setEditingJobDate(new Date(job.created_at).toISOString().split("T")[0]); }}
+                            title="Click to edit"
+                            style={{ fontSize: "0.72rem", color: "#9CA3AF", cursor: "pointer", padding: "0.1rem 0.25rem", borderRadius: 3, whiteSpace: "nowrap" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >{formatDate(job.created_at)}</span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -833,13 +857,13 @@ async function sendReply() {
                               maxWidth: "82%",
                               padding: "0.55rem 0.8rem",
                               borderRadius: item.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
-                              background: item.direction === "outbound" ? "#111111" : "#F9FAFB",
-                              border: item.direction === "inbound" ? "1px solid rgba(0,0,0,0.07)" : "none",
+                              background: item.direction === "outbound" ? "#F5F5F0" : "transparent",
+                              border: item.direction === "outbound" ? "none" : "1px solid rgba(0,0,0,0.08)",
                             }}>
-                              <p style={{ fontSize: "0.85rem", color: item.direction === "outbound" ? "white" : "#374151", lineHeight: 1.5, margin: 0 }}>
+                              <p style={{ fontSize: "0.85rem", color: "#111111", lineHeight: 1.5, margin: 0 }}>
                                 {item.body}
                               </p>
-                              <p style={{ fontSize: "0.65rem", color: item.direction === "outbound" ? "rgba(255,255,255,0.55)" : "#9CA3AF", margin: "0.25rem 0 0", textAlign: item.direction === "outbound" ? "right" : "left" }}>
+                              <p style={{ fontSize: "0.65rem", color: "#9CA3AF", margin: "0.25rem 0 0", textAlign: item.direction === "outbound" ? "right" as const : "left" as const }}>
                                 {new Date(item.sent_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                               </p>
                             </div>

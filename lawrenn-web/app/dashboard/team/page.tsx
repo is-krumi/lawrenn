@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { useBusiness } from "@/context/BusinessContext";
+import { PLAN_FEATURES } from "@/lib/plans";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,14 +43,27 @@ const defaultSchedule = {
 
 export default function TeamPage() {
   const router = useRouter();
+  const { businessId: ctxBusinessId, loading: ctxLoading, userRole, subscriptionTier, memberCount: ctxMemberCount } = useBusiness();
 
-  const [businessId, setBusinessId]   = useState<string | null>(null);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [showAdd, setShowAdd]         = useState(false);
-  const [expanded, setExpanded]       = useState<string | null>(null);
-  const [saving, setSaving]           = useState(false);
+  const planKey = (subscriptionTier ?? "starter") as keyof typeof PLAN_FEATURES;
+  const maxSeats = PLAN_FEATURES[planKey]?.maxTeamMembers ?? 1;
+  const canInvite = userRole === "owner" || userRole === "admin";
+
+  const [technicians, setTechnicians]     = useState<Technician[]>([]);
+  const [memberCount, setMemberCount]     = useState(0);
+  const [loading, setLoading]             = useState(true);
+  const [showAdd, setShowAdd]             = useState(false);
+  const [expanded, setExpanded]           = useState<string | null>(null);
+  const [saving, setSaving]               = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Invite state
+  const [showInvite, setShowInvite]   = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole]   = useState("attorney");
+  const [inviting, setInviting]       = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
 
   // New member form
   const [newMember, setNewMember] = useState({
@@ -57,30 +72,66 @@ export default function TeamPage() {
   });
 
   useEffect(() => {
+    if (ctxLoading) return;
+    if (!ctxBusinessId) { router.push("/onboarding"); return; }
+    setMemberCount(ctxMemberCount);
+
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
-
-      const { data: biz } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (!biz) { router.push("/onboarding"); return; }
-      setBusinessId(biz.id);
-
       const { data } = await supabase
         .from("technicians")
         .select("id, name, phone, color, active, schedule")
-        .eq("business_id", biz.id)
+        .eq("business_id", ctxBusinessId)
         .order("created_at", { ascending: true });
 
       setTechnicians((data as any) ?? []);
       setLoading(false);
     }
     load();
-  }, [router]);
+  }, [ctxBusinessId, ctxLoading, ctxMemberCount, router]);
+
+  async function sendInvite() {
+    if (!inviteEmail.trim()) { setInviteError("Please enter an email address"); return; }
+    if (memberCount >= maxSeats) {
+      setInviteError(`You've used all ${maxSeats} seat${maxSeats !== 1 ? "s" : ""} on your plan. Upgrade to add more members.`);
+      return;
+    }
+
+    setInviting(true);
+    setInviteError("");
+    setInviteSuccess("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setInviteError("Session expired — please refresh."); setInviting(false); return; }
+
+      const res = await fetch("/api/invite-member", {
+        method: "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          email:       inviteEmail.trim(),
+          role:        inviteRole,
+          business_id: ctxBusinessId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setInviteError(data.error ?? "Failed to send invitation. Please try again.");
+      } else {
+        setInviteSuccess(`Invitation sent to ${inviteEmail.trim()}`);
+        setInviteEmail("");
+        setInviteRole("attorney");
+        setMemberCount(c => c + 1);
+      }
+    } catch {
+      setInviteError("Something went wrong. Please try again.");
+    } finally {
+      setInviting(false);
+    }
+  }
 
   async function addMember() {
     if (!newMember.name.trim()) return;
@@ -89,7 +140,7 @@ export default function TeamPage() {
     const { data } = await supabase
       .from("technicians")
       .insert({
-        business_id: businessId,
+        business_id: ctxBusinessId,
         name:        newMember.name.trim(),
         phone:       newMember.phone.trim() || null,
         color:       newMember.color,
@@ -164,12 +215,28 @@ export default function TeamPage() {
         <div className="team-header">
           <div>
             <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#0D1B2A", marginBottom: "0.25rem" }}>Team</h1>
-            <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>{technicians.filter(t => t.active).length} active team members</p>
+            <p style={{ color: "#6B7280", fontSize: "0.9rem" }}>
+              {technicians.filter(t => t.active).length} active team member{technicians.filter(t => t.active).length !== 1 ? "s" : ""}
+              {canInvite && (
+                <span style={{ marginLeft: "0.75rem", fontSize: "0.8rem", color: memberCount >= maxSeats ? "#EF4444" : "#9CA3AF" }}>
+                  · {memberCount} / {maxSeats === 999 ? "∞" : maxSeats} seat{maxSeats !== 1 ? "s" : ""} used
+                </span>
+              )}
+            </p>
           </div>
-          <button onClick={() => setShowAdd(true)}
-            style={{ padding: "0.6rem 1.25rem", background: "#0cc0df", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer" }}>
-            + Add member
-          </button>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            {canInvite && (
+              <button onClick={() => { setShowInvite(true); setInviteError(""); setInviteSuccess(""); }}
+                disabled={memberCount >= maxSeats}
+                style={{ padding: "0.6rem 1.25rem", background: memberCount >= maxSeats ? "rgba(0,0,0,0.08)" : "#111111", border: "none", borderRadius: 8, color: memberCount >= maxSeats ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: memberCount >= maxSeats ? "not-allowed" : "pointer" }}>
+                + Invite member
+              </button>
+            )}
+            <button onClick={() => setShowAdd(true)}
+              style={{ padding: "0.6rem 1.25rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer" }}>
+              + Add member
+            </button>
+          </div>
         </div>
 
         {/* Team list */}
@@ -307,6 +374,70 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+
+      {/* Invite member modal */}
+      {showInvite && (
+        <div onClick={() => setShowInvite(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 16, padding: "2rem", maxWidth: 440, width: "90%", boxShadow: "0 24px 64px rgba(0,0,0,0.15)" }}>
+            <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.6rem", letterSpacing: "0.03em", color: "#0D1B2A", marginBottom: "0.25rem" }}>INVITE TEAM MEMBER</h3>
+            <p style={{ fontSize: "0.85rem", color: "#6B7280", marginBottom: "1.5rem" }}>
+              They'll receive an email with a link to join your firm.
+              <span style={{ display: "block", marginTop: "0.25rem", color: memberCount >= maxSeats ? "#EF4444" : "#9CA3AF" }}>
+                {memberCount} of {maxSeats === 999 ? "unlimited" : maxSeats} seat{maxSeats !== 1 ? "s" : ""} used on your current plan.
+              </span>
+            </p>
+
+            {inviteError && (
+              <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.875rem", color: "#991B1B" }}>
+                {inviteError}
+              </div>
+            )}
+            {inviteSuccess && (
+              <div style={{ background: "#D1FAE5", border: "1px solid #6EE7B7", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.875rem", color: "#065F46" }}>
+                {inviteSuccess}
+              </div>
+            )}
+
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Email address *</label>
+              <input
+                type="email"
+                placeholder="colleague@yourfirm.com"
+                value={inviteEmail}
+                onChange={e => { setInviteEmail(e.target.value); setInviteError(""); setInviteSuccess(""); }}
+                onKeyDown={e => { if (e.key === "Enter") sendInvite(); }}
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
+                onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
+              />
+            </div>
+
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Role</label>
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value)}
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box", cursor: "pointer" }}>
+                <option value="attorney">Attorney</option>
+                <option value="paralegal">Paralegal</option>
+                <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button onClick={() => setShowInvite(false)}
+                style={{ flex: 1, padding: "0.85rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
+                Cancel
+              </button>
+              <button onClick={sendInvite} disabled={inviting || !inviteEmail.trim()}
+                style={{ flex: 2, padding: "0.85rem", background: inviting || !inviteEmail.trim() ? "rgba(17,17,17,0.35)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.95rem", fontWeight: 700, cursor: inviting || !inviteEmail.trim() ? "not-allowed" : "pointer" }}>
+                {inviting ? "Sending..." : "Send invitation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add member modal */}
       {showAdd && (

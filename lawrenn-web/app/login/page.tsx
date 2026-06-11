@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -9,8 +9,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function Login() {
+// Returns true if the user belongs to any firm (member or owner).
+// Checks business_members first; falls back to businesses.owner_id for
+// owners who predate the membership system.
+async function resolveHasBusiness(userId: string): Promise<boolean> {
+  const { data: memberships } = await supabase
+    .from("business_members")
+    .select("id")
+    .eq("user_id", userId)
+    .not("accepted_at", "is", null);
+  if (memberships && memberships.length > 0) return true;
+
+  const { data: owned } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("owner_id", userId)
+    .maybeSingle();
+  return !!owned;
+}
+
+function LoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteId = searchParams.get("invite");
 
   const [mode, setMode]       = useState<"login" | "signup" | "magic">("login");
   const [email, setEmail]     = useState("");
@@ -36,15 +57,12 @@ export default function Login() {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
 
-        // Check if business exists
         const { data: { user } } = await supabase.auth.getUser();
-        const { data: biz } = await supabase
-          .from("businesses")
-          .select("id")
-          .eq("owner_id", user?.id ?? "")
-          .maybeSingle();
+        const hasBusiness = await resolveHasBusiness(user?.id ?? "");
 
-        if (biz) {
+        if (inviteId) {
+          router.push(`/accept-invite?id=${inviteId}`);
+        } else if (hasBusiness) {
           router.push("/dashboard");
         } else {
           router.push("/onboarding");
@@ -98,13 +116,15 @@ export default function Login() {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: biz } = await supabase
-      .from("businesses")
-      .select("id")
-      .eq("owner_id", user?.id ?? "")
-      .maybeSingle();
+    const hasBusiness = await resolveHasBusiness(user?.id ?? "");
 
-    router.push(biz ? "/dashboard" : "/onboarding");
+    if (inviteId) {
+      router.push(`/accept-invite?id=${inviteId}`);
+    } else if (hasBusiness) {
+      router.push("/dashboard");
+    } else {
+      router.push("/onboarding");
+    }
   }
 
   async function handleGoogle() {
@@ -305,5 +325,17 @@ export default function Login() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#F5F5F0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+        <p style={{ color: "#6B7280" }}>Loading...</p>
+      </div>
+    }>
+      <LoginInner />
+    </Suspense>
   );
 }

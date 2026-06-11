@@ -15,7 +15,7 @@ export const PLAN_FEATURES: Record<Plan, {
 }> = {
   starter: {
     label:             "Basic",
-    price:             84,
+    price:             199,
     intelligence:      false,
     outboundSequences: false,
     reviewEngine:      false,
@@ -28,7 +28,7 @@ export const PLAN_FEATURES: Record<Plan, {
   },
   pro: {
     label:             "Pro",
-    price:             199,
+    price:             299,
     intelligence:      true,
     outboundSequences: true,
     reviewEngine:      true,
@@ -41,7 +41,7 @@ export const PLAN_FEATURES: Record<Plan, {
   },
   growth: {
     label:             "Growth",
-    price:             449,
+    price:             499,
     intelligence:      true,
     outboundSequences: true,
     reviewEngine:      true,
