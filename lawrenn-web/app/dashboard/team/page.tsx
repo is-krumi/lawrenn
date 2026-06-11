@@ -420,7 +420,7 @@ export default function TeamPage() {
                 placeholder="colleague@yourfirm.com"
                 value={inviteEmail}
                 onChange={e => { setInviteEmail(e.target.value); setInviteError(""); setInviteSuccess(""); setCanResend(false); }}
-                onKeyDown={e => { if (e.key === "Enter") sendInvite(); }}
+                onKeyDown={e => { if (e.key === "Enter") sendInvite(false); }}
                 style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
                 onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                 onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
@@ -445,7 +445,7 @@ export default function TeamPage() {
                 style={{ flex: 1, padding: "0.85rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer" }}>
                 Cancel
               </button>
-              <button onClick={sendInvite} disabled={inviting || !inviteEmail.trim()}
+              <button onClick={() => sendInvite(false)} disabled={inviting || !inviteEmail.trim()}
                 style={{ flex: 2, padding: "0.85rem", background: inviting || !inviteEmail.trim() ? "rgba(17,17,17,0.35)" : "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.95rem", fontWeight: 700, cursor: inviting || !inviteEmail.trim() ? "not-allowed" : "pointer" }}>
                 {inviting ? "Sending..." : "Send invitation"}
               </button>
