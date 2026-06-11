@@ -58,12 +58,13 @@ export default function TeamPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // Invite state
-  const [showInvite, setShowInvite]   = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole]   = useState("attorney");
-  const [inviting, setInviting]       = useState(false);
-  const [inviteError, setInviteError] = useState("");
+  const [showInvite, setShowInvite]       = useState(false);
+  const [inviteEmail, setInviteEmail]     = useState("");
+  const [inviteRole, setInviteRole]       = useState("attorney");
+  const [inviting, setInviting]           = useState(false);
+  const [inviteError, setInviteError]     = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
+  const [canResend, setCanResend]         = useState(false);
 
   // New member form
   const [newMember, setNewMember] = useState({
@@ -89,9 +90,9 @@ export default function TeamPage() {
     load();
   }, [ctxBusinessId, ctxLoading, ctxMemberCount, router]);
 
-  async function sendInvite() {
+  async function sendInvite(resend = false) {
     if (!inviteEmail.trim()) { setInviteError("Please enter an email address"); return; }
-    if (memberCount >= maxSeats) {
+    if (!resend && memberCount >= maxSeats) {
       setInviteError(`You've used all ${maxSeats} seat${maxSeats !== 1 ? "s" : ""} on your plan. Upgrade to add more members.`);
       return;
     }
@@ -99,6 +100,7 @@ export default function TeamPage() {
     setInviting(true);
     setInviteError("");
     setInviteSuccess("");
+    setCanResend(false);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -114,17 +116,24 @@ export default function TeamPage() {
           email:       inviteEmail.trim(),
           role:        inviteRole,
           business_id: ctxBusinessId,
+          resend,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setInviteError(data.error ?? "Failed to send invitation. Please try again.");
+        if (data.code === "already_invited") {
+          setInviteError("This email has already been invited.");
+          setCanResend(true);
+        } else {
+          setInviteError(data.error ?? "Failed to send invitation. Please try again.");
+        }
       } else {
-        setInviteSuccess(`Invitation sent to ${inviteEmail.trim()}`);
+        setInviteSuccess(resend ? `Invitation resent to ${inviteEmail.trim()}` : `Invitation sent to ${inviteEmail.trim()}`);
         setInviteEmail("");
         setInviteRole("attorney");
-        setMemberCount(c => c + 1);
+        setCanResend(false);
+        if (!resend) setMemberCount(c => c + 1);
       }
     } catch {
       setInviteError("Something went wrong. Please try again.");
@@ -226,7 +235,7 @@ export default function TeamPage() {
           </div>
           <div style={{ display: "flex", gap: "0.75rem" }}>
             {canInvite && (
-              <button onClick={() => { setShowInvite(true); setInviteError(""); setInviteSuccess(""); }}
+              <button onClick={() => { setShowInvite(true); setInviteError(""); setInviteSuccess(""); setCanResend(false); }}
                 disabled={memberCount >= maxSeats}
                 style={{ padding: "0.6rem 1.25rem", background: memberCount >= maxSeats ? "rgba(0,0,0,0.08)" : "#111111", border: "none", borderRadius: 8, color: memberCount >= maxSeats ? "#9CA3AF" : "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 700, cursor: memberCount >= maxSeats ? "not-allowed" : "pointer" }}>
                 + Invite member
@@ -388,8 +397,14 @@ export default function TeamPage() {
             </p>
 
             {inviteError && (
-              <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.875rem", color: "#991B1B" }}>
-                {inviteError}
+              <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.875rem", color: "#991B1B", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+                <span>{inviteError}</span>
+                {canResend && (
+                  <button onClick={() => sendInvite(true)} disabled={inviting}
+                    style={{ flexShrink: 0, padding: "0.35rem 0.75rem", background: "#111111", border: "none", borderRadius: 6, color: "white", fontFamily: "'DM Sans'", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                    {inviting ? "Sending..." : "Resend invite"}
+                  </button>
+                )}
               </div>
             )}
             {inviteSuccess && (
@@ -404,7 +419,7 @@ export default function TeamPage() {
                 type="email"
                 placeholder="colleague@yourfirm.com"
                 value={inviteEmail}
-                onChange={e => { setInviteEmail(e.target.value); setInviteError(""); setInviteSuccess(""); }}
+                onChange={e => { setInviteEmail(e.target.value); setInviteError(""); setInviteSuccess(""); setCanResend(false); }}
                 onKeyDown={e => { if (e.key === "Enter") sendInvite(); }}
                 style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
                 onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
