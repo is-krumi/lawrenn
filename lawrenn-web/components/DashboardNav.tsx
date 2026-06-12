@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -48,15 +48,7 @@ const NAV_LINKS_CONFIG = [
     ),
   },
   {
-    label: "Messages", href: "/dashboard/messages",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-      </svg>
-    ),
-  },
-  {
-    label: "Intelligence", href: "/dashboard/intelligence", requiresFeature: "intelligence" as const,
+    label: "Lawrenn IQ", href: "/dashboard/intelligence", requiresFeature: "intelligence" as const,
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -97,8 +89,7 @@ const SECTION_LABELS: Record<string, string> = {
   "/dashboard/jobs":         "Matters",
   "/dashboard/calls":        "Calls",
   "/dashboard/customers":    "Clients",
-  "/dashboard/messages":     "Messages",
-  "/dashboard/intelligence": "Intelligence",
+  "/dashboard/intelligence": "Lawrenn IQ",
   "/dashboard/library":      "Library",
   "/dashboard/documents":    "Documents",
   "/dashboard/team":         "Team",
@@ -124,30 +115,6 @@ export default function DashboardNav() {
   const NAV_LINKS = NAV_LINKS_CONFIG.filter(l =>
     !l.requiresFeature || features[l.requiresFeature] === true
   );
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    if (!businessId) return;
-    let isMounted = true;
-
-    async function fetchCount() {
-      const { count } = await supabase
-        .from("messages")
-        .select("id", { count: "exact", head: true })
-        .eq("business_id", businessId)
-        .eq("direction", "inbound")
-        .eq("read", false);
-      if (isMounted) setUnread(count ?? 0);
-    }
-
-    fetchCount();
-    const ch = supabase
-      .channel(`nav-unread-${businessId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `business_id=eq.${businessId}` }, fetchCount)
-      .subscribe();
-
-    return () => { isMounted = false; supabase.removeChannel(ch); };
-  }, [businessId]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -205,18 +172,6 @@ export default function DashboardNav() {
               >
                 {icon}
                 <span>{label}</span>
-                {label === "Messages" && unread > 0 && (
-                  <span style={{
-                    marginLeft: "auto",
-                    minWidth: 16, height: 16,
-                    background: "#EF4444", borderRadius: 8,
-                    fontSize: "0.6rem", fontWeight: 700, color: "white",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    padding: "0 4px",
-                  }}>
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -277,9 +232,25 @@ export default function DashboardNav() {
         padding: "0 2rem",
         zIndex: 100,
       }}>
-        <p style={{ fontSize: "0.8rem", fontWeight: 500, color: "#111111", margin: 0, letterSpacing: "0.01em" }}>
-          {currentLabel(pathname)}
-        </p>
+        {(() => {
+          const segments = pathname.split("/").filter(Boolean);
+          const isSubPage = segments.length > 2;
+          const parentPath = isSubPage ? "/" + segments.slice(0, -1).join("/") : null;
+          return isSubPage ? (
+            <Link href={parentPath!}
+              style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "#9CA3AF", textDecoration: "none", fontSize: "0.8rem", fontWeight: 500, letterSpacing: "0.01em", transition: "color 0.12s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "#111111"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = "#9CA3AF"; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              {currentLabel(pathname)}
+            </Link>
+          ) : (
+            <p style={{ fontSize: "0.8rem", fontWeight: 500, color: "#111111", margin: 0, letterSpacing: "0.01em" }}>
+              {currentLabel(pathname)}
+            </p>
+          );
+        })()}
         <p style={{ fontSize: "0.75rem", color: "#9CA3AF", margin: 0 }}>
           {todayString()}
         </p>

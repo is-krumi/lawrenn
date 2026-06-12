@@ -1,6 +1,7 @@
 "use client";
 
 import { PLAN_FEATURES } from "@/lib/plans";
+import MainNav from "@/components/MainNav";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -35,157 +36,6 @@ const faqs: FaqItem[] = [
 ];
 
 // ── Components ─────────────────────────────────────────────────────────────
-const NAV_PRODUCTS = [
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-      </svg>
-    ),
-    name: "AI Call Answering", desc: "24/7 call handling — never miss a potential client", href: "#how",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-      </svg>
-    ),
-    name: "Client Intake", desc: "Structured intake memos generated from every call", href: "#features",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-      </svg>
-    ),
-    name: "Client Communication", desc: "AI-drafted SMS follow-ups and client messaging", href: "#features",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-      </svg>
-    ),
-    name: "Matter Management", desc: "Every client, call, and message in one place", href: "#features",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-    ),
-    name: "Practice Intelligence", desc: "Ask your call and client data in plain English", href: "#features",
-  },
-  {
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-    name: "Call Analytics", desc: "Volume trends, outcomes, and busiest hours at a glance", href: "#features",
-  },
-];
-
-function Nav({ onTrial }: { onDemo?: () => void; onTrial: () => void }) {
-  const [scrolled, setScrolled] = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
-  const productsRef = useRef<HTMLLIElement>(null);
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", handler);
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
-
-  useEffect(() => {
-    function onOutsideClick(e: MouseEvent) {
-      if (productsRef.current && !productsRef.current.contains(e.target as Node)) {
-        setProductsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onOutsideClick);
-    return () => document.removeEventListener("mousedown", onOutsideClick);
-  }, []);
-
-  return (
-    <nav style={{
-      position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-      padding: "0 5%", height: 64,
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      background: scrolled ? "rgba(245,245,240,0.97)" : "rgba(245,245,240,0.88)",
-      backdropFilter: "blur(12px)",
-      borderBottom: `1px solid ${scrolled ? "rgba(0,0,0,0.1)" : "var(--border)"}`,
-      transition: "all 0.3s",
-    }}>
-      <a href="#" style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.05em", color: "var(--navy)", textDecoration: "none" }}>
-        LAW<span style={{ color: "rgba(17,17,17,0.4)" }}>RENN</span>
-      </a>
-
-      <ul className="lp-nav-links" style={{ alignItems: "center", gap: "2rem", listStyle: "none" }}>
-        {/* Products dropdown */}
-        <li ref={productsRef} style={{ position: "relative" }}>
-          <button
-            onClick={() => setProductsOpen(o => !o)}
-            style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", color: "rgba(17,17,17,0.55)", fontSize: "0.9rem", fontWeight: 500, fontFamily: "'DM Sans'", padding: 0, transition: "color 0.2s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--navy)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(17,17,17,0.55)")}
-          >
-            Products
-            <svg width="12" height="12" viewBox="0 0 12 12" style={{ opacity: 0.5, transform: productsOpen ? "rotate(180deg)" : "", transition: "transform 0.2s" }}>
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          {productsOpen && (
-            <div style={{
-              position: "absolute", top: "calc(100% + 12px)", left: "50%", transform: "translateX(-50%)",
-              background: "#FAFAF8", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 12,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)", padding: "0.4rem",
-              minWidth: 560, zIndex: 200,
-              display: "grid", gridTemplateColumns: "1fr 1fr",
-            }}>
-              {NAV_PRODUCTS.map(({ icon, name, desc, href }) => (
-                <a key={name} href={href} onClick={() => setProductsOpen(false)}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: 8, textDecoration: "none", transition: "background 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#F0F0EE"; (e.currentTarget.firstElementChild as HTMLElement).style.background = "rgba(0,0,0,0.1)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; (e.currentTarget.firstElementChild as HTMLElement).style.background = "#E8E8E6"; }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, background: "#E8E8E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.15s" }}>
-                    {icon}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>{name}</p>
-                    <p style={{ fontSize: "0.75rem", color: "#6B7280" }}>{desc}</p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </li>
-
-        {[["#how", "How it works"], ["#pricing", "Pricing"], ["#faq", "FAQ"]].map(([href, label]) => (
-          <li key={href}>
-            <a href={href} style={{ color: "rgba(17,17,17,0.55)", textDecoration: "none", fontSize: "0.9rem", fontWeight: 500, transition: "color 0.2s" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "var(--navy)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "rgba(17,17,17,0.55)")}>
-              {label}
-            </a>
-          </li>
-        ))}
-      </ul>
-
-      <div style={{ display: "flex", gap: "0.75rem" }}>
-        <a href="/demo" style={{ padding: "0.55rem 1.2rem", background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "rgba(17,17,17,0.65)", fontSize: "0.875rem", fontWeight: 600, fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none", display: "inline-block" }}
-          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.05)"; (e.currentTarget as HTMLAnchorElement).style.color = "var(--navy)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; (e.currentTarget as HTMLAnchorElement).style.color = "rgba(17,17,17,0.65)"; }}>
-          Book a demo
-        </a>
-        <a href="/login" style={{ padding: "0.55rem 1.2rem", background: "#111111", border: "none", borderRadius: 6, color: "white", fontSize: "0.875rem", fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans'", transition: "all 0.2s", textDecoration: "none" }}>
-          Log in
-        </a>
-      </div>
-    </nav>
-  );
-}
 
 function RevealSection({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -464,56 +314,6 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
   );
 }
 
-// ── LogoScroller ──────────────────────────────────────────────────────────
-interface ScrollCard {
-  name: string;
-  reviewer: string;
-  role: string;
-  text: string;
-}
-
-const SCROLL_CARDS: ScrollCard[] = [
-  { name: "Sterling Family Law",       reviewer: "Maria L.",  role: "Principal Attorney", text: "We used to miss calls constantly on nights and weekends. Lawrenn catches every call and sends an intake memo to my phone instantly. Haven't missed a lead in months." },
-  { name: "Calloway Immigration Group",reviewer: "Sandra T.", role: "Senior Partner",     text: "The intake memos Lawrenn generates are genuinely impressive. By the time I call a client back, I already know the key facts. Saves 20 minutes per intake call." },
-  { name: "Vance Employment Law",      reviewer: "Chris R.",  role: "Managing Partner",   text: "Client follow-ups used to fall through the cracks. Now Lawrenn drafts the follow-up after every call and I approve it in one click. Response time went from days to hours." },
-  { name: "Meridian Injury Partners",  reviewer: "David K.",  role: "Managing Partner",   text: "We added 30% more new matters in the first month without hiring anyone. Lawrenn answers every call, qualifies the lead, and opens the matter automatically." },
-  { name: "Ashford Estate Planning",   reviewer: "Tom B.",    role: "Partner",            text: "Deployed in under a week. The AI greets callers professionally and asks exactly the right intake questions. Clients often don't realize they're talking to AI." },
-  { name: "Hargrove & Associates",     reviewer: "James H.",  role: "Managing Partner",   text: "The Practice Intelligence feature alone is worth it. I can ask 'how many PI calls came in this week and what's the average quality score' and get an instant answer." },
-  { name: "Blackwell Civil Litigation",reviewer: "Priya N.",  role: "Partner",            text: "We were skeptical at first. After 30 days we couldn't imagine going back. Every potential client gets a response, every intake is captured, nothing falls through the cracks." },
-];
-
-function LogoScroller() {
-  const doubled = [...SCROLL_CARDS, ...SCROLL_CARDS];
-  const BG = "#111111";
-  const CARD = "#1A1A1A";
-  const BORDER = "rgba(255,255,255,0.07)";
-  return (
-    <div style={{ overflow: "hidden", padding: "3rem 0", background: BG, position: "relative" }}>
-      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 140, background: `linear-gradient(to right, ${BG}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 140, background: `linear-gradient(to left, ${BG}, transparent)`, zIndex: 2, pointerEvents: "none" }} />
-      <div style={{ display: "flex", alignItems: "stretch", gap: "1rem", width: "max-content", animation: "marquee 42s linear infinite" }}>
-        {doubled.map((card, i) => (
-          <div key={i} className="scroller-card" style={{ width: 280, flexShrink: 0, background: CARD, borderRadius: 14, border: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "1.25rem 1.4rem" }}>
-            <div>
-              <div style={{ color: "#F59E0B", fontSize: "0.85rem", marginBottom: "0.6rem", letterSpacing: "0.06em" }}>★★★★★</div>
-              <p style={{ fontSize: "0.8rem", lineHeight: 1.6, color: "rgba(255,255,255,0.62)", fontStyle: "italic", margin: 0 }}>&ldquo;{card.text}&rdquo;</p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginTop: "1rem", paddingTop: "0.85rem", borderTop: `1px solid ${BORDER}` }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>
-                {card.reviewer[0]}
-              </div>
-              <div>
-                <div style={{ fontSize: "0.74rem", fontWeight: 700, color: "rgba(255,255,255,0.88)", lineHeight: 1.2 }}>{card.reviewer}</div>
-                <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>{card.role} &middot; {card.name}</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── LiveFeed ───────────────────────────────────────────────────────────────
 const FEED_ITEMS = [
   {
@@ -714,7 +514,7 @@ export default function Home() {
 
   return (
     <>
-      <Nav onTrial={() => setShowTrial(true)} />
+      <MainNav />
 
       {/* ── HERO ── */}
       <section
@@ -781,9 +581,6 @@ export default function Home() {
           </SL>
         ))}
       </div>
-
-      {/* ── LOGO SCROLLER ── */}
-      <LogoScroller />
 
       {/* ── HOW IT WORKS ── */}
       <section id="how" style={{ padding: "6rem 5%", background: "var(--off-white)" }}>

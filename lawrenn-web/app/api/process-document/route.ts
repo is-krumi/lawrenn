@@ -1,17 +1,23 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
+import { encryptContent } from "@/lib/encryption";
 
-const supabase = createClient(
+// Service role kept only for: storage upload, embeddings insert.
+// documents INSERT/UPDATE use the per-request user client so RLS is enforced.
+const adminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-async function extractTextFromPDF(buffer: ArrayBuffer): Promise<string> {
+async function extractTextFromPDF(buffer: ArrayBuffer): Promise<{ text: string; pageCount: number }> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const mod = require("pdf-parse");
   const pdfParse = typeof mod === "function" ? mod : mod.default ?? mod;
   const data = await pdfParse(Buffer.from(buffer));
-  return data.text.replace(/\s+/g, " ").trim();
+  return { text: data.text.replace(/\s+/g, " ").trim(), pageCount: data.numpages ?? 0 };
 }
 
 async function extractTextFromDocx(buffer: ArrayBuffer): Promise<string> {
@@ -19,6 +25,40 @@ async function extractTextFromDocx(buffer: ArrayBuffer): Promise<string> {
   const mammoth = require("mammoth");
   const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
   return result.value.replace(/\s+/g, " ").trim();
+}
+
+const LEGAL_DOC_TYPES = [
+  "Civil Complaint", "Motion", "Brief", "Court Order / Judgment", "Subpoena",
+  "Affidavit / Declaration", "Deposition Transcript", "Discovery Request",
+  "Contract", "NDA / Confidentiality Agreement", "Settlement Agreement",
+  "Demand Letter", "Retainer Agreement", "Lease Agreement",
+  "Employment Agreement", "Corporate Resolution", "Legal Memo",
+  "Correspondence / Letter", "Invoice / Bill", "Other",
+];
+
+async function classifyDocument(text: string): Promise<string | null> {
+  const excerpt = text.split(/\s+/).slice(0, 500).join(" ");
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":         process.env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+        "Content-Type":      "application/json",
+      },
+      body: JSON.stringify({
+        model:      "claude-haiku-4-5-20251001",
+        max_tokens: 20,
+        system:     `You classify legal documents. Reply with ONLY the category name from this list, nothing else:\n${LEGAL_DOC_TYPES.join(", ")}`,
+        messages:   [{ role: "user", content: `Classify this document:\n\n${excerpt}` }],
+      }),
+    });
+    const data = await res.json();
+    const label = data.content?.[0]?.text?.trim() ?? null;
+    return LEGAL_DOC_TYPES.includes(label) ? label : "Other";
+  } catch {
+    return null;
+  }
 }
 
 function chunkText(text: string, wordsPerChunk = 800): string[] {
@@ -49,10 +89,16 @@ export async function POST(request: Request) {
     const formData   = await request.formData();
     const file       = formData.get("file") as File | null;
     const businessId = formData.get("business_id") as string | null;
+    const jobId      = (formData.get("job_id") as string | null) || null;
 
     if (!file || !businessId) {
       return NextResponse.json({ error: "file and business_id are required" }, { status: 400 });
     }
+
+    const auth = await verifyBusinessAccess(request, businessId);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const db = createUserClient(auth.token);
 
     const allowedTypes = [
       "application/pdf",
@@ -69,15 +115,18 @@ export async function POST(request: Request) {
     }
 
     const buffer   = await file.arrayBuffer();
-    const filePath = `${businessId}/${Date.now()}-${file.name}`;
+    const ext      = file.name.includes(".") ? file.name.split(".").pop() : "";
+    const filePath = `${businessId}/${randomUUID()}${ext ? `.${ext}` : ""}`;
 
-    const { error: uploadError } = await supabase.storage
+    // adminClient: storage requires service role
+    const { error: uploadError } = await adminClient.storage
       .from("business-documents")
       .upload(filePath, buffer, { contentType: file.type });
 
     if (uploadError) throw uploadError;
 
-    const { data: doc, error: docError } = await supabase
+    // db (user client): documents INSERT — RLS enforced
+    const { data: doc, error: docError } = await db
       .from("documents")
       .insert({
         business_id: businessId,
@@ -86,56 +135,84 @@ export async function POST(request: Request) {
         file_type:   file.type,
         file_size:   file.size,
         status:      "processing",
+        ...(jobId ? { job_id: jobId } : {}),
       })
       .select("id")
       .single();
 
     if (docError) throw docError;
 
-    // Extract text
+    // Extract text + page count
     let text = "";
+    let pageCount: number | null = null;
     if (file.type === "application/pdf") {
-      text = await extractTextFromPDF(buffer);
+      const pdf = await extractTextFromPDF(buffer);
+      text = pdf.text;
+      pageCount = pdf.pageCount || null;
     } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       text = await extractTextFromDocx(buffer);
+      pageCount = Math.max(1, Math.ceil(text.split(/\s+/).filter(Boolean).length / 250));
     } else {
       text = new TextDecoder().decode(buffer);
+      pageCount = Math.max(1, Math.ceil(text.split(/\s+/).filter(Boolean).length / 250));
     }
 
     if (text.length < 50) {
-      await supabase.from("documents").update({ status: "failed" }).eq("id", doc.id);
+      await db.from("documents").update({ status: "failed" }).eq("id", doc.id);
       return NextResponse.json({ error: "Could not extract readable text from this document" }, { status: 422 });
     }
 
-    const chunks = chunkText(text);
+    const [docType, chunks] = await Promise.all([
+      classifyDocument(text),
+      Promise.resolve(chunkText(text)),
+    ]);
 
     let embeddedCount = 0;
     for (const chunk of chunks) {
       const content   = `Document: ${file.name}\n\n${chunk}`;
       const embedding = await embedText(content);
       if (embedding.length > 0) {
-        const { error: embErr } = await supabase.from("embeddings").insert({
+        // adminClient: embeddings are a cross-business aggregate used by RPC
+        const { error: embErr } = await adminClient.from("embeddings").insert({
           business_id: businessId,
           source_type: "document",
           source_id:   doc.id,
-          content,
+          content:     encryptContent(content),
           embedding,
         });
         if (embErr) {
           console.error("[process-document] embedding insert failed:", embErr.message, embErr.code, embErr.details);
-          await supabase.from("documents").update({ status: "failed" }).eq("id", doc.id);
-          return NextResponse.json({
-            error: `Embedding insert failed: ${embErr.message} (code: ${embErr.code ?? "?"}, details: ${embErr.details ?? "none"})`,
-          }, { status: 500 });
+          await db.from("documents").update({ status: "failed" }).eq("id", doc.id);
+          return NextResponse.json({ error: "Failed to index document. Please try again." }, { status: 500 });
         } else {
           embeddedCount++;
         }
       }
     }
 
-    await supabase.from("documents").update({ status: "ready" }).eq("id", doc.id);
+    await db.from("documents").update({ status: "ready", doc_type: docType, page_count: pageCount }).eq("id", doc.id);
 
-    return NextResponse.json({ success: true, document_id: doc.id, chunks_embedded: embeddedCount });
+    // Embed a metadata-only chunk so intelligence can discover this file by name/type
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const metaContent = [
+      `Document in library: "${file.name}"`,
+      docType ? `Document type: ${docType}` : null,
+      jobId ? `Linked to matter ID: ${jobId}` : null,
+      `File type: ${file.type} | Size: ${sizeMB} MB | ${embeddedCount} section${embeddedCount !== 1 ? "s" : ""} indexed`,
+      `This file is available for questions and analysis.`,
+    ].filter(Boolean).join("\n");
+    const metaEmbedding = await embedText(metaContent);
+    if (metaEmbedding.length > 0) {
+      await adminClient.from("embeddings").insert({
+        business_id: businessId,
+        source_type: "document",
+        source_id:   doc.id,
+        content:     encryptContent(metaContent),
+        embedding:   metaEmbedding,
+      });
+    }
+
+    return NextResponse.json({ success: true, document_id: doc.id, chunks_embedded: embeddedCount, doc_type: docType, page_count: pageCount });
 
   } catch (err: any) {
     console.error("[process-document]", err);

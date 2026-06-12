@@ -1,10 +1,15 @@
 import { getPlanFeatures } from "@/lib/plans";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
+import { decryptContent } from "@/lib/encryption";
 
-const supabase = createClient(
+// Service role kept only for: plan check (businesses table), all RPCs, source document lookup.
+// documents listing and source metadata use the per-request user client.
+const adminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
 function formatHour(h: number) {
@@ -50,8 +55,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "query and business_id required" }, { status: 400 });
     }
 
-    // Plan check — server-side gate
-    const { data: biz } = await supabase
+    const auth = await verifyBusinessAccess(request, business_id);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const db = createUserClient(auth.token);
+
+    // Plan check — adminClient intentional: businesses table is not user-scoped
+    const { data: biz } = await adminClient
       .from("businesses")
       .select("subscription_tier")
       .eq("id", business_id)
@@ -65,8 +75,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 1 — Fetch structured call metrics via SQL functions (aggregated, scalable)
+    // Step 1 — Fetch document listing + structured call metrics in parallel
+    // db (user client) for documents; adminClient for RPCs
     const [
+      docsResult,
       weekResult,
       monthResult,
       dayOfWeekResult,
@@ -74,12 +86,17 @@ export async function POST(request: Request) {
       outcomeResult,
       dailyResult,
     ] = await Promise.all([
-      supabase.rpc("get_call_count",           { p_business_id: business_id, p_days: 7 }),
-      supabase.rpc("get_call_count",           { p_business_id: business_id, p_days: 30 }),
-      supabase.rpc("get_calls_by_day_of_week", { p_business_id: business_id, p_days: 90 }),
-      supabase.rpc("get_calls_by_hour",        { p_business_id: business_id, p_days: 90 }),
-      supabase.rpc("get_calls_by_outcome",     { p_business_id: business_id, p_days: 30 }),
-      supabase.rpc("get_daily_call_counts",    { p_business_id: business_id, p_days: 7 }),
+      db
+        .from("documents")
+        .select("name, file_type, status, doc_type")
+        .eq("business_id", business_id)
+        .order("created_at", { ascending: false }),
+      adminClient.rpc("get_call_count",           { p_business_id: business_id, p_days: 7  }),
+      adminClient.rpc("get_call_count",           { p_business_id: business_id, p_days: 30 }),
+      adminClient.rpc("get_calls_by_day_of_week", { p_business_id: business_id, p_days: 90 }),
+      adminClient.rpc("get_calls_by_hour",        { p_business_id: business_id, p_days: 90 }),
+      adminClient.rpc("get_calls_by_outcome",     { p_business_id: business_id, p_days: 30 }),
+      adminClient.rpc("get_daily_call_counts",    { p_business_id: business_id, p_days: 7 }),
     ]);
 
     const callStats = buildCallStats(
@@ -90,6 +107,12 @@ export async function POST(request: Request) {
       outcomeResult.data   ?? [],
       dailyResult.data     ?? []
     );
+
+    const libraryDocs = docsResult.data ?? [];
+    const docListing = libraryDocs.length > 0
+      ? `LIBRARY (${libraryDocs.length} file${libraryDocs.length !== 1 ? "s" : ""}):\n` +
+        libraryDocs.map((d: any) => `- ${d.name}${d.doc_type ? ` (${d.doc_type})` : ""} [${d.status}]`).join("\n")
+      : "LIBRARY: No documents uploaded yet.";
 
     // Step 2 — Embed the query
     const embedRes = await fetch("https://api.openai.com/v1/embeddings", {
@@ -115,8 +138,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 3 — Similarity search
-    const { data: matches, error: matchError } = await supabase.rpc("match_embeddings", {
+    // Step 3 — Similarity search (adminClient: RPC requires elevated access)
+    const { data: matches, error: matchError } = await adminClient.rpc("match_embeddings", {
       query_embedding:  queryEmbedding,
       match_threshold:  0.3,
       match_count:      8,
@@ -139,7 +162,7 @@ export async function POST(request: Request) {
 
     const ragContext = matches && matches.length > 0
       ? matches.map((m: any, i: number) =>
-          `[Source ${i + 1} — ${sourceLabel(m.source_type)} (${Math.round(m.similarity * 100)}% relevant)]:\n${m.content}`
+          `[Source ${i + 1} — ${sourceLabel(m.source_type)} (${Math.round(m.similarity * 100)}% relevant)]:\n${decryptContent(m.content)}`
         ).join("\n\n---\n\n")
       : "No relevant data found.";
 
@@ -149,7 +172,12 @@ ${callStats}
 
 ---
 
-[SECTION 2 — RELEVANT CONTEXT: semantic search results from transcripts, messages, and uploaded documents]
+[SECTION 2 — LIBRARY: exact list of uploaded files]
+${docListing}
+
+---
+
+[SECTION 3 — RELEVANT CONTEXT: semantic search results from transcripts, messages, and uploaded documents]
 ${ragContext}
     `.trim();
 
@@ -172,15 +200,16 @@ ${ragContext}
         max_tokens: 1024,
         system: `You are an AI business intelligence assistant for a law firm.
 
-You receive two separate blocks of context:
-- STRUCTURED CALL METRICS: live database statistics about call volume, outcomes, and timing. This is NOT a document — it is background data about the firm's phone activity.
-- RELEVANT CONTEXT: semantic search results that may include call transcripts, SMS messages, or uploaded documents. Items labeled "Uploaded document" are files the user has shared.
+You receive three separate blocks of context:
+- CALL METRICS: live database statistics about call volume, outcomes, and timing. Not a document.
+- LIBRARY: the exact list of files the user has uploaded. Use this to answer "what files do I have" and similar listing questions.
+- RELEVANT CONTEXT: semantic search results from call transcripts, SMS messages, and uploaded document content.
 
 Rules:
-- If the user asks about "the document", "this document", or anything about an uploaded file, answer ONLY from content labeled "Uploaded document". Ignore call metrics entirely for these questions.
-- If the user asks about calls, volume, outcomes, or timing, use the structured call metrics.
-- If the user asks a general business question, use whichever source is relevant.
-- Never treat call metrics as part of an uploaded document.
+- For file listing questions ("what files do I have", "what's in my library"), answer from the LIBRARY section.
+- For document content questions ("summarize my contract", "what does the NDA say"), answer from RELEVANT CONTEXT items labeled "Uploaded document".
+- For call/volume/outcome questions, use CALL METRICS.
+- Never treat call metrics as a document.
 - Be specific. Use bullet points where helpful. Keep answers concise.
 - Do not preface answers with "based on". Just answer directly.
 - If the answer isn't in the data, say so.`,
@@ -198,14 +227,34 @@ Rules:
     const claudeData = await claudeRes.json();
     const answer = claudeData.content?.[0]?.text ?? "I couldn't generate an answer. Please try again.";
 
-    // Step 7 — Return answer with sources
+    // Step 7 — Enrich document sources with file metadata for clickable links
+    const topMatches = matches?.slice(0, 5) ?? [];
+    const docIds = [...new Set(
+      topMatches.filter((m: any) => m.source_type === "document").map((m: any) => m.source_id)
+    )];
+
+    let docMeta: Record<string, { file_path: string; name: string }> = {};
+    if (docIds.length > 0) {
+      const { data: docs } = await db
+        .from("documents")
+        .select("id, file_path, name")
+        .in("id", docIds);
+      for (const doc of docs ?? []) {
+        if (doc.file_path) docMeta[doc.id] = { file_path: doc.file_path, name: doc.name };
+      }
+    }
+
+    // Step 8 — Return answer with sources
     return NextResponse.json({
       answer,
-      sources: matches?.slice(0, 5).map((m: any) => ({
+      sources: topMatches.map((m: any) => ({
         type:       m.source_type,
-        content:    m.content,
+        content:    decryptContent(m.content),
         similarity: m.similarity,
-      })) ?? [],
+        ...(m.source_type === "document" && docMeta[m.source_id]
+          ? { document_id: m.source_id, file_path: docMeta[m.source_id].file_path, file_name: docMeta[m.source_id].name }
+          : {}),
+      })),
     });
 
   } catch (err: any) {

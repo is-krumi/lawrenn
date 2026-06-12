@@ -72,6 +72,9 @@ interface Source {
   type: string;
   content: string;
   similarity: number;
+  document_id?: string | null;
+  file_path?: string | null;
+  file_name?: string | null;
 }
 
 interface Message {
@@ -104,14 +107,14 @@ function relTime(ts: number): string {
 const SUGGESTED_QUESTIONS = [
   "How many calls did I get last week?",
   "What was my busiest day this month?",
-  "What time of day do most customers call?",
-  "What are the most common reasons customers call?",
-  "Summarize the document I uploaded",
-  "What are the key terms in this contract?",
+  "What time of day do most clients call?",
   "What was the outcome breakdown of my calls?",
-  "Did any customers complain via text this month?",
-  "Which customers asked to reschedule?",
-  "Show me calls where customers mentioned an emergency",
+  "What are the key terms in this contract?",
+  "What deadlines or dates are mentioned in this document?",
+  "Are there any unusual or risky clauses in this agreement?",
+  "What are the payment and billing terms in this contract?",
+  "Which clients have called about litigation or disputes?",
+  "Summarize the document I uploaded",
 ];
 
 function renderInline(text: string): React.ReactNode[] {
@@ -230,8 +233,11 @@ export default function IntelligencePage() {
   const [draftWidth,      setDraftWidth]      = useState(600);
   const [draftVersion,    setDraftVersion]    = useState(0);
   const [sourcesWidth,    setSourcesWidth]    = useState(260);
+  const [previewDoc,      setPreviewDoc]      = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth,    setPreviewWidth]    = useState(480);
   const draftDragRef   = useRef<{ startX: number; startW: number } | null>(null);
   const sourcesDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const previewDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const [showPurposeInput, setShowPurposeInput] = useState(false);
   const [emailPurpose,     setEmailPurpose]     = useState("");
   const [uploading, setUploading] = useState(false);
@@ -265,8 +271,12 @@ export default function IntelligencePage() {
     }
 
     // 2. Supabase load — overwrite only if user hasn't interacted yet
-    fetch(`/api/intelligence/chats?business_id=${businessId}`)
-      .then(r => r.json())
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+      return fetch(`/api/intelligence/chats?business_id=${businessId}`, {
+        headers: { Authorization: token },
+      });
+    }).then(r => r.json())
       .then(({ conversations }) => {
         if (!mounted || !conversations) return;
         const sessions: ChatSession[] = conversations;
@@ -312,11 +322,14 @@ export default function IntelligencePage() {
     const newMessages = storedMessages.slice(lastSynced);
     if (newMessages.length > 0 || !syncedRef.current.has(currentChatId)) {
       syncedRef.current.set(currentChatId, storedMessages.length);
-      fetch("/api/intelligence/chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: currentChatId, business_id: businessId, title, new_messages: newMessages }),
-      }).catch(() => {});
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+        fetch("/api/intelligence/chats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: token },
+          body: JSON.stringify({ conversation_id: currentChatId, business_id: businessId, title, new_messages: newMessages }),
+        }).catch(() => {});
+      });
     }
   }, [messages, currentChatId, businessId]);
 
@@ -374,7 +387,9 @@ export default function IntelligencePage() {
     formData.append("file", file);
     formData.append("business_id", businessId);
     try {
-      const res  = await fetch("/api/process-document", { method: "POST", body: formData });
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+      const res  = await fetch("/api/process-document", { method: "POST", body: formData, headers: { Authorization: token } });
       const data = await res.json();
       if (res.ok) {
         setDocuments(prev => [{ id: data.document_id, name: file.name, status: "ready" }, ...prev]);
@@ -416,18 +431,34 @@ export default function IntelligencePage() {
     document.body.style.userSelect = "";
   }, []);
 
+  const onPreviewMouseMove = useCallback((e: MouseEvent) => {
+    if (!previewDragRef.current) return;
+    const dx = previewDragRef.current.startX - e.clientX;
+    setPreviewWidth(Math.max(320, Math.min(900, previewDragRef.current.startW + dx)));
+  }, []);
+
+  const onPreviewMouseUp = useCallback(() => {
+    previewDragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
   useEffect(() => {
     window.addEventListener("mousemove", onDraftMouseMove);
     window.addEventListener("mouseup",   onDraftMouseUp);
     window.addEventListener("mousemove", onSourcesMouseMove);
     window.addEventListener("mouseup",   onSourcesMouseUp);
+    window.addEventListener("mousemove", onPreviewMouseMove);
+    window.addEventListener("mouseup",   onPreviewMouseUp);
     return () => {
       window.removeEventListener("mousemove", onDraftMouseMove);
       window.removeEventListener("mouseup",   onDraftMouseUp);
       window.removeEventListener("mousemove", onSourcesMouseMove);
       window.removeEventListener("mouseup",   onSourcesMouseUp);
+      window.removeEventListener("mousemove", onPreviewMouseMove);
+      window.removeEventListener("mouseup",   onPreviewMouseUp);
     };
-  }, [onDraftMouseMove, onDraftMouseUp, onSourcesMouseMove, onSourcesMouseUp]);
+  }, [onDraftMouseMove, onDraftMouseUp, onSourcesMouseMove, onSourcesMouseUp, onPreviewMouseMove, onPreviewMouseUp]);
 
   function startDraftDrag(e: React.MouseEvent) {
     e.preventDefault();
@@ -439,6 +470,12 @@ export default function IntelligencePage() {
   function startSourcesDrag(e: React.MouseEvent) {
     e.preventDefault();
     sourcesDragRef.current = { startX: e.clientX, startW: sourcesWidth };
+    document.body.style.cursor = "col-resize";
+  }
+
+  function startPreviewDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    previewDragRef.current = { startX: e.clientX, startW: previewWidth };
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }
@@ -468,7 +505,13 @@ export default function IntelligencePage() {
       return updated;
     });
     syncedRef.current.delete(id);
-    fetch(`/api/intelligence/chats/${id}?business_id=${businessId}`, { method: "DELETE" }).catch(() => {});
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+      fetch(`/api/intelligence/chats/${id}?business_id=${businessId}`, {
+        method: "DELETE",
+        headers: { Authorization: token },
+      }).catch(() => {});
+    });
     if (id === currentChatId) startNewChat();
   }
 
@@ -482,9 +525,11 @@ export default function IntelligencePage() {
     setMessages(prev => [...prev, { role: "user", content: query }]);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
       const res = await fetch("/api/intelligence", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: token },
         body: JSON.stringify({
           query,
           business_id: businessId,
@@ -621,10 +666,10 @@ export default function IntelligencePage() {
                     </svg>
                   </div>
                   <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.4rem", letterSpacing: "0.06em", color: "#111111", margin: "0 0 0.5rem" }}>
-                    ASK YOUR BUSINESS DATA
+                    YOUR LEGAL INTELLIGENCE LAYER
                   </h3>
-                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF", maxWidth: 380, lineHeight: 1.65, margin: "0 auto" }}>
-                    Ask about your calls, customers, and uploaded documents.
+                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF", maxWidth: 400, lineHeight: 1.65, margin: "0 auto" }}>
+                    Query your calls, clients, and case documents — instantly.
                   </p>
                 </div>
 
@@ -670,7 +715,7 @@ export default function IntelligencePage() {
                     ) : (
                       <div style={{ width: "100%" }}>
                         <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
-                          Intelligence
+                          Lawrenn IQ
                         </div>
                         <div style={{ fontSize: "0.9rem", color: "#111111", lineHeight: 1.75 }}>
                           {renderContent(msg.content ?? "")}
@@ -704,7 +749,7 @@ export default function IntelligencePage() {
 
                 {loading && (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                    <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Intelligence</div>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.5rem" }}>Lawrenn IQ</div>
                     <div style={{ display: "flex", gap: "0.3rem", alignItems: "center", padding: "0.5rem 0" }}>
                       {[0, 1, 2].map(j => (
                         <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#9CA3AF", animation: `bounce 1.2s ${j * 0.2}s infinite` }} />
@@ -846,7 +891,7 @@ export default function IntelligencePage() {
                   e.target.style.height = Math.min(e.target.scrollHeight, 220) + "px";
                 }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder="Ask about your business data..."
+                placeholder="Ask about your clients, calls, or uploaded documents…"
                 rows={4}
                 style={{
                   flex: 1, resize: "none", border: "none", outline: "none", background: "transparent",
@@ -871,7 +916,7 @@ export default function IntelligencePage() {
             </div>
 
             <p style={{ fontSize: "0.68rem", color: "#9CA3AF", textAlign: "center" as const, margin: "0.4rem 0 0", lineHeight: 1.4 }}>
-              Intelligence can make mistakes. Review important information.
+              Lawrenn IQ can make mistakes. Always verify important legal information.
             </p>
           </div>
         </div>
@@ -929,23 +974,51 @@ export default function IntelligencePage() {
                         transition: "all 0.15s",
                       }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.3rem" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", minWidth: 0 }}>
                           {src.type === "call" ? (
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
                             </svg>
-                          ) : src.type === "document" ? (
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
-                            </svg>
                           ) : (
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                              {src.type === "document"
+                                ? <><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></>
+                                : <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>}
                             </svg>
                           )}
-                          <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>
-                            {src.type === "call" ? "Call" : src.type === "document" ? "Document" : "Message"}
-                          </span>
+                          {src.type === "document" && src.document_id ? (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const { data: { session } } = await supabase.auth.getSession();
+                                const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+                                const res = await fetch(`/api/documents/signed-url?document_id=${src.document_id}&business_id=${businessId}`, { headers: { Authorization: token } });
+                                const json = await res.json();
+                                if (json.url) {
+                                  const ext = (src.file_name ?? "").split(".").pop()?.toLowerCase() ?? "";
+                                  const viewerUrl = ext === "pdf"
+                                    ? json.url + "#toolbar=0&navpanes=0&zoom=100"
+                                    : ext === "txt"
+                                    ? json.url
+                                    : `https://docs.google.com/viewer?url=${encodeURIComponent(json.url)}&embedded=true`;
+                                  setPreviewDoc({ url: viewerUrl, name: src.file_name ?? "Document" });
+                                }
+                              }}
+                              style={{
+                                background: "none", border: "none", padding: 0,
+                                color: "#0cc0df", fontSize: "0.67rem", fontWeight: 700,
+                                cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                                textTransform: "uppercase" as const, letterSpacing: "0.07em",
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+                              }}
+                            >
+                              {src.file_name ?? "Document"}
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>
+                              {src.type === "call" ? "Call" : "Message"}
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                           <span style={{ fontSize: "0.68rem", color: "#0cc0df", fontWeight: 700 }}>
@@ -968,6 +1041,45 @@ export default function IntelligencePage() {
               </div>
             </div>
           </div>
+          </>
+        )}
+
+        {/* ── Document preview panel ── */}
+        {previewDoc && (
+          <>
+            <div
+              onMouseDown={startPreviewDrag}
+              style={{ width: 16, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "stretch", zIndex: 1 }}
+              onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.12)"; }}
+              onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}>
+              <div style={{ width: 3, height: "100%", minHeight: 80, borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+            </div>
+            <div style={{ width: previewWidth, flexShrink: 0, borderLeft: "1px solid rgba(0,0,0,0.07)", background: "white", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ padding: "0.65rem 0.9rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+                  </svg>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                    {previewDoc.name}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 3, color: "#9CA3AF", display: "flex", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              {/* iframe */}
+              <iframe
+                src={previewDoc.url}
+                style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
+                title={previewDoc.name}
+              />
+            </div>
           </>
         )}
 

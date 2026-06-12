@@ -1,10 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
 
 // GET /api/intelligence/chats?business_id=X
 export async function GET(request: Request) {
@@ -12,7 +7,12 @@ export async function GET(request: Request) {
   const business_id = searchParams.get("business_id");
   if (!business_id) return NextResponse.json({ error: "business_id required" }, { status: 400 });
 
-  const { data: convs, error: convErr } = await supabase
+  const auth = await verifyBusinessAccess(request, business_id);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const db = createUserClient(auth.token);
+
+  const { data: convs, error: convErr } = await db
     .from("intelligence_conversations")
     .select("id, title, created_at, updated_at")
     .eq("business_id", business_id)
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   if (convErr) return NextResponse.json({ error: convErr.message }, { status: 500 });
   if (!convs || convs.length === 0) return NextResponse.json({ conversations: [] });
 
-  const { data: msgs, error: msgErr } = await supabase
+  const { data: msgs, error: msgErr } = await db
     .from("intelligence_messages")
     .select("conversation_id, role, content, created_at")
     .in("conversation_id", convs.map(c => c.id))
@@ -53,7 +53,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "conversation_id and business_id required" }, { status: 400 });
   }
 
-  const { error: convErr } = await supabase
+  const auth = await verifyBusinessAccess(request, business_id);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const db = createUserClient(auth.token);
+
+  const { error: convErr } = await db
     .from("intelligence_conversations")
     .upsert(
       { id: conversation_id, business_id, title, updated_at: new Date().toISOString() },
@@ -63,7 +68,7 @@ export async function POST(request: Request) {
   if (convErr) return NextResponse.json({ error: convErr.message }, { status: 500 });
 
   if (new_messages && new_messages.length > 0) {
-    const { error: msgErr } = await supabase
+    const { error: msgErr } = await db
       .from("intelligence_messages")
       .insert(
         new_messages.map((m: { role: string; content: string }) => ({
