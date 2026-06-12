@@ -1,10 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
 
 // DELETE /api/intelligence/chats/[id]?business_id=X
 export async function DELETE(
@@ -19,7 +14,12 @@ export async function DELETE(
     return NextResponse.json({ error: "id and business_id required" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const auth = await verifyBusinessAccess(request, business_id);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const db = createUserClient(auth.token);
+
+  const { error } = await db
     .from("intelligence_conversations")
     .delete()
     .eq("id", id)

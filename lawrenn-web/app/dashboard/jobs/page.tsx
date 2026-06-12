@@ -16,6 +16,7 @@ const supabase = createClient(
 
 interface Job {
   id: string;
+  name: string | null;
   type: string;
   status: string;
   slot_start: string;
@@ -25,6 +26,7 @@ interface Job {
   notes: string | null;
   ai_notes: string | null;
   created_at: string;
+  updated_at: string | null;
   customers: { id: string; name: string; phone: string; address: string } | null;
   technicians: { name: string; color: string } | null;
   technician_id: string | null;
@@ -62,13 +64,12 @@ function MattersPageInner() {
 
   const [jobs, setJobs]                 = useState<Job[]>([]);
   const [loading, setLoading]           = useState(true);
-  const [selected, setSelected]         = useState<Job | null>(null);
   const [filter, setFilter]             = useState("all");
   const [view, setView]                 = useState<"list" | "calendar">("list");
+  const [activeTab,      setActiveTab]      = useState<"all" | "mine" | "favorites">("all");
+  const [myTechnicianId, setMyTechnicianId] = useState<string | null>(null);
+  const [favoriteIds,    setFavoriteIds]    = useState<Set<string>>(new Set());
   const [showAddJob, setShowAddJob]     = useState(false);
-  const [updating, setUpdating]         = useState(false);
-  const [confirmComplete, setConfirmComplete]   = useState<string | null>(null);
-  const [confirmOverride, setConfirmOverride]   = useState<{ jobId: string; status: string } | null>(null);
   const [services, setServices]         = useState<{ name: string }[]>([]);
   const [technicians, setTechnicians]   = useState<{ id: string; name: string; color: string }[]>([]);
   const [customers, setCustomers]       = useState<{ id: string; name: string; phone: string }[]>([]);
@@ -171,7 +172,6 @@ function MattersPageInner() {
           setJobs(prev => [payload.new as Job, ...prev]);
         } else if (payload.eventType === "UPDATE") {
           setJobs(prev => prev.map(j => j.id === payload.new.id ? { ...j, ...payload.new as Job } : j));
-          setSelected(prev => prev?.id === payload.new.id ? { ...prev, ...payload.new as Job } : prev);
         }
       })
       .subscribe();
@@ -180,8 +180,8 @@ function MattersPageInner() {
       const { data } = await supabase
         .from("jobs")
         .select(`
-          id, type, status, slot_start, slot_end, amount, source,
-          notes, ai_notes, created_at, technician_id,
+          id, name, type, status, slot_start, slot_end, amount, source,
+          notes, ai_notes, created_at, updated_at, technician_id,
           customers (id, name, phone, address),
           technicians (name, color)
         `)
@@ -200,6 +200,19 @@ function MattersPageInner() {
 
       setTechnicians((techsData as any) ?? []);
 
+      // Find the current user's linked technician for "My Matters"
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user?.id;
+      if (userId) {
+        const { data: myTech } = await supabase
+          .from("technicians")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (myTech) setMyTechnicianId((myTech as any).id);
+      }
+
       const { data: custsData } = await supabase
         .from("customers")
         .select("id, name, phone")
@@ -212,12 +225,12 @@ function MattersPageInner() {
       const jobId = searchParams.get("job");
       if (jobId) {
         const { data: single } = await supabase.from("jobs").select(`
-          id, type, status, slot_start, slot_end, amount, source,
-          notes, ai_notes, created_at, technician_id,
+          id, name, type, status, slot_start, slot_end, amount, source,
+          notes, ai_notes, created_at, updated_at, technician_id,
           customers (id, name, phone, address),
           technicians (name, color)
         `).eq("id", jobId).single();
-        if (single) setSelected(single as any);
+        if (single) router.push(`/dashboard/jobs/${(single as any).id}`);
       }
     }
     load();
@@ -225,48 +238,6 @@ function MattersPageInner() {
     return () => { supabase.removeChannel(jobsChannel); };
   }, [businessId, bizLoading, router]);
 
-  async function updateStatus(jobId: string, status: string) {
-    setUpdating(true);
-    const updates: any = { status };
-    if (status === "complete") updates.completed_at = new Date().toISOString();
-
-    try {
-      await supabase.from("jobs").update(updates).eq("id", jobId);
-      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, ...updates } : j));
-      if (selected?.id === jobId) setSelected(prev => ({ ...prev!, ...updates }));
-
-      if (status === "complete") {
-        try {
-          const reviewRes = await fetch("/api/trigger-review-request", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ job_id: jobId }),
-          });
-          await reviewRes.json();
-        } catch (reviewErr) {
-          console.error("Review request failed (non-critical):", reviewErr);
-        }
-      }
-    } finally {
-      setUpdating(false);
-    }
-  }
-
-  function handleStatusClick(jobId: string, status: string) {
-    if (selected?.status === "complete" && status !== "complete") {
-      setConfirmOverride({ jobId, status });
-    } else if (status === "complete") {
-      setConfirmComplete(jobId);
-    } else {
-      updateStatus(jobId, status);
-    }
-  }
-
-  async function updateAmount(jobId: string, amount: number) {
-    await supabase.from("jobs").update({ amount }).eq("id", jobId);
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, amount } : j));
-    if (selected?.id === jobId) setSelected(prev => ({ ...prev!, amount }));
-  }
 
   function toLocalDateTimeValue(value: string) {
     if (!value) return "";
@@ -373,8 +344,7 @@ function MattersPageInner() {
 
         if (createdJob) {
           setJobs(prev => prev.some(e => e.id === (createdJob as any).id) ? prev : [createdJob as any, ...prev]);
-          setSelected(createdJob as any);
-          setView("list");
+          router.push(`/dashboard/jobs/${(createdJob as any).id}`);
         }
       }
 
@@ -389,7 +359,42 @@ function MattersPageInner() {
     }
   }
 
-  const filtered = filter === "all" ? jobs : jobs.filter(j => j.status === filter);
+  // Load favorites from localStorage when businessId is known
+  useEffect(() => {
+    if (!businessId) return;
+    const stored = localStorage.getItem(`lawrenn-favorites-${businessId}`);
+    if (stored) setFavoriteIds(new Set(JSON.parse(stored)));
+  }, [businessId]);
+
+  function toggleFavorite(e: React.MouseEvent, jobId: string) {
+    e.stopPropagation();
+    setFavoriteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId); else next.add(jobId);
+      localStorage.setItem(`lawrenn-favorites-${businessId}`, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  const tabJobs = activeTab === "mine"
+    ? jobs.filter(j => j.technician_id === myTechnicianId)
+    : activeTab === "favorites"
+    ? jobs.filter(j => favoriteIds.has(j.id))
+    : jobs;
+  const filtered = filter === "all" ? tabJobs : tabJobs.filter(j => j.status === filter);
+
+  function formatRelative(iso: string | null): string {
+    if (!iso) return "—";
+    const diff  = Date.now() - new Date(iso).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(mins / 60);
+    const days  = Math.floor(hours / 24);
+    if (mins < 1)   return "just now";
+    if (mins < 60)  return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7)   return `${days}d ago`;
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 
   function formatSlot(start: string, end: string) {
     const s        = new Date(start);
@@ -408,7 +413,7 @@ function MattersPageInner() {
     return `${day} · ${timeStart} – ${timeEnd}`;
   }
 
-  const divider: CSSProperties = { height: 1, background: "rgba(0,0,0,0.06)" };
+  const divider: CSSProperties = { height: 1, background: "rgba(0,0,0,0.04)" };
 
   if (loading) {
     return (
@@ -420,7 +425,7 @@ function MattersPageInner() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2.5rem 2rem" }}>
+      <div style={{ padding: "2rem 2rem 2rem 1.5rem" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -428,17 +433,43 @@ function MattersPageInner() {
             <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#111111", marginBottom: "0.2rem" }}>Matters</h1>
             <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>All scheduled and closed matters</p>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            {/* View tabs */}
+            <div style={{ display: "flex", background: "#F0F0EC", borderRadius: 8, padding: 3, gap: 2 }}>
+              {([
+                { key: "all",       label: "All Matters"  },
+                { key: "mine",      label: "My Matters"   },
+                { key: "favorites", label: "Favorites"    },
+              ] as const).map(({ key, label }) => (
+                <button key={key} onClick={() => setActiveTab(key)}
+                  style={{
+                    padding: "0.32rem 0.8rem",
+                    background: activeTab === key ? "white" : "transparent",
+                    border: "none", borderRadius: 6,
+                    color: activeTab === key ? "#111111" : "#9CA3AF",
+                    fontFamily: "'DM Sans'", fontSize: "0.8rem",
+                    fontWeight: activeTab === key ? 600 : 400,
+                    cursor: "pointer",
+                    boxShadow: activeTab === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                    transition: "all 0.12s", whiteSpace: "nowrap",
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ width: 1, height: 22, background: "rgba(0,0,0,0.1)" }} />
+
             <button onClick={() => setShowAddJob(true)}
-              style={{ padding: "0.5rem 1rem", background: "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer" }}>
+              style={{ padding: "0.5rem 1rem", background: "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
               + Add matter
             </button>
             <button onClick={() => setView("list")}
-              style={{ padding: "0.5rem 1rem", background: view === "list" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "list" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
+              style={{ padding: "0.5rem 0.85rem", background: view === "list" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "list" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
               List
             </button>
             <button onClick={() => setView("calendar")}
-              style={{ padding: "0.5rem 1rem", background: view === "calendar" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "calendar" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
+              style={{ padding: "0.5rem 0.85rem", background: view === "calendar" ? "#111111" : "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: view === "calendar" ? "white" : "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
               Calendar
             </button>
           </div>
@@ -465,56 +496,102 @@ function MattersPageInner() {
         )}
 
         {view === "list" ? (
-          <div style={{ display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: "1.5rem" }}>
+          <div>
 
-            {/* Matters list */}
-            <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            {/* Matters table */}
+            <div style={{ background: "white", overflow: "hidden" }}>
+              {/* Column headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 96px 52px 96px 80px", gap: "0.5rem", padding: "0.55rem 0.5rem", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                {["", "Matter Name", "Modified", "Users", "Created", "Status"].map((h, i) => (
+                  <span key={i} style={{ fontSize: "0.67rem", fontWeight: 600, color: "#C4C4BD", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>{h}</span>
+                ))}
+              </div>
+
               {filtered.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "4rem 2rem" }}>
                   <p style={{ fontSize: "0.95rem", fontWeight: 500, color: "#111111", marginBottom: "0.4rem" }}>No matters</p>
-                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>Matters handled by your AI assistant will appear here</p>
+                  <p style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>
+                    {activeTab === "mine" ? "No matters assigned to you" : activeTab === "favorites" ? "Star a matter to save it here" : "Matters handled by your AI assistant will appear here"}
+                  </p>
                 </div>
               ) : (
                 filtered.map((job, i) => {
-                  const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.booked;
+                  const cfg      = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.booked;
+                  const isFav    = favoriteIds.has(job.id);
+                  const initials = job.technicians?.name
+                    ? job.technicians.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()
+                    : null;
+                  const matterName = job.name || `${job.customers?.name ?? "Unknown"} — ${job.type}`;
+
                   return (
                     <div key={job.id}>
                       {i > 0 && <div style={divider} />}
                       <div
-                        onClick={() => setSelected(selected?.id === job.id ? null : job)}
+                        onClick={() => router.push(`/dashboard/jobs/${job.id}`)}
                         style={{
-                          display: "flex", alignItems: "center", gap: "0.75rem",
-                          padding: "1rem 1.25rem",
-                          cursor: "pointer",
-                          background: selected?.id === job.id ? "#F5F5F0" : "white",
-                          transition: "background 0.1s",
+                          display: "grid", gridTemplateColumns: "32px 1fr 96px 52px 96px 80px",
+                          gap: "0.5rem", padding: "0.75rem 0.5rem",
+                          alignItems: "center", cursor: "pointer",
+                          background: "white", transition: "background 0.1s",
                         }}
-                        onMouseEnter={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "#F5F5F0"; }}
-                        onMouseLeave={e => { if (selected?.id !== job.id) e.currentTarget.style.background = "white"; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#F9F9F7"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "white"; }}
                       >
-                        <div style={{ width: 3, height: 36, borderRadius: 2, background: job.technicians?.color ?? "rgba(0,0,0,0.15)", flexShrink: 0 }} />
+                        {/* Star */}
+                        <button
+                          onClick={e => toggleFavorite(e, job.id)}
+                          title={isFav ? "Remove from favorites" : "Add to favorites"}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: isFav ? "#F59E0B" : "#D1D5DB", display: "flex", alignItems: "center", transition: "color 0.12s" }}
+                          onMouseEnter={e => { if (!isFav) (e.currentTarget as HTMLButtonElement).style.color = "#F59E0B"; }}
+                          onMouseLeave={e => { if (!isFav) (e.currentTarget as HTMLButtonElement).style.color = "#D1D5DB"; }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                          </svg>
+                        </button>
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111", marginBottom: "0.15rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {job.customers?.name ?? "Unknown"} &mdash; {job.type}
+                        {/* Matter Name */}
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111", margin: "0 0 0.1rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {matterName}
                           </p>
-                          <p style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
+                          <p style={{ fontSize: "0.72rem", color: "#9CA3AF", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {formatSlot(job.slot_start, job.slot_end)}
-                            {job.technicians?.name ? ` · ${job.technicians.name}` : ""}
+                            {job.source === "voice_agent" ? " · AI scheduled" : ""}
                           </p>
                         </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
-                          <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 4, background: cfg.bg, color: cfg.color }}>
-                            {cfg.label}
-                          </span>
-                          {job.source === "voice_agent" && (
-                            <span style={{ fontSize: "0.68rem", color: "#9CA3AF", fontWeight: 500 }}>AI scheduled</span>
-                          )}
-                          {job.amount > 0 && (
-                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#166534" }}>${job.amount}</span>
+                        {/* Modified */}
+                        <span style={{ fontSize: "0.78rem", color: "#6B7280" }}>
+                          {formatRelative(job.updated_at || job.created_at)}
+                        </span>
+
+                        {/* Users */}
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          {initials ? (
+                            <div title={job.technicians?.name ?? ""} style={{
+                              width: 26, height: 26, borderRadius: "50%",
+                              background: job.technicians?.color ?? "#6B7280",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "0.6rem", fontWeight: 700, color: "white",
+                              flexShrink: 0,
+                            }}>
+                              {initials}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: "0.78rem", color: "#D1D5DB" }}>—</span>
                           )}
                         </div>
+
+                        {/* Date Created */}
+                        <span style={{ fontSize: "0.78rem", color: "#6B7280" }}>
+                          {new Date(job.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+
+                        {/* Status */}
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, padding: "0.2rem 0.5rem", borderRadius: 4, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap" as const }}>
+                          {cfg.label}
+                        </span>
                       </div>
                     </div>
                   );
@@ -522,179 +599,6 @@ function MattersPageInner() {
               )}
             </div>
 
-            {/* Matter detail panel */}
-            {selected && (
-              <div style={{ border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.5rem", height: "fit-content", position: "sticky", top: 72 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
-                  <div>
-                    <h3 style={{ fontSize: "1rem", fontWeight: 600, color: "#111111", marginBottom: "0.2rem" }}>{selected.type}</h3>
-                    <p style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>{formatSlot(selected.slot_start, selected.slot_end)}</p>
-                  </div>
-                  <button onClick={() => setSelected(null)}
-                    style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", fontSize: "1.25rem", lineHeight: 1 }}>×</button>
-                </div>
-
-                {/* Client info */}
-                {selected.customers && (
-                  <div style={{ background: "#F5F5F0", borderRadius: 8, padding: "0.875rem 1rem", marginBottom: "1rem" }}>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Client</p>
-                    <p style={{ fontSize: "0.9rem", fontWeight: 500, color: "#111111", marginBottom: "0.2rem" }}>{selected.customers.name}</p>
-                    <p style={{ fontSize: "0.82rem", color: "#6B7280", marginBottom: "0.15rem" }}>{selected.customers.phone}</p>
-                    {selected.customers.address && (
-                      <p style={{ fontSize: "0.82rem", color: "#6B7280" }}>{selected.customers.address}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Status */}
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.6rem" }}>Status</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
-                      {STATUSES.filter(s => s !== "complete").map((s) => {
-                        const cfg      = STATUS_CONFIG[s];
-                        const isActive = selected.status === s;
-                        return (
-                          <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                            {s === "canceled" && <div style={{ width: 1, height: 28, background: "rgba(0,0,0,0.1)" }} />}
-                            <button
-                              onClick={() => handleStatusClick(selected.id, s)}
-                              disabled={updating || isActive}
-                              style={{
-                                padding: "0.3rem 0.7rem",
-                                background: isActive ? cfg.bg : "transparent",
-                                border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
-                                borderRadius: 100,
-                                color: isActive ? cfg.color : "#6B7280",
-                                fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 600,
-                                cursor: updating || isActive ? "not-allowed" : "pointer",
-                                opacity: updating ? 0.6 : 1,
-                                transition: "all 0.15s",
-                              }}>
-                              {cfg.label}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {(() => {
-                      const cfg      = STATUS_CONFIG["complete"];
-                      const isActive = selected.status === "complete";
-                      return (
-                        <button
-                          onClick={() => handleStatusClick(selected.id, "complete")}
-                          disabled={updating || isActive}
-                          style={{
-                            padding: "0.3rem 1.25rem", alignSelf: "flex-start",
-                            background: isActive ? cfg.bg : "transparent",
-                            border: `1.5px solid ${isActive ? cfg.color : "rgba(0,0,0,0.1)"}`,
-                            borderRadius: 100,
-                            color: isActive ? cfg.color : "#6B7280",
-                            fontFamily: "'DM Sans'", fontSize: "0.75rem", fontWeight: 600,
-                            cursor: updating || isActive ? "not-allowed" : "pointer",
-                            opacity: updating ? 0.6 : 1,
-                            transition: "all 0.15s",
-                          }}>
-                          {cfg.label}
-                        </button>
-                      );
-                    })()}
-                  </div>
-
-                  {confirmComplete && (
-                    <div style={{ marginTop: "0.75rem", background: "rgba(22,101,52,0.06)", border: "1.5px solid rgba(22,101,52,0.2)", borderRadius: 8, padding: "0.85rem 1rem" }}>
-                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#166534", marginBottom: "0.6rem" }}>Close this matter?</p>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => { updateStatus(confirmComplete, "complete"); setConfirmComplete(null); }}
-                          style={{ padding: "0.4rem 1rem", background: "#166534", border: "none", borderRadius: 6, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
-                          Yes, close it
-                        </button>
-                        <button onClick={() => setConfirmComplete(null)}
-                          style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 6, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer" }}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {confirmOverride && (
-                    <div style={{ marginTop: "0.75rem", background: "rgba(146,64,14,0.06)", border: "1.5px solid rgba(146,64,14,0.2)", borderRadius: 8, padding: "0.85rem 1rem" }}>
-                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#92400E", marginBottom: "0.25rem" }}>Matter is already closed.</p>
-                      <p style={{ fontSize: "0.8rem", color: "#78350F", marginBottom: "0.6rem" }}>Override the status?</p>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => { updateStatus(confirmOverride.jobId, confirmOverride.status); setConfirmOverride(null); }}
-                          style={{ padding: "0.4rem 1rem", background: "#92400E", border: "none", borderRadius: 6, color: "white", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
-                          Yes, override
-                        </button>
-                        <button onClick={() => setConfirmOverride(null)}
-                          style={{ padding: "0.4rem 1rem", background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: 6, color: "#6B7280", fontFamily: "'DM Sans'", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer" }}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Fees */}
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Fees</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.95rem", color: "#6B7280" }}>$</span>
-                    <input
-                      type="number"
-                      defaultValue={selected.amount || ""}
-                      placeholder="0"
-                      onBlur={e => updateAmount(selected.id, Number(e.target.value))}
-                      onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)")}
-                      style={{ width: "100%", padding: "0.6rem 0.75rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none" }}
-                    />
-                  </div>
-                </div>
-
-                {/* AI notes */}
-                {selected.ai_notes && (
-                  <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, padding: "0.875rem 1rem", marginBottom: "1.25rem" }}>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.4rem" }}>AI summary</p>
-                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6 }}>{selected.ai_notes}</p>
-                  </div>
-                )}
-
-                {/* Notes */}
-                {selected.notes && (
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.4rem" }}>Notes</p>
-                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6 }}>{selected.notes}</p>
-                  </div>
-                )}
-
-                {/* Assigned attorney */}
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.5rem" }}>Assigned attorney</p>
-                  <select
-                    value={selected.technician_id ?? ""}
-                    onChange={async e => {
-                      const techId = e.target.value || null;
-                      await supabase.from("jobs").update({ technician_id: techId }).eq("id", selected.id);
-                      const tech = technicians.find(t => t.id === techId);
-                      setJobs(prev => prev.map(j => j.id === selected.id ? { ...j, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : j));
-                      setSelected(prev => prev ? { ...prev, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : null);
-                    }}
-                    style={{ width: "100%", padding: "0.65rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}>
-                    <option value="">Unassigned</option>
-                    {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ paddingTop: "1rem", borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
-                    {selected.source === "voice_agent" ? "AI scheduled" : "Manually created"}
-                  </span>
-                  <span style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>
-                    {new Date(selected.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           /* Calendar view */
@@ -738,8 +642,7 @@ function MattersPageInner() {
                 extendedProps: { job },
               }))}
               eventClick={(info) => {
-                setSelected(info.event.extendedProps.job as Job);
-                setView("list");
+                router.push(`/dashboard/jobs/${info.event.id}`);
               }}
               dateClick={(info) => {
                 setNewJob(prev => ({ ...prev, slot_start: toLocalDateTimeValue(info.dateStr) }));

@@ -4,7 +4,7 @@ import FeatureGate from "@/components/FeatureGate";
 import { useBusiness } from "@/context/BusinessContext";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +20,9 @@ interface DocRecord {
   created_at?: string;
   file_path?: string;
   folder_id?: string | null;
+  doc_type?: string | null;
+  page_count?: number | null;
+  deleted_at?: string | null;
 }
 
 interface Folder {
@@ -70,6 +73,11 @@ function FolderSvg({ filled = false, size = 18 }: { filled?: boolean; size?: num
   );
 }
 
+function daysRemaining(deletedAt: string): number {
+  const expiresAt = new Date(deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000;
+  return Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export default function LibraryPage() {
@@ -96,7 +104,82 @@ export default function LibraryPage() {
   const fileInputRef           = useRef<HTMLInputElement>(null);
   const newFolderInputRef      = useRef<HTMLInputElement>(null);
   const renameInputRef         = useRef<HTMLInputElement>(null);
-  const newFolderCommittedRef  = useRef(false); // prevents onBlur racing with Enter
+  const newFolderCommittedRef  = useRef(false);
+
+  const [previewDoc,     setPreviewDoc]     = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth,   setPreviewWidth]   = useState(480);
+  const [contextMenu,    setContextMenu]    = useState<{ x: number; y: number; doc: DocRecord } | null>(null);
+  const [renamingDocId,  setRenamingDocId]  = useState<string | null>(null);
+  const [renameDocValue, setRenameDocValue] = useState("");
+  const previewDragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  // Trash state
+  const [trashOpen,       setTrashOpen]       = useState(false);
+  const [trashDocs,       setTrashDocs]       = useState<DocRecord[]>([]);
+  const [trashLoading,    setTrashLoading]    = useState(false);
+  const [trashCount,      setTrashCount]      = useState(0);
+
+  const onPreviewMouseMove = useCallback((e: MouseEvent) => {
+    if (!previewDragRef.current) return;
+    const dx = previewDragRef.current.startX - e.clientX;
+    setPreviewWidth(Math.max(320, Math.min(900, previewDragRef.current.startW + dx)));
+  }, []);
+
+  const onPreviewMouseUp = useCallback(() => {
+    previewDragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onPreviewMouseMove);
+    window.addEventListener("mouseup",   onPreviewMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onPreviewMouseMove);
+      window.removeEventListener("mouseup",   onPreviewMouseUp);
+    };
+  }, [onPreviewMouseMove, onPreviewMouseUp]);
+
+  function startPreviewDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    previewDragRef.current = { startX: e.clientX, startW: previewWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    function close() { setContextMenu(null); }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") close(); }
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
+  }, [contextMenu]);
+
+  async function renameDocument(doc: DocRecord, newName: string) {
+    const trimmed = newName.trim();
+    setRenamingDocId(null);
+    if (!trimmed || trimmed === doc.name) return;
+    setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, name: trimmed } : d));
+    await supabase.from("documents").update({ name: trimmed }).eq("id", doc.id);
+  }
+
+  async function openPreview(doc: DocRecord) {
+    if (!doc.id || doc.status !== "ready" || !businessId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+    const res = await fetch(`/api/documents/signed-url?document_id=${doc.id}&business_id=${businessId}`, { headers: { Authorization: token } });
+    const json = await res.json();
+    if (json.url) {
+      const ext = doc.name.split(".").pop()?.toLowerCase() ?? "";
+      const viewerUrl = ext === "pdf"
+        ? json.url + "#toolbar=0&navpanes=0&zoom=100"
+        : ext === "txt"
+        ? json.url
+        : `https://docs.google.com/viewer?url=${encodeURIComponent(json.url)}&embedded=true`;
+      setPreviewDoc({ url: viewerUrl, name: doc.name });
+    }
+  }
 
   useEffect(() => { if (!bizLoading && !businessId) router.push("/login"); }, [businessId, bizLoading, router]);
 
@@ -107,8 +190,9 @@ export default function LibraryPage() {
 
     supabase
       .from("documents")
-      .select("id, name, status, file_type, file_size, created_at, file_path, folder_id")
+      .select("id, name, status, file_type, file_size, created_at, file_path, folder_id, doc_type, page_count, deleted_at")
       .eq("business_id", businessId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         const seen = new Set<string>();
@@ -125,7 +209,31 @@ export default function LibraryPage() {
       .eq("business_id", businessId)
       .order("created_at", { ascending: true })
       .then(({ data }) => setFolders((data as Folder[]) ?? []));
+
+    // Fetch trash count
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId)
+      .not("deleted_at", "is", null)
+      .then(({ count }) => setTrashCount(count ?? 0));
   }, [businessId]);
+
+  // Load trash when panel opens
+  useEffect(() => {
+    if (!trashOpen || !businessId) return;
+    setTrashLoading(true);
+    supabase
+      .from("documents")
+      .select("id, name, status, file_type, file_size, created_at, file_path, folder_id, doc_type, page_count, deleted_at")
+      .eq("business_id", businessId)
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .then(({ data }) => {
+        setTrashDocs((data as DocRecord[]) ?? []);
+        setTrashLoading(false);
+      });
+  }, [trashOpen, businessId]);
 
   useEffect(() => { if (creatingFolder) newFolderInputRef.current?.focus(); }, [creatingFolder]);
   useEffect(() => { if (renamingFolderId) renameInputRef.current?.focus(); }, [renamingFolderId]);
@@ -162,13 +270,12 @@ export default function LibraryPage() {
     setRenamingFolderId(null);
     if (!name || !id) return;
 
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f)); // optimistic
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
     await supabase.from("library_folders").update({ name }).eq("id", id);
   }
 
   async function deleteFolder(folderId: string) {
     setFolders(prev => prev.filter(f => f.id !== folderId));
-    // folder_id on documents will be set to NULL by ON DELETE SET NULL cascade
     setDocuments(prev => prev.map(d => d.folder_id === folderId ? { ...d, folder_id: null } : d));
     if (currentFolderId === folderId) setCurrentFolderId(null);
     await supabase.from("library_folders").delete().eq("id", folderId);
@@ -177,7 +284,7 @@ export default function LibraryPage() {
   // ── Document → folder assignment ──────────────────────────────────────────
 
   async function moveDocToFolder(docId: string, folderId: string | null) {
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, folder_id: folderId } : d)); // optimistic
+    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, folder_id: folderId } : d));
     await supabase.from("documents").update({ folder_id: folderId }).eq("id", docId);
   }
 
@@ -193,10 +300,12 @@ export default function LibraryPage() {
     formData.append("file", file);
     formData.append("business_id", businessId);
     try {
-      const res  = await fetch("/api/process-document", { method: "POST", body: formData });
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+      const res  = await fetch("/api/process-document", { method: "POST", body: formData, headers: { Authorization: token } });
       const data = await res.json();
       if (res.ok) {
-        const newDoc: DocRecord = { id: data.document_id, name: file.name, status: "ready", folder_id: currentFolderId };
+        const newDoc: DocRecord = { id: data.document_id, name: file.name, status: "ready", folder_id: currentFolderId, doc_type: data.doc_type ?? null, page_count: data.page_count ?? null };
         setDocuments(prev => [newDoc, ...prev]);
         if (currentFolderId) await supabase.from("documents").update({ folder_id: currentFolderId }).eq("id", data.document_id);
       } else {
@@ -207,17 +316,40 @@ export default function LibraryPage() {
   }
 
   async function downloadDocument(doc: DocRecord) {
-    if (!doc.file_path) return;
-    const { data, error } = await supabase.storage.from("business-documents").createSignedUrl(doc.file_path, 60);
-    if (error || !data?.signedUrl) { alert("Failed to generate download link."); return; }
+    if (!doc.id || !businessId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+    const res = await fetch(`/api/documents/signed-url?document_id=${doc.id}&business_id=${businessId}&download=true`, { headers: { Authorization: token } });
+    const json = await res.json();
+    if (!json.url) { alert("Failed to generate download link."); return; }
     const a = document.createElement("a");
-    a.href = data.signedUrl; a.download = doc.name;
+    a.href = json.url; a.download = doc.name;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
-  async function removeDocument(doc: DocRecord) {
+  // Soft-delete: move to trash (sets deleted_at)
+  async function softDeleteDocument(doc: DocRecord) {
+    const now = new Date().toISOString();
     setDocuments(prev => prev.filter(d => d.id !== doc.id));
+    setTrashCount(c => c + 1);
+    if (trashOpen) setTrashDocs(prev => [{ ...doc, deleted_at: now }, ...prev]);
+    await supabase.from("documents").update({ deleted_at: now }).eq("id", doc.id);
+  }
+
+  // Restore from trash
+  async function restoreDocument(doc: DocRecord) {
+    setTrashDocs(prev => prev.filter(d => d.id !== doc.id));
+    setTrashCount(c => Math.max(0, c - 1));
+    setDocuments(prev => [{ ...doc, deleted_at: null }, ...prev]);
+    await supabase.from("documents").update({ deleted_at: null }).eq("id", doc.id);
+  }
+
+  // Permanently delete: remove from DB + storage + embeddings
+  async function permanentlyDeleteDocument(doc: DocRecord) {
+    setTrashDocs(prev => prev.filter(d => d.id !== doc.id));
+    setTrashCount(c => Math.max(0, c - 1));
     await supabase.from("embeddings").delete().eq("source_id", doc.id).eq("source_type", "document");
+    if (doc.file_path) await supabase.storage.from("business-documents").remove([doc.file_path]);
     await supabase.from("documents").delete().eq("id", doc.id);
   }
 
@@ -386,7 +518,6 @@ export default function LibraryPage() {
                     <div className="folder-actions" style={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 2, opacity: confirmDeleteId === folder.id ? 1 : 0, transition: "opacity 0.1s" }}
                       onClick={e => e.stopPropagation()}>
                       {confirmDeleteId === folder.id ? (
-                        /* ── Confirm row ── */
                         <>
                           <span style={{ fontSize: "0.62rem", color: "#374151", display: "flex", alignItems: "center", marginRight: 2 }}>Delete?</span>
                           <button
@@ -401,7 +532,6 @@ export default function LibraryPage() {
                           </button>
                         </>
                       ) : (
-                        /* ── Normal action buttons ── */
                         <>
                           <button title="Rename"
                             onClick={e => { e.stopPropagation(); setRenamingFolderId(folder.id); setRenameValue(folder.name); }}
@@ -484,14 +614,14 @@ export default function LibraryPage() {
             </div>
           ) : (
             <div style={{ background: "white", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 70px 80px 72px 36px 36px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#FAFAFA" }}>
-                {["", "Name", "Type", "Size", "Status", "", ""].map((h, i) => (
+              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#FAFAFA" }}>
+                {["", "Name", "Type", "Pages", "Status"].map((h, i) => (
                   <span key={i} style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{h}</span>
                 ))}
               </div>
 
               {uploading && (
-                <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 70px 80px 72px 36px 36px", gap: "0.5rem", padding: "0.8rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)", alignItems: "center" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px", gap: "0.5rem", padding: "0.8rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)", alignItems: "center" }}>
                   <div />
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
                     <DocTypeIcon name={uploadingName} />
@@ -500,7 +630,6 @@ export default function LibraryPage() {
                   <span style={{ fontSize: "0.82rem", color: "#9CA3AF" }}>—</span>
                   <span style={{ fontSize: "0.82rem", color: "#9CA3AF" }}>—</span>
                   <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>Processing…</span>
-                  <div /><div />
                 </div>
               )}
 
@@ -512,15 +641,18 @@ export default function LibraryPage() {
                     draggable={!currentFolder}
                     onDragStart={e => onDocDragStart(e, doc.id)}
                     onDragEnd={() => { setDraggingDocId(null); setDragOverFolderId(null); }}
+                    onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, doc }); }}
                     style={{
-                      display: "grid", gridTemplateColumns: "20px 1fr 70px 80px 72px 36px 36px",
+                      display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px",
                       gap: "0.5rem", padding: "0.8rem 1rem",
                       borderBottom: idx < visibleDocuments.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                       alignItems: "center",
                       opacity: isDraggingThis ? 0.4 : 1,
                       transition: "opacity 0.1s",
                       background: isDraggingThis ? "#F9FAFB" : "transparent",
+                      cursor: "default",
                     }}
+                    onDoubleClick={() => openPreview(doc)}
                     onMouseEnter={e => {
                       const handle = (e.currentTarget as HTMLDivElement).querySelector(".drag-handle") as HTMLElement | null;
                       if (handle && !currentFolder) handle.style.opacity = "1";
@@ -540,51 +672,32 @@ export default function LibraryPage() {
 
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
                       <DocTypeIcon name={doc.name} />
-                      <span style={{ fontSize: "0.875rem", color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{doc.name}</span>
+                      {renamingDocId === doc.id ? (
+                        <input
+                          autoFocus
+                          value={renameDocValue}
+                          onChange={e => setRenameDocValue(e.target.value)}
+                          onBlur={() => renameDocument(doc, renameDocValue)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") renameDocument(doc, renameDocValue);
+                            if (e.key === "Escape") setRenamingDocId(null);
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          style={{ flex: 1, fontSize: "0.875rem", color: "#111111", border: "none", borderBottom: "1.5px solid #111111", outline: "none", background: "transparent", fontFamily: "'DM Sans'", padding: "0 0 1px", minWidth: 0 }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "0.875rem", color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{doc.name}</span>
+                      )}
                     </div>
-                    <span style={{ fontSize: "0.82rem", color: "#374151" }}>
-                      {doc.file_type === "application/pdf" ? "PDF" : doc.file_type === "text/plain" ? "TXT" : "—"}
+                    <span title={doc.doc_type ?? ""} style={{ fontSize: "0.78rem", color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                      {doc.doc_type ?? "—"}
                     </span>
                     <span style={{ fontSize: "0.82rem", color: "#374151" }}>
-                      {doc.file_size != null
-                        ? doc.file_size < 1024 * 1024
-                          ? `${Math.round(doc.file_size / 1024)} KB`
-                          : `${(doc.file_size / 1024 / 1024).toFixed(1)} MB`
-                        : "—"}
+                      {doc.page_count != null ? doc.page_count : "—"}
                     </span>
                     <span style={{ fontSize: "0.78rem", textTransform: "capitalize" as const, color: doc.status === "ready" ? "#059669" : doc.status === "failed" ? "#DC2626" : "#9CA3AF" }}>
                       {doc.status}
                     </span>
-
-                    {currentFolder ? (
-                      <button onClick={() => moveDocToFolder(doc.id, null)} title="Remove from folder"
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#D1D5DB", display: "flex", justifyContent: "center", transition: "color 0.12s" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#9CA3AF"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#D1D5DB"; }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                          <line x1="9" y1="14" x2="15" y2="14"/>
-                        </svg>
-                      </button>
-                    ) : (
-                      <button onClick={() => downloadDocument(doc)} disabled={!doc.file_path} title="Download"
-                        style={{ background: "none", border: "none", cursor: doc.file_path ? "pointer" : "default", padding: 4, color: "#D1D5DB", display: "flex", justifyContent: "center", transition: "color 0.12s" }}
-                        onMouseEnter={e => { if (doc.file_path) (e.currentTarget as HTMLButtonElement).style.color = "#9CA3AF"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#D1D5DB"; }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                    )}
-
-                    <button onClick={() => removeDocument(doc)} title="Delete"
-                      style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#D1D5DB", display: "flex", justifyContent: "center", transition: "color 0.12s" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#EF4444"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#D1D5DB"; }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    </button>
                   </div>
                 );
               })}
@@ -598,6 +711,243 @@ export default function LibraryPage() {
           )}
         </div>
       </div>
+
+      {/* ── Floating Trash Button ── */}
+      <button
+        onClick={() => setTrashOpen(o => !o)}
+        title="Trash"
+        style={{
+          position: "fixed",
+          bottom: "2rem",
+          right: trashOpen ? `calc(${380}px + 1.5rem)` : "2rem",
+          width: 44, height: 44,
+          background: trashOpen ? "#111111" : "white",
+          border: "1px solid rgba(0,0,0,0.1)",
+          borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+          zIndex: 150,
+          transition: "right 0.25s ease, background 0.15s",
+          color: trashOpen ? "white" : "#374151",
+          fontFamily: "'DM Sans'",
+        }}
+        onMouseEnter={e => { if (!trashOpen) (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB"; }}
+        onMouseLeave={e => { if (!trashOpen) (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6"/><path d="M14 11v6"/>
+          <path d="M9 6V4h6v2"/>
+        </svg>
+        {trashCount > 0 && !trashOpen && (
+          <span style={{
+            position: "absolute", top: -4, right: -4,
+            minWidth: 16, height: 16,
+            background: "#EF4444", borderRadius: 8,
+            fontSize: "0.6rem", fontWeight: 700, color: "white",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 4px",
+          }}>
+            {trashCount > 99 ? "99+" : trashCount}
+          </span>
+        )}
+      </button>
+
+      {/* ── Trash Panel ── */}
+      {trashOpen && (
+        <div style={{
+          position: "fixed", top: 52, right: 0, bottom: 0,
+          width: 380, zIndex: 120,
+          background: "white", borderLeft: "1px solid rgba(0,0,0,0.07)",
+          display: "flex", flexDirection: "column",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.07)",
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          {/* Header */}
+          <div style={{ padding: "0.9rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#111111" }}>Trash</p>
+              <p style={{ margin: 0, fontSize: "0.72rem", color: "#9CA3AF" }}>Documents are deleted permanently after 30 days</p>
+            </div>
+            <button
+              onClick={() => setTrashOpen(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9CA3AF", display: "flex" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* List */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 0" }}>
+            {trashLoading ? (
+              <p style={{ textAlign: "center", color: "#9CA3AF", fontSize: "0.82rem", padding: "3rem 0" }}>Loading…</p>
+            ) : trashDocs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 0.75rem", display: "block" }}>
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                <p style={{ color: "#9CA3AF", fontSize: "0.82rem", margin: 0 }}>Trash is empty</p>
+              </div>
+            ) : (
+              trashDocs.map(doc => {
+                const days = doc.deleted_at ? daysRemaining(doc.deleted_at) : 30;
+                const urgent = days <= 3;
+                return (
+                  <div key={doc.id} style={{
+                    display: "flex", alignItems: "center", gap: "0.7rem",
+                    padding: "0.65rem 1rem",
+                    borderBottom: "1px solid rgba(0,0,0,0.04)",
+                  }}>
+                    <div style={{ flexShrink: 0, opacity: 0.5 }}>
+                      <DocTypeIcon name={doc.name} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "0.82rem", color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {doc.name}
+                      </p>
+                      <p style={{ margin: 0, fontSize: "0.7rem", color: urgent ? "#EF4444" : "#9CA3AF" }}>
+                        {days === 0 ? "Deletes today" : `${days} day${days !== 1 ? "s" : ""} remaining`}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
+                      <button
+                        onClick={() => restoreDocument(doc)}
+                        title="Restore"
+                        style={{ display: "flex", alignItems: "center", gap: "0.3rem", padding: "0.3rem 0.6rem", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 6, color: "#15803D", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans'" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#DCFCE7"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0FDF4"; }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                          <path d="M3 3v5h5"/>
+                        </svg>
+                        Restore
+                      </button>
+                      <button
+                        onClick={() => permanentlyDeleteDocument(doc)}
+                        title="Delete permanently"
+                        style={{ display: "flex", alignItems: "center", padding: "0.3rem 0.5rem", background: "none", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 6, color: "#9CA3AF", fontSize: "0.72rem", cursor: "pointer", fontFamily: "'DM Sans'" }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FEF2F2"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#FCA5A5"; (e.currentTarget as HTMLButtonElement).style.color = "#EF4444"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,0,0,0.08)"; (e.currentTarget as HTMLButtonElement).style.color = "#9CA3AF"; }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Context menu ── */}
+      {contextMenu && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: Math.min(contextMenu.y, window.innerHeight - 220),
+            left: Math.min(contextMenu.x, window.innerWidth - 180),
+            background: "white", border: "1px solid rgba(0,0,0,0.1)",
+            borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            zIndex: 300, minWidth: 164, overflow: "hidden",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          {[
+            contextMenu.doc.status === "ready" && contextMenu.doc.file_path && {
+              label: "Open", icon: <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>,
+              action: () => { openPreview(contextMenu.doc); setContextMenu(null); },
+            },
+            contextMenu.doc.file_path && {
+              label: "Download", icon: <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+              action: () => { downloadDocument(contextMenu.doc); setContextMenu(null); },
+            },
+            {
+              label: "Rename", icon: <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
+              action: () => { setRenameDocValue(contextMenu.doc.name); setRenamingDocId(contextMenu.doc.id); setContextMenu(null); },
+            },
+            currentFolderId && {
+              label: "Move to Library", icon: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="9" y1="14" x2="15" y2="14"/></>,
+              action: () => { moveDocToFolder(contextMenu.doc.id, null); setContextMenu(null); },
+            },
+            "divider",
+            {
+              label: "Move to Trash", danger: true,
+              icon: <><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></>,
+              action: () => { softDeleteDocument(contextMenu.doc); setContextMenu(null); },
+            },
+          ].filter(Boolean).map((item, i) => {
+            if (item === "divider") return (
+              <div key={i} style={{ height: 1, background: "rgba(0,0,0,0.07)", margin: "3px 0" }} />
+            );
+            const { label, icon, action, danger } = item as any;
+            return (
+              <button key={i} onClick={action}
+                style={{ display: "flex", alignItems: "center", gap: "0.55rem", width: "100%", padding: "0.55rem 0.85rem", background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans'", fontSize: "0.84rem", color: danger ? "#EF4444" : "#111111", textAlign: "left" as const }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "#FEF2F2" : "#F9FAFB"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {icon}
+                </svg>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Document preview panel ── */}
+      {previewDoc && (
+        <>
+          <div
+            onMouseDown={startPreviewDrag}
+            style={{ position: "fixed", top: 52, right: previewWidth, bottom: 0, width: 16, cursor: "col-resize", zIndex: 101, display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.12)"; }}
+            onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}>
+            <div style={{ width: 3, height: "100%", borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+          </div>
+          <div style={{
+            position: "fixed", top: 52, right: 0, bottom: 0,
+            width: previewWidth, zIndex: 100,
+            background: "white", borderLeft: "1px solid rgba(0,0,0,0.07)",
+            display: "flex", flexDirection: "column",
+            boxShadow: "-4px 0 24px rgba(0,0,0,0.07)",
+          }}>
+            <div style={{ padding: "0.65rem 0.9rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+                </svg>
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                  {previewDoc.name}
+                </span>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 3, color: "#9CA3AF", display: "flex", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <iframe
+              src={previewDoc.url}
+              style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
+              title={previewDoc.name}
+            />
+          </div>
+        </>
+      )}
     </FeatureGate>
   );
 }

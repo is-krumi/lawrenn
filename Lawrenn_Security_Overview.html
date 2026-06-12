@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; margin: 2.5cm; color: #111; line-height: 1.5; }
+  h1 { font-size: 20pt; font-weight: bold; color: #0D1B2A; border-bottom: 2px solid #0cc0df; padding-bottom: 6pt; margin-top: 0; }
+  h2 { font-size: 14pt; font-weight: bold; color: #0D1B2A; margin-top: 24pt; margin-bottom: 6pt; border-bottom: 1px solid #e5e7eb; padding-bottom: 3pt; }
+  h3 { font-size: 11pt; font-weight: bold; color: #374151; margin-top: 14pt; margin-bottom: 4pt; }
+  p { margin: 4pt 0 10pt 0; }
+  ul { margin: 4pt 0 10pt 0; padding-left: 20pt; }
+  li { margin-bottom: 4pt; }
+  .subtitle { font-size: 12pt; color: #6B7280; margin-top: 2pt; margin-bottom: 24pt; }
+  .meta { font-size: 10pt; color: #6B7280; margin-bottom: 30pt; }
+  .badge { display: inline; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 1pt 6pt; border-radius: 4pt; font-size: 10pt; font-weight: bold; }
+  .badge-yellow { background: #fefce8; color: #854d0e; border-color: #fde68a; }
+  table { border-collapse: collapse; width: 100%; margin: 10pt 0 16pt 0; font-size: 10.5pt; }
+  th { background: #f3f4f6; text-align: left; padding: 6pt 10pt; border: 1px solid #d1d5db; font-weight: bold; }
+  td { padding: 5pt 10pt; border: 1px solid #d1d5db; vertical-align: top; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  .section-note { background: #f0f9ff; border-left: 4px solid #0cc0df; padding: 8pt 12pt; margin: 10pt 0 16pt 0; font-size: 10.5pt; color: #0c4a6e; }
+</style>
+</head>
+<body>
+
+<h1>Lawrenn — Security &amp; Data Protection Overview</h1>
+<p class="subtitle">How Lawrenn protects attorney-client data and firm information</p>
+<p class="meta">Prepared: June 2026 &nbsp;|&nbsp; Version 1.0 &nbsp;|&nbsp; Confidential</p>
+
+<h2>1. Overview</h2>
+<p>Lawrenn is a legal practice management platform that handles sensitive attorney-client data including matter files, client PII, legal documents, call transcripts, and AI-generated insights. This document summarises the security controls implemented across the platform.</p>
+
+<div class="section-note">
+  All security measures described below are implemented at the application and infrastructure level. Lawrenn is built on Next.js 15, Supabase (PostgreSQL), and deployed on Vercel. Third-party AI processing is performed via Anthropic's Claude API under a Data Processing Agreement.
+</div>
+
+<h2>2. Authentication &amp; Identity</h2>
+
+<h3>2.1 User Authentication</h3>
+<ul>
+  <li>All user sessions are managed by Supabase Auth, which issues short-lived JWT access tokens.</li>
+  <li>Tokens are validated on every API request server-side — no request can access data without a valid, unexpired JWT.</li>
+  <li>Sessions are not persisted server-side; every server client is instantiated fresh per request with the user's token.</li>
+</ul>
+
+<h3>2.2 Business Membership Verification</h3>
+<p>Every data API route calls <strong>verifyBusinessAccess</strong> before executing any query. This function:</p>
+<ul>
+  <li>Parses the Bearer token from the Authorization header.</li>
+  <li>Checks the <em>business_members</em> table to confirm the user belongs to the requested business.</li>
+  <li>Also checks <em>businesses.owner_id</em> as a fallback for firm owners.</li>
+  <li>Returns HTTP 401 immediately if either check fails — no data is read or written.</li>
+</ul>
+<p>This prevents any cross-firm data access even if a user has a valid JWT for a different firm.</p>
+
+<h2>3. Data Access Controls</h2>
+
+<h3>3.1 Row-Level Security (RLS)</h3>
+<p>Supabase Row-Level Security policies are enabled on all core tables: <em>documents</em>, <em>jobs</em>, <em>intelligence_conversations</em>, <em>intelligence_messages</em>, and <em>matter_contacts</em>.</p>
+<ul>
+  <li>All direct table queries from application code use a <strong>user-scoped Supabase client</strong> (anon key + user JWT), not the service role key. RLS is therefore enforced as a second layer of defence on every query.</li>
+  <li>Even if application-level business checks were bypassed, the database would reject any query for rows outside the user's business.</li>
+</ul>
+
+<h3>3.2 Service Role Key Restrictions</h3>
+<p>The service role key (which bypasses RLS) is used only where technically required:</p>
+<table>
+  <tr><th>Operation</th><th>Reason</th></tr>
+  <tr><td>Storage upload / signed URL generation</td><td>Storage API requires elevated credentials</td></tr>
+  <tr><td>match_embeddings RPC</td><td>Cross-business semantic search aggregate</td></tr>
+  <tr><td>Embeddings INSERT</td><td>Chunking pipeline runs as a background process</td></tr>
+  <tr><td>Business plan check (businesses table)</td><td>businesses table is not user-scoped</td></tr>
+</table>
+<p>All other queries — documents, jobs, customers, conversations, messages — use the user-scoped client.</p>
+
+<h2>4. Document &amp; Storage Security</h2>
+
+<h3>4.1 Server-Side Signed URL Generation</h3>
+<p>Document download and preview URLs are never generated from the browser. All signed URL generation goes through the <strong>/api/documents/signed-url</strong> server endpoint, which:</p>
+<ul>
+  <li>Accepts a <em>document_id</em> (never a raw file path) from the client.</li>
+  <li>Verifies business membership via verifyBusinessAccess.</li>
+  <li>Fetches the <em>file_path</em> from the database server-side — the client never knows the storage path.</li>
+  <li>Generates the signed URL using the admin client with a 5-minute expiry.</li>
+  <li>Returns the URL only if all checks pass.</li>
+</ul>
+
+<h3>4.2 Unpredictable Storage Paths</h3>
+<p>Document storage paths use a cryptographically random UUID rather than a predictable timestamp:</p>
+<ul>
+  <li><strong>Before:</strong> <code>{businessId}/{timestamp}-{filename}</code> — guessable within a time window</li>
+  <li><strong>After:</strong> <code>{businessId}/{uuid}.{ext}</code> — 122 bits of entropy, not brute-forceable</li>
+</ul>
+<p>Combined with server-side signed URL generation, an attacker who somehow learns the storage path still cannot obtain a valid URL without a legitimate authenticated session.</p>
+
+<h2>5. Encryption</h2>
+
+<h3>5.1 Encryption in Transit</h3>
+<p>All traffic between clients, the Next.js server, Supabase, and third-party APIs (Anthropic, OpenAI) is encrypted via TLS 1.2+ (enforced by Vercel and Supabase).</p>
+
+<h3>5.2 Encryption at Rest — Document Content</h3>
+<p>Legal document text chunks stored in the <em>embeddings</em> table are encrypted at the application layer using <strong>AES-256-GCM</strong> before being written to the database:</p>
+<ul>
+  <li>Each chunk is encrypted with a unique random 96-bit IV — identical text produces different ciphertexts.</li>
+  <li>GCM mode provides authenticated encryption, detecting any tampering.</li>
+  <li>The encryption key is a 32-byte secret stored only in the server environment (DOCUMENT_ENCRYPTION_KEY), never in the database.</li>
+  <li>Decryption happens in the API layer before content is sent to the LLM — encrypted data never leaves the server.</li>
+  <li>A database dump alone is insufficient to recover document content; the server environment key is also required.</li>
+</ul>
+<p>This protects deposition transcripts, contract terms, client PII, and other privileged content stored in the embeddings index.</p>
+
+<h3>5.3 Database Encryption at Rest</h3>
+<p>Supabase encrypts all data at rest at the storage layer (AES-256) by default, independent of application-level encryption.</p>
+
+<h2>6. AI &amp; LLM Data Handling</h2>
+
+<h3>6.1 Anthropic Data Processing Agreement</h3>
+<p>Lawrenn processes legal data through Anthropic's Claude API. Anthropic does not train on API inputs by default. A formal <strong>Data Processing Agreement (DPA)</strong> with Anthropic is in place, under which Anthropic acts as a data processor and Lawrenn (and the law firm) acts as the data controller.</p>
+
+<h3>6.2 Data Minimisation</h3>
+<p>Only the context necessary to answer the attorney's question is sent to the AI:</p>
+<ul>
+  <li>Matter AI queries include case type, status, attorney notes, AI summary, and relevant document chunks.</li>
+  <li>Direct client identifiers (phone number, address) are reviewed for inclusion on a need-to-know basis.</li>
+  <li>Document content sent to the AI is always decrypted in the server environment — encrypted ciphertext is never sent to external APIs.</li>
+</ul>
+
+<h3>6.3 Attorney-Client Privilege Considerations</h3>
+<p>Transmission of privileged communications to a cloud AI provider does not automatically waive attorney-client privilege when the disclosure is made in furtherance of the legal representation. Attorneys using Lawrenn should consult their state bar's guidance on AI tool use (see ABA Formal Opinion 512, 2024). The DPA with Anthropic supports the reasonable-measures standard required by ABA Model Rule 1.6.</p>
+
+<h2>7. Input Validation &amp; Upload Controls</h2>
+
+<h3>7.1 File Upload Restrictions</h3>
+<table>
+  <tr><th>Control</th><th>Value</th></tr>
+  <tr><td>Allowed file types</td><td>PDF, DOCX, DOC, TXT only (validated by MIME type server-side)</td></tr>
+  <tr><td>Maximum file size</td><td>10 MB</td></tr>
+  <tr><td>Minimum extractable text</td><td>50 characters (rejects blank/corrupt files)</td></tr>
+  <tr><td>Authentication required</td><td>Yes — JWT + business membership check before any upload is processed</td></tr>
+</table>
+
+<h3>7.2 Injection Prevention</h3>
+<ul>
+  <li>All database queries use Supabase's parameterised query builder — no raw SQL string interpolation.</li>
+  <li>No user input is interpolated into SQL.</li>
+  <li>File names are not used in storage paths (UUID-based paths), preventing path traversal via crafted filenames.</li>
+</ul>
+
+<h2>8. Infrastructure &amp; Deployment</h2>
+
+<h3>8.1 Secrets Management</h3>
+<ul>
+  <li>All secrets (Supabase service role key, OpenAI key, Anthropic key, document encryption key) are stored as environment variables in Vercel's encrypted secrets store.</li>
+  <li>Secrets are never committed to source control or logged.</li>
+  <li>The service role key is never exposed to the browser — all code that uses it runs server-side in Next.js API routes.</li>
+</ul>
+
+<h3>8.2 Deployment Platform</h3>
+<ul>
+  <li><strong>Hosting:</strong> Vercel — automatic HTTPS, DDoS protection, edge network.</li>
+  <li><strong>Database:</strong> Supabase (PostgreSQL) — SOC 2 Type II compliant, data encrypted at rest and in transit.</li>
+  <li><strong>Storage:</strong> Supabase Storage (S3-compatible) — files stored with server-side encryption.</li>
+</ul>
+
+<h2>9. Summary Table</h2>
+
+<table>
+  <tr><th>Control</th><th>Status</th><th>Notes</th></tr>
+  <tr><td>JWT authentication on all API routes</td><td><span class="badge">Active</span></td><td>verifyBusinessAccess on every route</td></tr>
+  <tr><td>Business membership verification</td><td><span class="badge">Active</span></td><td>business_members + owner_id check</td></tr>
+  <tr><td>Row-Level Security (RLS)</td><td><span class="badge">Active</span></td><td>User-scoped client on all data queries</td></tr>
+  <tr><td>Service role key minimisation</td><td><span class="badge">Active</span></td><td>Limited to storage, RPCs, embeddings</td></tr>
+  <tr><td>Server-side signed URL generation</td><td><span class="badge">Active</span></td><td>/api/documents/signed-url endpoint</td></tr>
+  <tr><td>Unpredictable storage paths</td><td><span class="badge">Active</span></td><td>UUID-based, replaces timestamps</td></tr>
+  <tr><td>AES-256-GCM content encryption</td><td><span class="badge">Active</span></td><td>embeddings.content field, per-chunk IV</td></tr>
+  <tr><td>TLS in transit</td><td><span class="badge">Active</span></td><td>Vercel + Supabase enforce TLS 1.2+</td></tr>
+  <tr><td>File type &amp; size validation</td><td><span class="badge">Active</span></td><td>Server-side MIME check, 10 MB limit</td></tr>
+  <tr><td>Parameterised queries (no SQL injection)</td><td><span class="badge">Active</span></td><td>Supabase query builder throughout</td></tr>
+  <tr><td>Anthropic DPA</td><td><span class="badge">Active</span></td><td>Data processor agreement in place</td></tr>
+  <tr><td>Secrets in environment variables</td><td><span class="badge">Active</span></td><td>Vercel encrypted secrets store</td></tr>
+  <tr><td>Database encryption at rest</td><td><span class="badge">Active</span></td><td>Supabase default (AES-256)</td></tr>
+  <tr><td>Existing embeddings rows re-encrypted</td><td><span class="badge badge-yellow">Pending</span></td><td>Migration script needed for rows created before encryption was added</td></tr>
+</table>
+
+<p style="margin-top: 32pt; font-size: 10pt; color: #6B7280;">
+  This document is intended for internal use and prospective client due diligence. It reflects controls in place as of June 2026.
+</p>
+
+</body>
+</html>
