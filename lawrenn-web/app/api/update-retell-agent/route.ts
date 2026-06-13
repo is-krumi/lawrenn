@@ -40,11 +40,13 @@ export async function POST(request: Request) {
       agent.llm_id ??
       agent.retell_llm_id;
 
-    // Step 2: patch the agent — voice only (begin_message lives on the LLM when an LLM is attached)
-    const agentBody: Record<string, string> = {};
+    // Step 2: patch the agent — voice, response delay, and optionally begin_message
+    const agentBody: Record<string, any> = {
+      response_delay_ms: 0,       // respond as soon as STT detects end of speech
+    };
     if (voice_id) agentBody.voice_id = voice_id;
-    // Only send begin_message to the agent if there is no LLM (pure agent mode)
-    if (greeting && !llmId) agentBody.begin_message = greeting;
+    // For no-LLM agents, use the dynamic variable template too
+    if (!llmId) agentBody.begin_message = "{{begin_message}}";
 
     if (Object.keys(agentBody).length > 0) {
       const agentPatch = await fetch(`https://api.retellai.com/update-agent/${agent_id}`, {
@@ -61,12 +63,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 3: patch the Retell LLM's begin_message (this is where greeting actually lives)
-    if (greeting && llmId) {
+    // Step 3: patch the Retell LLM's begin_message to the dynamic variable template.
+    // The actual greeting is injected per-call via retell_llm_dynamic_variables.begin_message
+    // so the LLM template must always stay as {{begin_message}} — never the literal text.
+    if (llmId) {
       const llmPatch = await fetch(`https://api.retellai.com/update-retell-llm/${llmId}`, {
         method: "PATCH",
         headers,
-        body:   JSON.stringify({ begin_message: greeting }),
+        body:   JSON.stringify({ begin_message: "{{begin_message}}" }),
       });
       if (!llmPatch.ok) {
         const text = await llmPatch.text();

@@ -10,7 +10,7 @@ const supabase = createClient(
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 const RENNOPS_BUSINESS_ID   = process.env.RENNOPS_BUSINESS_ID!;
-const RENNOPS_TWILIO_NUMBER = "+18666581538";
+const RENNOPS_TWILIO_NUMBER = process.env.LAWRENN_TWILIO_NUMBER ?? "+18666581538";
 
 export async function POST(request: Request) {
   // Log which env vars are present (values redacted) so Vercel logs show what's missing

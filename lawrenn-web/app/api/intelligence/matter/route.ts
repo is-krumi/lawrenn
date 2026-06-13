@@ -88,7 +88,6 @@ export async function POST(request: Request) {
     // When a specific doc is attached, search only its embeddings
     let matches: any[];
     if (doc_id) {
-      // adminClient used: embeddings table is a cross-business aggregate (RPC target)
       const { data: rows } = await adminClient
         .from("embeddings")
         .select("id, content, source_type, embedding")
@@ -98,26 +97,59 @@ export async function POST(request: Request) {
       matches = (rows ?? [])
         .map((r: any) => {
           const emb: number[] = typeof r.embedding === "string" ? JSON.parse(r.embedding) : r.embedding;
-          return { ...r, content: decryptContent(r.content), similarity: dotProduct(queryEmbedding, emb) };
+          const text = decryptContent(r.content);
+          return { ...r, content: text, similarity: dotProduct(queryEmbedding, emb) };
         })
-        .filter((r: any) => r.similarity > 0.2)
+        .filter((r: any) => r.similarity > 0.2 && !r.content.startsWith("Document in library:"))
         .sort((a: any, b: any) => b.similarity - a.similarity)
         .slice(0, 6);
     } else {
-      // adminClient used: match_embeddings RPC requires elevated access
-      const customerId = client?.id ?? null;
-      const [clientResult, generalResult] = await Promise.all([
-        customerId
-          ? adminClient.rpc("match_embeddings", { query_embedding: queryEmbedding, match_threshold: 0.25, match_count: 5, p_business_id: business_id, p_customer_id: customerId })
-          : Promise.resolve({ data: [] }),
-        adminClient.rpc("match_embeddings", { query_embedding: queryEmbedding, match_threshold: 0.3, match_count: 6, p_business_id: business_id, p_customer_id: null }),
-      ]);
+      // 1. Fetch matter-linked document embeddings and search in-memory (scoped, no metadata chunks)
+      const { data: matterDocs } = await adminClient
+        .from("documents")
+        .select("id")
+        .eq("job_id", job_id)
+        .eq("business_id", business_id)
+        .is("deleted_at", null);
 
-      const clientIds = new Set((clientResult.data ?? []).map((m: any) => m.id));
-      matches = [
-        ...(clientResult.data ?? []),
-        ...(generalResult.data ?? []).filter((m: any) => !clientIds.has(m.id)),
-      ].slice(0, 8);
+      const docIds = (matterDocs ?? []).map((d: any) => d.id);
+      let docMatches: any[] = [];
+
+      if (docIds.length > 0) {
+        const { data: rows } = await adminClient
+          .from("embeddings")
+          .select("id, content, source_type, source_id, embedding")
+          .in("source_id", docIds)
+          .eq("business_id", business_id);
+
+        docMatches = (rows ?? [])
+          .map((r: any) => {
+            const emb: number[] = typeof r.embedding === "string" ? JSON.parse(r.embedding) : r.embedding;
+            const text = decryptContent(r.content);
+            return { ...r, content: text, similarity: dotProduct(queryEmbedding, emb) };
+          })
+          // Skip metadata-only summary chunks — they describe the file but contain no actual content
+          .filter((r: any) => r.similarity > 0.2 && !r.content.startsWith("Document in library:"))
+          .sort((a: any, b: any) => b.similarity - a.similarity)
+          .slice(0, 5);
+      }
+
+      // 2. Fetch call/message context via RPC (client-scoped, excludes documents)
+      const customerId = client?.id ?? null;
+      const { data: rpcMatches } = customerId
+        ? await adminClient.rpc("match_embeddings", {
+            query_embedding: queryEmbedding, match_threshold: 0.3, match_count: 4,
+            p_business_id: business_id, p_customer_id: customerId,
+          })
+        : { data: [] };
+
+      // Merge: matter docs first, then calls/messages — deduplicate by id
+      const seenIds = new Set(docMatches.map((m: any) => m.id));
+      const callMatches = (rpcMatches ?? []).filter((m: any) =>
+        !seenIds.has(m.id) && m.source_type !== "document"
+      );
+
+      matches = [...docMatches, ...callMatches].slice(0, 8);
     }
 
     function sourceLabel(type: string) {
@@ -128,9 +160,14 @@ export async function POST(request: Request) {
     }
 
     const ragContext = matches.length > 0
-      ? matches.map((m: any, i: number) =>
-          `[Source ${i + 1} — ${sourceLabel(m.source_type)} (${Math.round(m.similarity * 100)}% relevant)]:\n${decryptContent(m.content)}`
-        ).join("\n\n---\n\n")
+      ? matches.map((m: any, i: number) => {
+          // content may already be decrypted (in-memory doc path) or still encrypted (RPC path)
+          const text = typeof m.content === "string" && m.content.startsWith("Document")
+            ? m.content
+            : decryptContent(m.content);
+          const pct = m.similarity != null ? ` (${Math.round(m.similarity * 100)}% relevant)` : "";
+          return `[Source ${i + 1} — ${sourceLabel(m.source_type)}${pct}]:\n${text}`;
+        }).join("\n\n---\n\n")
       : "No relevant data found for this client or matter.";
 
     const context = `

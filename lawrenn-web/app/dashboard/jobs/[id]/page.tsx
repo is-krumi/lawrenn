@@ -3,7 +3,7 @@
 import { useBusiness } from "@/context/BusinessContext";
 import { createClient } from "@supabase/supabase-js";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -113,7 +113,43 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   canceled:    { label: "Dismissed", color: "#991B1B", bg: "rgba(153,27,27,0.07)"  },
 };
 
-type Tab = "chat" | "files" | "notes" | "contacts";
+type Tab = "chat" | "files" | "notes" | "contacts" | "research";
+
+interface ResearchCase {
+  id:          number;
+  caseName:    string;
+  citation:    string | null;
+  court:       string | null;
+  dateFiled:   string | null;
+  absoluteUrl: string;
+  snippet:     string | null;
+}
+
+interface ResearchIssue {
+  title:       string;
+  relevance:   string;
+  statute: {
+    name:         string;
+    citation:     string;
+    text:         string;
+    plainEnglish: string;
+  } | null;
+  searchQuery: string;
+  opinions:    ResearchCase[];
+}
+
+interface ResearchChunk {
+  text:       string;
+  sourceType: string;
+  docName:    string;
+}
+
+interface ResearchAnalysis {
+  jurisdiction: string;
+  synopsis:     string | null;
+  issues:       ResearchIssue[];
+  chunks:       ResearchChunk[];
+}
 
 function renderInline(text: string): React.ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
@@ -138,10 +174,10 @@ function renderContent(text: string): React.ReactNode {
       nodes.push(<p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.6rem 0 0.25rem" : "0 0 0.25rem" }}>{renderInline(line.slice(4))}</p>);
       i++; continue;
     }
-    if (line.match(/^[-*] /)) {
+    if (line.match(/^[-*•] /)) {
       const items: React.ReactNode[] = [];
-      while (i < lines.length && lines[i].match(/^[-*] /)) {
-        items.push(<li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>{renderInline(lines[i].replace(/^[-*] /, ""))}</li>);
+      while (i < lines.length && lines[i].match(/^[-*•] /)) {
+        items.push(<li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>{renderInline(lines[i].replace(/^[-*•] /, ""))}</li>);
         i++;
       }
       nodes.push(<ul key={`ul-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.2rem", listStyleType: "disc" }}>{items}</ul>);
@@ -170,6 +206,7 @@ export default function MatterDetailPage() {
 
   const [job,             setJob]             = useState<Job | null>(null);
   const [loading,         setLoading]         = useState(true);
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [technicians,     setTechnicians]     = useState<{ id: string; name: string; color: string }[]>([]);
   const [updating,        setUpdating]        = useState(false);
   const [confirmComplete, setConfirmComplete] = useState(false);
@@ -194,7 +231,20 @@ export default function MatterDetailPage() {
   const [isDraggingFile,   setIsDraggingFile]   = useState(false);
   const [attachedDoc,      setAttachedDoc]      = useState<{ id: string; name: string } | null>(null);
   const [isDraggingToChat, setIsDraggingToChat] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const [previewDoc,   setPreviewDoc]   = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth, setPreviewWidth] = useState(480);
+  const previewDragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  // Research state
+  const [researchAnalysis,    setResearchAnalysis]    = useState<ResearchAnalysis | null>(null);
+  const [researchLoading,     setResearchLoading]     = useState(false);
+  const [researchSearched,    setResearchSearched]    = useState(false);
+  const [researchChatInput,   setResearchChatInput]   = useState("");
+  const [researchChatMsgs,    setResearchChatMsgs]    = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [researchChatLoading, setResearchChatLoading] = useState(false);
+  const researchChatEndRef = useRef<HTMLDivElement>(null);
+  const researchChatInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Contacts state
   const [editingContact,        setEditingContact]        = useState(false);
@@ -208,6 +258,12 @@ export default function MatterDetailPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (activeTab === "research" && job && !researchSearched && !researchLoading) {
+      runResearch();
+    }
+  }, [activeTab, job]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -235,6 +291,26 @@ export default function MatterDetailPage() {
       if (data) {
         setJob(data as any);
         setNotesValue((data as any).notes ?? "");
+
+        // Auto-generate IQ Summary if none exists
+        if (!(data as any).ai_notes) {
+          setSummaryGenerating(true);
+          supabase.auth.getSession().then(async ({ data: sessionData }) => {
+            const token = sessionData.session?.access_token ? `Bearer ${sessionData.session.access_token}` : "";
+            try {
+              const res = await fetch("/api/generate-iq-summary", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: token },
+                body: JSON.stringify({ job_id: (data as any).id, business_id: businessId }),
+              });
+              const result = await res.json();
+              if (result.summary) {
+                setJob(prev => prev ? { ...prev, ai_notes: result.summary } : null);
+              }
+            } catch {}
+            setSummaryGenerating(false);
+          });
+        }
       }
 
       const { data: techsData } = await supabase
@@ -365,6 +441,51 @@ export default function MatterDetailPage() {
     await supabase.from("documents").update({ deleted_at: now }).eq("id", doc.id);
   }
 
+  const onPreviewMouseMove = useCallback((e: MouseEvent) => {
+    if (!previewDragRef.current) return;
+    const dx = previewDragRef.current.startX - e.clientX;
+    setPreviewWidth(Math.max(320, Math.min(900, previewDragRef.current.startW + dx)));
+  }, []);
+
+  const onPreviewMouseUp = useCallback(() => {
+    previewDragRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onPreviewMouseMove);
+    window.addEventListener("mouseup",   onPreviewMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onPreviewMouseMove);
+      window.removeEventListener("mouseup",   onPreviewMouseUp);
+    };
+  }, [onPreviewMouseMove, onPreviewMouseUp]);
+
+  function startPreviewDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    previewDragRef.current = { startX: e.clientX, startW: previewWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
+  async function openPreview(doc: MatterDoc) {
+    if (!doc.id || doc.status !== "ready" || !businessId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+    const res = await fetch(`/api/documents/signed-url?document_id=${doc.id}&business_id=${businessId}`, { headers: { Authorization: token } });
+    const json = await res.json();
+    if (json.url) {
+      const ext = doc.name.split(".").pop()?.toLowerCase() ?? "";
+      const viewerUrl = ext === "pdf"
+        ? json.url + "#toolbar=0&navpanes=0&zoom=100"
+        : ext === "txt"
+        ? json.url
+        : `https://docs.google.com/viewer?url=${encodeURIComponent(json.url)}&embedded=true`;
+      setPreviewDoc({ url: viewerUrl, name: doc.name });
+    }
+  }
+
   async function updateStatus(status: string) {
     if (!job) return;
     setUpdating(true);
@@ -457,6 +578,93 @@ export default function MatterDetailPage() {
     setNotesSaving(false);
   }
 
+  const [researchError, setResearchError] = useState<string | null>(null);
+
+  async function runResearch() {
+    if (!job || !businessId) return;
+    setResearchLoading(true);
+    setResearchSearched(true);
+    setResearchError(null);
+    setResearchAnalysis(null);
+    setResearchChatMsgs([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+      const res  = await fetch("/api/research", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: token },
+        body:    JSON.stringify({ matter_id: job.id, business_id: businessId }),
+      });
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); }
+      catch {
+        console.error("[research] non-JSON:", text.slice(0, 300));
+        setResearchError(`Server error (${res.status}) — check Next.js logs`);
+        return;
+      }
+      if (!res.ok || data.error) {
+        setResearchError(data.error ?? `Error ${res.status}`);
+        return;
+      }
+      setResearchAnalysis(data);
+    } catch (err: any) {
+      setResearchError(err.message ?? "Network error");
+    } finally {
+      setResearchLoading(false);
+    }
+  }
+
+  async function sendResearchChat() {
+    const q = researchChatInput.trim();
+    if (!q || !job || !businessId || researchChatLoading) return;
+    setResearchChatInput("");
+    setResearchChatMsgs(prev => [...prev, { role: "user", content: q }]);
+    setResearchChatLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ? `Bearer ${session.access_token}` : "";
+
+      // Build a synthetic context message from the research analysis so the AI
+      // answers with awareness of the identified issues and statutes.
+      const researchContext: { role: "user" | "assistant"; content: string }[] = [];
+      if (researchAnalysis) {
+        const issueLines = researchAnalysis.issues.map((iss, i) => {
+          const statuteBlock = iss.statute
+            ? `\n   Statute: ${iss.statute.name} (${iss.statute.citation})\n   Text: ${iss.statute.text}\n   Application: ${iss.statute.plainEnglish}`
+            : "";
+          return `${i + 1}. ${iss.title} — ${iss.relevance}${statuteBlock}`;
+        }).join("\n\n");
+
+        researchContext.push(
+          { role: "user", content: "Please review the legal research analysis for this matter." },
+          { role: "assistant", content: `I have reviewed the research analysis for this matter.\n\nJurisdiction: ${researchAnalysis.jurisdiction}\n\n${researchAnalysis.synopsis ? `Summary: ${researchAnalysis.synopsis}\n\n` : ""}Legal Issues Identified:\n\n${issueLines}\n\nI'm ready to answer questions about this matter with the above legal context in mind.` },
+        );
+      }
+
+      const history = [...researchContext, ...researchChatMsgs.slice(-6)];
+
+      const res = await fetch("/api/intelligence/matter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: token },
+        body: JSON.stringify({
+          query: q,
+          business_id: businessId,
+          job_id: job.id,
+          history,
+          doc_id: null,
+        }),
+      });
+      const data = await res.json();
+      setResearchChatMsgs(prev => [...prev, { role: "assistant", content: data.answer ?? "No answer returned." }]);
+    } catch {
+      setResearchChatMsgs(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    } finally {
+      setResearchChatLoading(false);
+      setTimeout(() => researchChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }
+
   async function sendMessage(text?: string) {
     const query = text ?? chatInput.trim();
     if (!query || chatLoading || !businessId || !job) return;
@@ -538,6 +746,7 @@ export default function MatterDetailPage() {
     { key: "files",    label: "Files"     },
     { key: "notes",    label: "Notes"     },
     { key: "contacts", label: "Contacts"  },
+    { key: "research", label: "Research"  },
   ];
 
   const MATTER_SUGGESTED = [
@@ -599,7 +808,7 @@ export default function MatterDetailPage() {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: activeTab === "files" ? "220px 1fr 300px" : "1fr 300px", gap: "1.25rem", padding: "1.25rem 2rem 1.25rem 1.5rem", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: activeTab === "files" ? "220px 1fr 300px" : activeTab === "research" ? "1fr" : "1fr 300px", gap: "1.25rem", padding: "1.25rem 2rem 1.25rem 1.5rem", overflow: "hidden" }}>
 
         {/* ── Files panel (visible only when Files tab is active) ── */}
         {activeTab === "files" && <div
@@ -664,8 +873,9 @@ export default function MatterDetailPage() {
                       display: "flex", alignItems: "center", gap: "0.5rem",
                       padding: "0.65rem 0.9rem",
                       borderBottom: idx < matterDocs.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
-                      cursor: "grab", transition: "background 0.1s",
+                      cursor: "pointer", transition: "background 0.1s",
                     }}
+                    onClick={() => openPreview(doc)}
                     onMouseEnter={e => {
                       e.currentTarget.style.background = "#FAFAFA";
                       const btn = e.currentTarget.querySelector(".file-del-btn") as HTMLElement | null;
@@ -683,7 +893,7 @@ export default function MatterDetailPage() {
                     </div>
                     <button
                       className="file-del-btn"
-                      onClick={() => softDeleteDoc(doc)}
+                      onClick={e => { e.stopPropagation(); softDeleteDoc(doc); }}
                       style={{ background: "none", border: "none", cursor: "pointer", padding: 3, color: "#9CA3AF", display: "flex", alignItems: "center", opacity: 0, transition: "opacity 0.1s, color 0.1s", flexShrink: 0, borderRadius: 4 }}
                       onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; }}
                       onMouseLeave={e => { e.currentTarget.style.color = "#9CA3AF"; }}>
@@ -699,7 +909,7 @@ export default function MatterDetailPage() {
 
           {matterDocs.length > 0 && (
             <div style={{ padding: "0.45rem 0.9rem", borderTop: "1px solid rgba(0,0,0,0.05)", flexShrink: 0 }}>
-              <p style={{ fontSize: "0.67rem", color: "#C4C9D4", margin: 0, textAlign: "center" }}>Drag a file to the chat to ask about it</p>
+              <p style={{ fontSize: "0.67rem", color: "#C4C9D4", margin: 0, textAlign: "center" }}>Click to preview · Drag to chat</p>
             </div>
           )}
 
@@ -882,6 +1092,206 @@ export default function MatterDetailPage() {
                 onBlurCapture={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; }}
               />
               {notesSaving && <p style={{ fontSize: "0.72rem", color: "#9CA3AF", margin: "0.25rem 0 0" }}>Saving…</p>}
+            </div>
+          )}
+
+          {/* RESEARCH TAB */}
+          {activeTab === "research" && (
+            <div style={{ flex: 1, background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+
+              {/* Empty / loading / error — full width */}
+              {(!researchSearched && !researchLoading) && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem", color: "#9CA3AF", textAlign: "center", padding: "2rem" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                  <p style={{ fontSize: "0.82rem", margin: 0, lineHeight: 1.6 }}>
+                    Analyze applicable law based on this matter's files and context.
+                  </p>
+                  <button onClick={runResearch} style={{ background: "#111111", color: "white", border: "none", borderRadius: 7, padding: "0.5rem 1.25rem", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer" }}>
+                    Analyze Matter
+                  </button>
+                </div>
+              )}
+
+              {researchLoading && (
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, overflow: "hidden" }}>
+                  {[0, 1].map(col => (
+                    <div key={col} style={{ padding: "1.25rem 1.5rem", borderRight: col === 0 ? "1px solid rgba(0,0,0,0.07)" : "none", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto" }}>
+                      <div style={{ height: 11, width: "45%", background: "rgba(0,0,0,0.06)", borderRadius: 5, animation: "pulse 1.5s infinite" }} />
+                      {[95, 80, 88, 70, 83].map((w, j) => (
+                        <div key={j} style={{ height: 9, width: w + "%", background: "rgba(0,0,0,0.04)", borderRadius: 5, animation: "pulse 1.5s infinite" }} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!researchLoading && researchError && (
+                <div style={{ padding: "1.5rem" }}>
+                  <div style={{ background: "rgba(153,27,27,0.05)", border: "1px solid rgba(153,27,27,0.15)", borderRadius: 8, padding: "0.75rem 1rem", fontSize: "0.82rem", color: "#991B1B" }}>
+                    {researchError}
+                  </div>
+                </div>
+              )}
+
+              {/* Two-column results */}
+              {!researchLoading && !researchError && researchAnalysis && (
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", overflow: "hidden" }}>
+
+                  {/* LEFT — synopsis + chat */}
+                  <div style={{ borderRight: "1px solid rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+                    {/* Chat messages (synopsis scrolls inline at top) */}
+                    <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+
+                      {/* Synopsis at top, scrolls with chat */}
+                      {researchAnalysis.synopsis && (
+                        <div style={{ marginBottom: "0.5rem", paddingBottom: "1rem", borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 0.5rem" }}>Matter Synopsis</p>
+                          <p style={{ fontSize: "0.82rem", color: "#374151", margin: 0, lineHeight: 1.75 }}>{researchAnalysis.synopsis}</p>
+                        </div>
+                      )}
+
+                      {researchChatMsgs.length === 0 && (
+                        <p style={{ fontSize: "0.78rem", color: "#9CA3AF", margin: 0, lineHeight: 1.6, textAlign: "center", paddingTop: "0.5rem" }}>
+                          Ask a question to research further.
+                        </p>
+                      )}
+                      {researchChatMsgs.map((m, i) => (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
+                          <div style={{
+                            maxWidth: "88%", padding: "0.55rem 0.8rem", borderRadius: m.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
+                            background: m.role === "user" ? "#F5F5F0" : "transparent",
+                            color: "#111111",
+                            fontSize: "0.8rem", lineHeight: 1.65,
+                          }}>
+                            {m.role === "assistant" ? renderContent(m.content) : m.content}
+                          </div>
+                        </div>
+                      ))}
+                      {researchChatLoading && (
+                        <div style={{ display: "flex", alignItems: "flex-start" }}>
+                          <div style={{ borderRadius: "10px 10px 10px 2px", padding: "0.55rem 0.9rem", display: "flex", gap: "4px", alignItems: "center" }}>
+                            {[0, 1, 2].map(d => (
+                              <div key={d} style={{ width: 5, height: 5, borderRadius: "50%", background: "#9CA3AF", animation: `bounce 1s ${d * 0.15}s infinite` }} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div ref={researchChatEndRef} />
+                    </div>
+
+                    {/* Chat input */}
+                    <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(0,0,0,0.07)", flexShrink: 0, display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+                      <textarea
+                        ref={researchChatInputRef}
+                        value={researchChatInput}
+                        onChange={e => setResearchChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendResearchChat(); } }}
+                        placeholder="Ask a research question&#8230;"
+                        rows={1}
+                        style={{ flex: 1, resize: "none", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "0.5rem 0.75rem", fontFamily: "'DM Sans'", fontSize: "0.82rem", color: "#111111", outline: "none", lineHeight: 1.5, background: "#FAFAFA", maxHeight: 100, overflowY: "auto" }}
+                        onFocus={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.25)"; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"; }}
+                      />
+                      <button
+                        onClick={sendResearchChat}
+                        disabled={!researchChatInput.trim() || researchChatLoading}
+                        style={{ width: 32, height: 32, borderRadius: 8, background: researchChatInput.trim() ? "#111111" : "rgba(0,0,0,0.06)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: researchChatInput.trim() ? "pointer" : "default", flexShrink: 0, transition: "background 0.15s" }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={researchChatInput.trim() ? "white" : "#9CA3AF"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* RIGHT — applicable laws (prose) */}
+                  <div style={{ overflowY: "auto", padding: "1.75rem 2rem" }}>
+
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "1.75rem" }}>
+                      <div>
+                        <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 0.2rem" }}>Applicable Law</p>
+                        {researchAnalysis.jurisdiction && (
+                          <p style={{ fontSize: "0.78rem", color: "#6B7280", margin: 0 }}>{researchAnalysis.jurisdiction}</p>
+                        )}
+                      </div>
+                      <button onClick={runResearch} style={{ background: "none", border: "none", padding: 0, fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                        Re-analyze
+                      </button>
+                    </div>
+
+                    {researchAnalysis.issues.map((issue, issueIdx) => (
+                      <div key={issueIdx} style={{ marginBottom: issueIdx < researchAnalysis.issues.length - 1 ? "2.5rem" : 0 }}>
+
+                        {/* Issue heading */}
+                        <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#111111", margin: "0 0 0.4rem", fontFamily: "'DM Sans'", lineHeight: 1.3 }}>{issueIdx + 1}. {issue.title}</h3>
+                        <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: "0 0 1.25rem", lineHeight: 1.7 }}>{issue.relevance}</p>
+
+                        {issue.statute && (
+                          <>
+                            {/* Statute name + citation */}
+                            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#111111", margin: "0 0 0.1rem", display: "flex", flexWrap: "wrap" as const, alignItems: "baseline", gap: "0.4rem" }}>
+                              {issue.statute.name}{" "}
+                              <span style={{ fontWeight: 400, color: "#6B7280", fontSize: "0.78rem" }}>{issue.statute.citation}</span>
+                            </p>
+
+                            {/* Verbatim statutory text as a blockquote */}
+                            <blockquote style={{ margin: "0.75rem 0 1rem", borderLeft: "3px solid #E5E7EB", paddingLeft: "1rem" }}>
+                              <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: 1.85, margin: 0, fontFamily: "Georgia, serif" }}>
+                                {issue.statute.text}
+                              </p>
+                            </blockquote>
+
+                            {/* Plain-English application */}
+                            <p style={{ fontSize: "0.82rem", color: "#374151", margin: 0, lineHeight: 1.75 }}>
+                              {issue.statute.plainEnglish}
+                            </p>
+                          </>
+                        )}
+
+                        {/* Related opinions */}
+                        {issue.opinions && issue.opinions.length > 0 && (
+                          <div style={{ marginTop: "1.5rem" }}>
+                            <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 0.75rem" }}>Related Opinions</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                              {issue.opinions.map((op, opIdx) => (
+                                <a
+                                  key={opIdx}
+                                  href={`https://www.courtlistener.com${op.absoluteUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ display: "block", background: "rgba(0,0,0,0.025)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, padding: "0.7rem 0.85rem", textDecoration: "none", color: "inherit" }}
+                                >
+                                  <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111111", margin: "0 0 0.2rem", lineHeight: 1.4 }}>{op.caseName}</p>
+                                  <p style={{ fontSize: "0.72rem", color: "#6B7280", margin: "0 0 0.35rem" }}>
+                                    {[op.citation, op.court, op.dateFiled ? new Date(op.dateFiled).getFullYear() : null].filter(Boolean).join(" · ")}
+                                  </p>
+                                  {op.snippet && (
+                                    <p style={{ fontSize: "0.75rem", color: "#4B5563", margin: 0, lineHeight: 1.65 }}>{op.snippet.slice(0, 220)}{op.snippet.length > 220 ? "…" : ""}</p>
+                                  )}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {issueIdx < researchAnalysis.issues.length - 1 && (
+                          <hr style={{ border: "none", borderTop: "1px solid rgba(0,0,0,0.07)", margin: "2.5rem 0 0" }} />
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Disclaimer */}
+                    <p style={{ fontSize: "0.7rem", color: "#9CA3AF", marginTop: "2rem", lineHeight: 1.6 }}>
+                      Legal research is AI-generated and may not be complete or current. Statute text and case law are provided for reference only — always verify citations against official sources before use.
+                    </p>
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
 
@@ -1084,7 +1494,7 @@ export default function MatterDetailPage() {
         </div>
 
         {/* ── Right: sidebar ── */}
-        <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        {activeTab !== "research" && <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
           {/* Client */}
           {job.customers && (
@@ -1184,10 +1594,18 @@ export default function MatterDetailPage() {
           </div>
 
           {/* IQ Summary */}
-          {job.ai_notes && (
+          {(job.ai_notes || summaryGenerating) && (
             <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.25rem" }}>
               <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 0.6rem" }}>IQ Summary</p>
-              <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.7, margin: 0 }}>{job.ai_notes}</p>
+              {summaryGenerating ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {[100, 85, 70].map((w, i) => (
+                    <div key={i} style={{ height: 12, width: `${w}%`, background: "rgba(0,0,0,0.06)", borderRadius: 4, animation: "pulse 1.5s ease-in-out infinite" }} />
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.7, margin: 0 }}>{job.ai_notes}</p>
+              )}
             </div>
           )}
 
@@ -1234,13 +1652,54 @@ export default function MatterDetailPage() {
               )}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
+
+      {/* ── Document preview panel ── */}
+      {previewDoc && (
+        <>
+          <div
+            onMouseDown={startPreviewDrag}
+            style={{ position: "fixed", top: 52, right: previewWidth, bottom: 0, width: 16, cursor: "col-resize", zIndex: 101, display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseEnter={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "rgba(0,0,0,0.12)"; }}
+            onMouseLeave={e => { (e.currentTarget.querySelector("div") as HTMLElement).style.background = "transparent"; }}>
+            <div style={{ width: 3, height: "100%", borderRadius: 4, background: "transparent", transition: "background 0.15s" }} />
+          </div>
+          <div style={{ position: "fixed", top: 52, right: 0, bottom: 0, width: previewWidth, zIndex: 100, background: "white", borderLeft: "1px solid rgba(0,0,0,0.07)", display: "flex", flexDirection: "column", boxShadow: "-4px 0 24px rgba(0,0,0,0.07)" }}>
+            <div style={{ padding: "0.65rem 0.9rem", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minWidth: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+                </svg>
+                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
+                  {previewDoc.name}
+                </span>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 3, color: "#9CA3AF", display: "flex", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <iframe
+              src={previewDoc.url}
+              style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
+              title={previewDoc.name}
+            />
+          </div>
+        </>
+      )}
 
       <style>{`
         @keyframes bounce {
           0%, 60%, 100% { transform: translateY(0); }
           30% { transform: translateY(-5px); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
         }
       `}</style>
     </div>

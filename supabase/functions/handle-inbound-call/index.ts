@@ -129,7 +129,7 @@ async function getAvailableSlots(businessId: string): Promise<string[]> {
   return slots;
 }
 
-function buildSystemPrompt(business: any, slots: string[]): string {
+function buildSystemPrompt(business: any, slots: string[], isAfterHours: boolean): string {
   if (business.system_prompt) {
     const services = Array.isArray(business.settings?.services)
       ? business.settings.services.map((s: any) =>
@@ -138,8 +138,8 @@ function buildSystemPrompt(business: any, slots: string[]): string {
       : "general legal services";
 
     const slotsText = slots.length > 0
-      ? slots.map((s: any) => s.display ?? s).join(" | ")
-      : "call check_availability to get real-time available slots";
+      ? `PRE-LOADED (use immediately, no tool call needed): ${slots.map((s: any) => s.display ?? s).join(" | ")}`
+      : "No slots pre-loaded — call check_availability to find available times.";
 
     return business.system_prompt
       .replace("{{services}}", services)
@@ -150,53 +150,63 @@ function buildSystemPrompt(business: any, slots: string[]): string {
     ? business.settings.services.map((s: any) => s.name ?? s).join(", ")
     : "general legal services";
   const agentName = business.settings?.ai_persona?.name ?? "Alex";
-  const greeting  = business.settings?.ai_persona?.greeting ?? `Thanks for calling ${business.name}`;
-  const slotsText = slots.length > 0
-    ? `Available appointment slots: ${slots.join(" | ")}`
-    : "We are currently fully booked — take the caller's details and let them know the attorney will call back.";
 
-  const now = new Date();
-  const hour = parseInt(now.toLocaleTimeString("en-US", {
-    hour: "2-digit", hour12: false, timeZone: business.timezone
-  }));
-  const days = ["sun","mon","tue","wed","thu","fri","sat"];
-  const todayHours = business.settings?.operating_hours?.[days[now.getDay()]];
-  const openHour   = todayHours?.start ? parseInt(todayHours.start.split(":")[0]) : 8;
-  const closeHour  = todayHours?.end   ? parseInt(todayHours.end.split(":")[0])   : 17;
-  const isAfterHours = !todayHours?.start || hour < openHour || hour >= closeHour;
+  const tone = `TONE & PERSONALITY:
+- Warm, professional, and reassuring. You represent a law firm.
+- Empathetic but concise. Mirror the caller's urgency.
+- Sound confident. If you don't know something, say "Let me make sure the right person follows up with you on that."
 
-  const afterHoursNote = isAfterHours
-    ? `IMPORTANT — IT IS CURRENTLY OUTSIDE BUSINESS HOURS: Do NOT offer specific appointment slots. Greet the caller warmly, collect their name, phone number, and what legal matter they need help with. Then say "I have all your details — an attorney from our team will call you first thing tomorrow morning." Confirm their callback number before ending the call.`
-    : "";
+RULES:
+- Never give legal advice — schedule consultations and take intake only
+- Never quote fees — the attorney will discuss fees during the consultation
+- If the caller mentions an emergency or court deadline — say "This sounds urgent, let me get an attorney on the line right away" then call transfer_to_owner
+- If the caller asks to speak to a person — call transfer_to_owner immediately`;
 
-  return `You are ${agentName}, the AI intake receptionist for ${business.name}, a law firm.
+  if (isAfterHours) {
+    return `You are ${agentName}, the AI intake receptionist for ${business.name}, a law firm. The caller has already been greeted — do NOT say hello again.
 
-${greeting}
+IT IS CURRENTLY AFTER HOURS. Do NOT offer or discuss appointment slots.
 
-Your job is to:
-1. Greet the caller warmly and ask how you can help
-2. Find out what legal matter they need assistance with (practice areas: ${services})
-3. Get their full name and contact number
-4. Call check_availability with the matter type to get real-time available consultation slots
-5. When check_availability returns, read the FULL slotsByDay array and present options across multiple days
-6. Once the caller confirms a specific day AND time, repeat it back to confirm, then collect any remaining details
-7. ${isAfterHours ? "Do NOT offer slots — collect their details and promise a morning callback from the firm" : "Confirm the booking and let them know they will receive an SMS confirmation shortly"}
+Your job:
+1. Find out what legal matter they need help with (${services})
+2. Collect their full name and best callback number
+3. Say: "I have all your details — an attorney from our team will call you first thing in the morning." Then confirm their callback number.
+4. If they mention an emergency or court deadline — call transfer_to_owner immediately
 
-${afterHoursNote}
+${tone}
 
-TONE & PERSONALITY:
-- Speak in a warm, professional, and reassuring tone. You represent a law firm.
-- Be empathetic but concise. Mirror the caller's urgency — if they sound stressed, slow down and reassure; if they are matter-of-fact, be efficient.
-- Sound confident and knowledgeable, never uncertain. If you don't know something, say "Let me make sure the right person follows up with you on that" — not "I'm not sure."
+Business timezone: ${business.timezone}`;
+  }
 
-IMPORTANT RULES:
-- Never give legal advice — only schedule consultations and take intake information
-- Always call check_availability before offering any appointment times
-- Never quote fees — say the attorney will discuss fees during the consultation
-- If the caller mentions an emergency, court deadline, or urgent legal matter — say "This sounds urgent, let me get an attorney on the line right away" then immediately call transfer_to_owner
-- If the caller asks to speak to a person — immediately call transfer_to_owner
-- Always be professional, calm, and empathetic — clients calling a law firm may be stressed
-- Only confirm a booking after the caller has agreed to a specific day AND time
+  if (slots.length > 0) {
+    return `You are ${agentName}, the AI intake receptionist for ${business.name}, a law firm. The caller has already been greeted — do NOT say hello again.
+
+PRE-LOADED SLOTS — use these immediately, no tool call needed:
+${slots.join(" | ")}
+
+Your job:
+1. Find out what legal matter they need help with (${services})
+2. Collect their full name and contact number
+3. Offer the pre-loaded slots above — present the nearest 2–3 options first
+4. Once they confirm a day AND time, repeat it back to confirm
+5. Let them know they will receive an SMS confirmation shortly
+- Only call check_availability if the caller rejects ALL pre-loaded slots or asks for a date not listed
+
+${tone}
+
+Business timezone: ${business.timezone}`;
+  }
+
+  return `You are ${agentName}, the AI intake receptionist for ${business.name}, a law firm. The caller has already been greeted — do NOT say hello again.
+
+Your job:
+1. Find out what legal matter they need help with (${services})
+2. Collect their full name and contact number
+3. Call check_availability to find available appointment times, then offer the nearest 2–3 options
+4. Once they confirm a day AND time, repeat it back to confirm
+5. Let them know they will receive an SMS confirmation shortly
+
+${tone}
 
 Business timezone: ${business.timezone}`;
 }
@@ -365,9 +375,23 @@ serve(async (req) => {
       outcome:         "in_progress",
     });
 
-    // Fetch available slots and build base system prompt in parallel with client context
+    // Compute after-hours before fetching slots so we can skip the DB query when not needed
+    const nowForHours = new Date();
+    const hourNow = parseInt(nowForHours.toLocaleTimeString("en-US", {
+      hour: "2-digit", hour12: false, timeZone: business.timezone ?? "America/New_York",
+    }));
+    const daysOfWeek = ["sun","mon","tue","wed","thu","fri","sat"];
+    const todayKey   = daysOfWeek[nowForHours.getDay()];
+    const todayHrs   = business.settings?.operating_hours?.[todayKey];
+    const isAfterHours = !todayHrs?.start
+      || hourNow < parseInt(todayHrs.start.split(":")[0])
+      || hourNow >= parseInt(todayHrs.end?.split(":")[0] ?? "17");
+
+    console.log("isAfterHours:", isAfterHours, "hour:", hourNow);
+
+    // Fetch available slots (skipped after hours) and client context in parallel
     const [slots, clientContextBlock] = await Promise.all([
-      getAvailableSlots(business.id),
+      isAfterHours ? Promise.resolve([]) : getAvailableSlots(business.id),
       customer ? buildClientContext(business, customer, fromNumber) : Promise.resolve(""),
     ]);
 
@@ -375,7 +399,7 @@ serve(async (req) => {
     console.log("Client context built:", customer ? "yes" : "no (new caller)");
 
     // Build final system prompt: client context block (if known) + base prompt
-    const basePrompt   = buildSystemPrompt(business, slots);
+    const basePrompt   = buildSystemPrompt(business, slots, isAfterHours);
     const systemPrompt = clientContextBlock
       ? `${clientContextBlock}\n\n${basePrompt}`
       : basePrompt;
@@ -383,10 +407,14 @@ serve(async (req) => {
     const agentName = business.settings?.ai_persona?.name ?? "Alex";
 
     // Personalize the greeting for known clients
+    const firstName = customer?.name?.split(" ")[0] ?? "";
+    const baseGreeting = business.settings?.ai_persona?.greeting
+      ?? `Thanks for calling ${business.name}! This is ${agentName} — how can I help you today?`;
     const beginMessage = customer?.name
-      ? `Hi ${customer.name.split(" ")[0]}! Thanks for calling ${business.name}, this is ${agentName} — how can I help you today?`
-      : (business.settings?.ai_persona?.begin_message ?? `Thanks for calling ${business.name}! This is ${agentName} — how can I help you today?`);
+      ? `Hi ${firstName}! ${baseGreeting}`
+      : baseGreeting;
 
+    console.log("beginMessage:", beginMessage);
     console.log("system_prompt from DB:", business.system_prompt ? "SET (custom)" : "NULL (using fallback)");
     console.log("Prompt length:", systemPrompt.length);
 
