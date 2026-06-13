@@ -1,28 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { notFound, useParams } from "next/navigation";
 import MainNav from "@/components/MainNav";
 
-// ── Reveal hook ────────────────────────────────────────────────────────────
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.08 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
-}
-
 function Reveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
-  const { ref, visible } = useReveal();
-  return (
-    <div ref={ref} style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(32px)", transition: `opacity 0.7s ${delay}s ease, transform 0.7s ${delay}s ease`, ...style }}>
-      {children}
-    </div>
-  );
+  return <div style={style}>{children}</div>;
 }
 
 // ── Product data ───────────────────────────────────────────────────────────
@@ -453,9 +436,7 @@ export default function ProductPage() {
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: #F5F5F0; overflow-x: hidden; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .cta-btn { transition: all 0.2s; }
+.cta-btn { transition: all 0.2s; }
         .cta-btn:hover { opacity: 0.85; transform: translateY(-1px); }
         .feature-card { transition: all 0.2s; }
         .feature-card:hover { border-color: rgba(0,0,0,0.2) !important; background: white !important; transform: translateY(-2px); }
@@ -469,7 +450,7 @@ export default function ProductPage() {
       <section style={{ position: "relative", minHeight: "100vh", background: "white", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8%", paddingTop: 64, overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none" }} />
 
-        <div key={slug} style={{ position: "relative", maxWidth: 900, animation: "fadeIn 0.6s ease both" }}>
+        <div style={{ position: "relative", maxWidth: 900 }}>
           <p style={{ fontFamily: "'DM Mono'", fontSize: "0.7rem", fontWeight: 500, color: "rgba(0,0,0,0.38)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "1.5rem", border: "1px solid rgba(0,0,0,0.1)", display: "inline-block", padding: "0.3rem 0.8rem", borderRadius: 4 }}>
             {label}
           </p>

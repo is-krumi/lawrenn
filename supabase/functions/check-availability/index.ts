@@ -41,12 +41,25 @@ serve(async (req) => {
       }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    // Fetch business
-    const { data: business } = await supabase
-      .from("businesses")
-      .select("settings, timezone")
-      .eq("id", business_id)
-      .single();
+    const now       = new Date();
+    const startDate = preferred_date ? new Date(preferred_date) : now;
+    const endDate   = new Date(startDate.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+    // Fetch business, technicians, and booked jobs in parallel
+    const [
+      { data: business },
+      { data: technicians },
+      { data: bookedJobs },
+    ] = await Promise.all([
+      supabase.from("businesses").select("settings, timezone").eq("id", business_id).single(),
+      supabase.from("technicians").select("id, name, schedule").eq("business_id", business_id).eq("active", true),
+      supabase.from("jobs")
+        .select("slot_start, slot_end, technician_id")
+        .eq("business_id", business_id)
+        .in("status", ["booked", "in_progress"])
+        .gte("slot_start", startDate.toISOString())
+        .lte("slot_start", endDate.toISOString()),
+    ]);
 
     if (!business) {
       return new Response(JSON.stringify({
@@ -55,21 +68,14 @@ serve(async (req) => {
       }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
 
-    const tz = business.timezone ?? "America/New_York";
-
-    // Fetch active technicians
-    const { data: technicians } = await supabase
-      .from("technicians")
-      .select("id, name, schedule")
-      .eq("business_id", business_id)
-      .eq("active", true);
-
     if (!technicians || technicians.length === 0) {
       return new Response(JSON.stringify({
         available: false, slots: [],
         message: "No technicians available right now. The owner will call you back to schedule.",
       }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
+
+    const tz = business.timezone ?? "America/New_York";
 
     // Get job duration
     const services    = business.settings?.services ?? [];
@@ -78,20 +84,6 @@ serve(async (req) => {
     );
     const durationMins = matchedSvc?.duration_mins ?? 120;
     const bufferMins   = business.settings?.travel_buffer_mins ?? 30;
-
-    // Search window for booked jobs lookup
-    const now       = new Date();
-    const startDate = preferred_date ? new Date(preferred_date) : now;
-    const endDate   = new Date(startDate.getTime() + 60 * 24 * 60 * 60 * 1000);
-
-    // Fetch booked jobs for full 60 day window
-    const { data: bookedJobs } = await supabase
-      .from("jobs")
-      .select("slot_start, slot_end, technician_id")
-      .eq("business_id", business_id)
-      .in("status", ["booked", "in_progress"])
-      .gte("slot_start", startDate.toISOString())
-      .lte("slot_start", endDate.toISOString());
 
     const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
@@ -198,8 +190,9 @@ serve(async (req) => {
       }
     };
 
-    // Always gather available slots across the full 60-day window.
-    collectSlots(0, 60);
+    // Search 14 days first for speed; fall back to full 60-day window only if empty.
+    collectSlots(0, 14);
+    if (slots.length === 0) collectSlots(15, 60);
 
     if (slots.length === 0) {
       return new Response(JSON.stringify({

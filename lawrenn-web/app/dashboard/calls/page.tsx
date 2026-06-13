@@ -208,7 +208,8 @@ function CallsPageInner() {
 
     if (outcomeFilter !== "all") query = query.eq("outcome", outcomeFilter);
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error("[calls] fetch error:", JSON.stringify(error), "keys:", Object.keys(error));
     if (pageNum === 0) {
       setCalls((data as any) ?? []);
     } else {
