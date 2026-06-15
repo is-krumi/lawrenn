@@ -173,11 +173,16 @@ export default function TeamPage() {
   async function deleteMember(memberId: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await fetch("/api/team-members", {
+    const res = await fetch("/api/team-members", {
       method:  "DELETE",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body:    JSON.stringify({ member_id: memberId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "Failed to remove member. Please try again.");
+      return;
+    }
     setMembers(prev => prev.filter(m => m.id !== memberId));
     setMemberCount(c => Math.max(0, c - 1));
   }

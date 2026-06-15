@@ -232,8 +232,9 @@ export default function MatterDetailPage() {
   const [attachedDoc,      setAttachedDoc]      = useState<{ id: string; name: string } | null>(null);
   const [isDraggingToChat, setIsDraggingToChat] = useState(false);
   const fileInputRef   = useRef<HTMLInputElement>(null);
-  const [previewDoc,   setPreviewDoc]   = useState<{ url: string; name: string } | null>(null);
-  const [previewWidth, setPreviewWidth] = useState(480);
+  const [previewDoc,      setPreviewDoc]      = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth,    setPreviewWidth]    = useState(480);
+  const [previewDragging, setPreviewDragging] = useState(false);
   const previewDragRef = useRef<{ startX: number; startW: number } | null>(null);
 
   // Research state
@@ -261,6 +262,12 @@ export default function MatterDetailPage() {
 
   useEffect(() => {
     if (activeTab === "research" && job && !researchSearched && !researchLoading) {
+      const cached = (job as any).research_cache;
+      if (cached) {
+        setResearchAnalysis(cached);
+        setResearchSearched(true);
+        return;
+      }
       runResearch();
     }
   }, [activeTab, job]);
@@ -281,7 +288,7 @@ export default function MatterDetailPage() {
         .from("jobs")
         .select(`
           id, name, type, status, slot_start, slot_end, amount, source,
-          notes, ai_notes, created_at, updated_at, technician_id,
+          notes, ai_notes, research_cache, created_at, updated_at, technician_id,
           customers (id, name, phone, address, email, contact_type),
           technicians (name, color)
         `)
@@ -449,6 +456,7 @@ export default function MatterDetailPage() {
 
   const onPreviewMouseUp = useCallback(() => {
     previewDragRef.current = null;
+    setPreviewDragging(false);
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
   }, []);
@@ -465,6 +473,7 @@ export default function MatterDetailPage() {
   function startPreviewDrag(e: React.MouseEvent) {
     e.preventDefault();
     previewDragRef.current = { startX: e.clientX, startW: previewWidth };
+    setPreviewDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }
@@ -608,6 +617,7 @@ export default function MatterDetailPage() {
         return;
       }
       setResearchAnalysis(data);
+      supabase.from("jobs").update({ research_cache: data }).eq("id", job.id).then(() => {});
     } catch (err: any) {
       setResearchError(err.message ?? "Network error");
     } finally {
@@ -750,12 +760,12 @@ export default function MatterDetailPage() {
   ];
 
   const MATTER_SUGGESTED = [
-    "Summarize this matter",
-    "What has the client called about?",
-    "What documents are on file?",
-    "What are the key dates and deadlines?",
-    "Draft a status update for this client",
-    "What is the current status?",
+    { label: "Summarize this matter",             color: "#4F46E5", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
+    { label: "What has the client called about?", color: "#0891B2", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> },
+    { label: "What documents are on file?",       color: "#D97706", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> },
+    { label: "Key dates and deadlines?",          color: "#DC2626", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+    { label: "Draft a client status update",      color: "#059669", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> },
+    { label: "What is the current status?",       color: "#7C3AED", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
   ];
 
   return (
@@ -930,24 +940,17 @@ export default function MatterDetailPage() {
               <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
                 {messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1.5rem", minHeight: "60%", padding: "2rem 0" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,0.04)", border: "1.5px solid rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 0.9rem" }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
-                      </div>
-                      <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.1rem", letterSpacing: "0.06em", color: "#111111", margin: "0 0 0.4rem" }}>ASK ABOUT THIS MATTER</h3>
-                      <p style={{ fontSize: "0.8rem", color: "#9CA3AF", lineHeight: 1.6, margin: 0 }}>
-                        Questions are answered using this matter's info and your firm's knowledge base.
-                      </p>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", width: "100%", maxWidth: 520 }}>
+                    <p style={{ fontSize: "0.8rem", color: "#9CA3AF", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
+                      Questions are answered using this matter's info and your firm's knowledge base.
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", width: "100%", maxWidth: 520 }}>
                       {MATTER_SUGGESTED.map((q, i) => (
-                        <button key={i} onClick={() => sendMessage(q)}
-                          style={{ padding: "0.6rem 0.85rem", background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.78rem", textAlign: "left", cursor: "pointer", lineHeight: 1.45, transition: "border-color 0.12s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; }}>
-                          {q}
+                        <button key={i} onClick={() => sendMessage(q.label)}
+                          style={{ padding: "0.85rem 0.75rem", background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.82rem", textAlign: "left", cursor: "pointer", lineHeight: 1.45, transition: "all 0.12s", display: "flex", flexDirection: "column", gap: "0.6rem", aspectRatio: "1.2" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"; e.currentTarget.style.background = "white"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#FAFAFA"; }}>
+                          <span style={{ color: q.color }}>{q.icon}</span>
+                          <span style={{ fontWeight: 800, color: "#111111" }}>{q.label}</span>
                         </button>
                       ))}
                     </div>
@@ -1683,11 +1686,16 @@ export default function MatterDetailPage() {
                 </svg>
               </button>
             </div>
-            <iframe
-              src={previewDoc.url}
-              style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
-              title={previewDoc.name}
-            />
+            <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+              <iframe
+                src={previewDoc.url}
+                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                title={previewDoc.name}
+              />
+              {previewDragging && (
+                <div style={{ position: "absolute", inset: 0, zIndex: 10 }} />
+              )}
+            </div>
           </div>
         </>
       )}

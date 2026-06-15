@@ -9,8 +9,7 @@ const supabase = createClient(
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-const RENNOPS_BUSINESS_ID   = process.env.RENNOPS_BUSINESS_ID!;
-const RENNOPS_TWILIO_NUMBER = process.env.LAWRENN_TWILIO_NUMBER ?? "+18666581538";
+const RENNOPS_BUSINESS_ID = process.env.RENNOPS_BUSINESS_ID!;
 
 export async function POST(request: Request) {
   // Log which env vars are present (values redacted) so Vercel logs show what's missing
@@ -50,11 +49,22 @@ export async function POST(request: Request) {
 
     // ── Seed synthetic inbound message + send AI reply via Twilio ──
     if (phone && source !== "onboarding" && RENNOPS_BUSINESS_ID) {
-      // Upsert customer, then always re-fetch to guarantee we have the id
+      // Look up the business Twilio number from DB — same pattern as handle-inbound-sms
+      const { data: rennopsBiz } = await supabase
+        .from("businesses")
+        .select("twilio_number")
+        .eq("id", RENNOPS_BUSINESS_ID)
+        .single();
+      const LAWRENN_TWILIO_NUMBER = rennopsBiz?.twilio_number ?? null;
+      if (!LAWRENN_TWILIO_NUMBER) {
+        console.error("[capture-trial-signup] No twilio_number on business — skipping SMS");
+      } else {
+
+      // Upsert customer as sms_opted_out = true (pending opt-in) so no AI replies until they say YES
       await supabase
         .from("customers")
         .upsert(
-          { business_id: RENNOPS_BUSINESS_ID, name: name ?? null, phone, email: email ?? null },
+          { business_id: RENNOPS_BUSINESS_ID, name: name ?? null, phone, email: email ?? null, sms_opted_out: true },
           { onConflict: "business_id,phone" }
         );
 
@@ -65,95 +75,66 @@ export async function POST(request: Request) {
         .eq("phone", phone)
         .single();
 
-      const inboundBody = name
-        ? `Hi, this is ${name} from ${business_name ?? "my business"}. I'm interested in RennOps. Can you tell me more?`
-        : `Hi, I'm interested in RennOps. Can you tell me more?`;
+      // Send fixed opt-in request — no AI yet, compliance requires explicit consent first
+      const firstName = name ? name.split(" ")[0] : null;
+      const optInMsg = firstName
+        ? `Hi ${firstName}! This is Lawrenn, your AI legal assistant. Reply YES to receive updates & tips for your free trial, or STOP to opt out. Msg & data rates may apply.`
+        : `Hi! This is Lawrenn, your AI legal assistant. Reply YES to receive updates & tips for your free trial, or STOP to opt out. Msg & data rates may apply.`;
 
-      // Store the synthetic inbound message
-      await supabase.from("messages").insert({
-        business_id:  RENNOPS_BUSINESS_ID,
-        customer_id:  customer?.id ?? null,
-        direction:    "inbound",
-        channel:      "sms",
-        body:         inboundBody,
-        from_number:  phone,
-        to_number:    RENNOPS_TWILIO_NUMBER,
-        twilio_sid:   `synthetic_${Date.now()}`,
-        read:         false,
-      });
-
-      // Generate AI reply with Claude
       try {
-        const aiRes = await anthropic.messages.create({
-          model:      "claude-sonnet-4-20250514",
-          max_tokens: 300,
-          system: `You are Alex, the AI assistant for Lawrenn — an AI-powered legal platform for law firms and legal professionals (document drafting, contract analysis, legal research, billing automation).
-
-A potential customer just signed up for a free trial and you are texting them back to start the conversation.
-
-RULES:
-- Keep it short — 2-3 sentences max, this is SMS
-- Be warm, professional, and confident
-- Mention that this text itself is a quick demonstration of AI at work
-- Ask what practice area they work in if not already known
-- Do NOT mention pricing yet`,
-          messages: [{
-            role:    "user",
-            content: `New trial signup from ${name ?? "someone"} (${business_name ? `business: ${business_name}` : "business type unknown"}). Draft a short, warm opening SMS reply.`,
-          }],
+        const twilioUrl  = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+        const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+        const twilioRes  = await fetch(twilioUrl, {
+          method: "POST",
+          headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ To: phone, From: LAWRENN_TWILIO_NUMBER, Body: optInMsg }),
         });
-
-        const aiReply = aiRes.content?.[0]?.type === "text" ? aiRes.content[0].text.trim() : null;
-
-        if (aiReply) {
-          // Send the AI reply via Twilio to the lead's phone
-          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
-          const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-          const twilioRes = await fetch(twilioUrl, {
-            method: "POST",
-            headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ To: phone, From: RENNOPS_TWILIO_NUMBER, Body: aiReply }),
-          });
-          const twilioBody = await twilioRes.json().catch(() => ({}));
-          if (!twilioRes.ok) {
-            console.error("[capture-trial-signup] Twilio AI SMS failed:", twilioRes.status, JSON.stringify(twilioBody));
-          } else {
-            console.log("[capture-trial-signup] AI reply sent to", phone, "sid:", (twilioBody as any).sid);
-          }
+        const twilioBody = await twilioRes.json().catch(() => ({}));
+        if (!twilioRes.ok) {
+          console.error("[capture-trial-signup] opt-in SMS failed:", twilioRes.status, JSON.stringify(twilioBody));
+        } else {
+          console.log("[capture-trial-signup] opt-in SMS sent to", phone, "sid:", (twilioBody as any).sid);
           await supabase.from("messages").insert({
             business_id:  RENNOPS_BUSINESS_ID,
             customer_id:  customer?.id ?? null,
             direction:    "outbound",
             channel:      "sms",
-            body:         aiReply,
-            from_number:  RENNOPS_TWILIO_NUMBER,
+            body:         optInMsg,
+            from_number:  LAWRENN_TWILIO_NUMBER,
             to_number:    phone,
             read:         true,
           });
-
-          console.log("[capture-trial-signup] AI reply sent to", phone);
         }
-      } catch (aiErr) {
-        console.error("[capture-trial-signup] AI reply failed (non-critical):", aiErr);
+      } catch (smsErr) {
+        console.error("[capture-trial-signup] opt-in SMS error:", smsErr);
       }
+      } // end else (twilio_number found)
     }
 
     // Notify via SMS — only for new signups (not status updates)
     if (source !== "onboarding") {
       try {
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
-        const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
-        const smsBody = `🚀 New trial signup!\n\n${name ?? "Unknown"} from ${business_name ?? "unknown business"}\nEmail: ${email}\nPhone: ${phone ?? "not provided"}\nType: ${business_type ?? "unknown"}`;
-        const recipients = [process.env.DEMO_NOTIFY_PHONE!, "+18666581538"];
-        await Promise.all(recipients.map(to =>
-          fetch(twilioUrl, {
-            method: "POST",
-            headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({ To: to, From: "+18666581538", Body: smsBody }),
-          }).then(async r => {
-            if (!r.ok) console.error("[capture-trial-signup] notify SMS failed:", r.status, await r.text());
-          })
-        ));
+        const { data: rennopsBizForNotify } = await supabase
+          .from("businesses")
+          .select("twilio_number")
+          .eq("id", RENNOPS_BUSINESS_ID)
+          .single();
+        const notifyFromNumber = rennopsBizForNotify?.twilio_number;
+        if (notifyFromNumber) {
+          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+          const twilioAuth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+          const smsBody = `🚀 New trial signup!\n\n${name ?? "Unknown"} from ${business_name ?? "unknown business"}\nEmail: ${email}\nPhone: ${phone ?? "not provided"}\nType: ${business_type ?? "unknown"}`;
+          const recipients = [process.env.DEMO_NOTIFY_PHONE!].filter(Boolean);
+          await Promise.all(recipients.map(to =>
+            fetch(twilioUrl, {
+              method: "POST",
+              headers: { Authorization: twilioAuth, "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({ To: to, From: notifyFromNumber, Body: smsBody }),
+            }).then(async r => {
+              if (!r.ok) console.error("[capture-trial-signup] notify SMS failed:", r.status, await r.text());
+            })
+          ));
+        }
       } catch (notifyErr) {
         console.error("[capture-trial-signup] notify SMS error:", notifyErr);
       }

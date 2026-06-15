@@ -12,7 +12,7 @@ const OPENAI_API_KEY       = Deno.env.get("OPENAI_API_KEY")!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 async function sendSMS(to: string, from: string, body: string) {
-  await fetch(
+  const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
     {
       method: "POST",
@@ -23,6 +23,12 @@ async function sendSMS(to: string, from: string, body: string) {
       body: new URLSearchParams({ To: to, From: from, Body: body }),
     }
   );
+  const resBody = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error("[sendSMS] Twilio error:", res.status, JSON.stringify(resBody));
+  } else {
+    console.log("[sendSMS] Twilio OK — sid:", (resBody as any).sid, "from:", from, "to:", to);
+  }
 }
 
 async function generateAndStoreEmbedding(
@@ -133,40 +139,42 @@ async function generateAIReply(
     ? `\nRelevant context from client history:\n${ragContext}\n`
     : "";
 
-  const systemPrompt = `You are the AI intake assistant for ${business.name}, a law firm.
-You are handling SMS replies from clients on behalf of the attorneys.
+  const services = Array.isArray(business.settings?.services)
+    ? business.settings.services.map((s: any) => s.name ?? s).join(", ")
+    : "general legal services";
 
-Firm info:
-- Name: ${business.name}
-- Practice areas: ${business.settings?.services?.map((s: any) => s.name ?? s).join(", ") ?? "general legal services"}
-- Hours: ${JSON.stringify(business.settings?.operating_hours ?? {})}
+  const clientContext = [
+    `Client: ${customer?.name ?? "Unknown"}`,
+    jobContext,
+    contextBlock,
+    `Recent conversation:\n${messageHistory}`,
+  ].filter(Boolean).join("\n");
 
-Client info:
-- Name: ${customer?.name ?? "Unknown"}
-- ${jobContext}
-${contextBlock}
-Recent conversation:
-${messageHistory}
+  const smsRules = `
+SMS RULES (override everything else for this channel):
+- This is SMS — keep every reply to 1-3 sentences max
+- NEVER escalate for greetings, introductions, or general questions ("hi", "hello", "hola", "how are you", "what do you do", etc.) — always reply warmly
+- Reply in the same language the client used
+- Never give legal advice or quote specific fees
+- For scheduling — offer to have someone call them
+- Only reply ESCALATE (exactly, nothing else) for: active threats of malpractice claims, bar complaints, or court emergencies with imminent deadlines — nothing else qualifies
 
-RULES:
-- Keep replies short — 1-3 sentences max, this is SMS
-- If you know the client's name and this is the first or second message in the conversation, open with "Hi ${customer?.name ? customer.name.split(" ")[0] : "[Name]"}," — use their first name naturally
-- Never give legal advice or quote specific fees — say an attorney will follow up
-- For scheduling or intake questions — offer to have the attorney or intake team call them
-- For complaints or disputes — say you will have an attorney contact them shortly
-- For simple questions about practice areas or availability — answer directly and professionally
-- If unsure — say "Great question! Let me have our team follow up with you shortly."
-- Always be warm and professional
-- Sign off with the firm name if it's the first reply
-- Never make promises you cannot keep
-- If the client seems distressed or mentions a legal emergency — do NOT try to resolve via SMS, escalate immediately
+${clientContext}`;
 
-Escalate to attorney (return ESCALATE) if message contains:
-- Complaints about legal representation
-- Requests for refunds or fee disputes
-- Threats of bar complaints or malpractice
-- Anything requiring legal judgment or negotiation
-- Mention of court dates, deadlines, or emergencies`;
+  // Use business-specific system prompt if set (strip call-specific slot logic), otherwise use default
+  let systemPrompt: string;
+  if (business.system_prompt) {
+    systemPrompt = business.system_prompt
+      .replace("{{services}}", services)
+      .replace("{{slots}}", "")
+      + smsRules;
+  } else {
+    systemPrompt = `You are the AI intake assistant for ${business.name}, a law firm handling SMS replies on behalf of attorneys.
+
+Firm: ${business.name}
+Practice areas: ${services}
+${smsRules}`;
+  }
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -208,7 +216,7 @@ serve(async (req) => {
     // Find business by Twilio number
     const { data: business } = await supabase
       .from("businesses")
-      .select("id, name, phone, settings, ai_sms_replies")
+      .select("id, name, phone, settings, ai_sms_replies, system_prompt")
       .eq("twilio_number", toNumber)
       .single();
 
@@ -242,11 +250,79 @@ serve(async (req) => {
     }
 
     if (startKeywords.includes(bodyLower)) {
+      const wasOptedOut = customer?.sms_opted_out === true;
       if (customer) {
         await supabase.from("customers").update({ sms_opted_out: false }).eq("id", customer.id);
       }
+
+      // If they were pending opt-in (sms_opted_out = true), send the welcome AI message now
+      if (wasOptedOut) {
+        const welcomeReply = await generateAIReply(
+          `The client just opted in to receive messages from ${business.name}. Send them a short, warm welcome — 1-2 sentences max.`,
+          business, customer, [], [], ""
+        );
+        if (welcomeReply) {
+          await sendSMS(fromNumber, toNumber, welcomeReply);
+          await supabase.from("messages").insert({
+            business_id: business.id,
+            customer_id: customer?.id ?? null,
+            direction:   "outbound",
+            channel:     "sms",
+            body:        welcomeReply,
+            from_number: toNumber,
+            to_number:   fromNumber,
+            read:        true,
+          });
+        }
+        return new Response(
+          `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+          { headers: { "Content-Type": "text/xml" } }
+        );
+      }
+
       return new Response(
         `<?xml version="1.0" encoding="UTF-8"?><Response><Message>You have been resubscribed to ${business.name} messages. Reply STOP to unsubscribe.</Message></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    // New customer texting for the first time — send opt-in request before anything else
+    if (!customer) {
+      const { data: newCustomer } = await supabase
+        .from("customers")
+        .insert({ business_id: business.id, phone: fromNumber, sms_opted_out: true })
+        .select("id")
+        .single();
+
+      const optInMsg = business.settings?.sms_opt_in_message
+        ?? `Hi! This is ${business.name}. Reply YES to receive messages from us, or STOP to opt out. Msg & data rates may apply.`;
+
+      await sendSMS(fromNumber, toNumber, optInMsg);
+      await supabase.from("messages").insert([
+        {
+          business_id: business.id, customer_id: newCustomer?.id ?? null,
+          direction: "inbound", channel: "sms", body,
+          from_number: fromNumber, to_number: toNumber, twilio_sid: messageSid, read: false,
+        },
+        {
+          business_id: business.id, customer_id: newCustomer?.id ?? null,
+          direction: "outbound", channel: "sms", body: optInMsg,
+          from_number: toNumber, to_number: fromNumber, read: true,
+        },
+      ]);
+
+      console.log("New customer opt-in sent to", fromNumber);
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    // Block all further processing for opted-out customers
+    if (customer.sms_opted_out === true) {
+      console.log("Customer is opted out — dropping message from", fromNumber);
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
         { headers: { "Content-Type": "text/xml" } }
       );
     }

@@ -136,7 +136,7 @@ export async function DELETE(request: Request) {
   // Fetch the target member
   const { data: target } = await supabase
     .from("business_members")
-    .select("business_id, user_id, is_owner")
+    .select("business_id, user_id")
     .eq("id", member_id)
     .maybeSingle();
 

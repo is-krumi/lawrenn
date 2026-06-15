@@ -106,8 +106,9 @@ export default function LibraryPage() {
   const renameInputRef         = useRef<HTMLInputElement>(null);
   const newFolderCommittedRef  = useRef(false);
 
-  const [previewDoc,     setPreviewDoc]     = useState<{ url: string; name: string } | null>(null);
-  const [previewWidth,   setPreviewWidth]   = useState(480);
+  const [previewDoc,      setPreviewDoc]      = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth,    setPreviewWidth]    = useState(480);
+  const [previewDragging, setPreviewDragging] = useState(false);
   const [contextMenu,    setContextMenu]    = useState<{ x: number; y: number; doc: DocRecord } | null>(null);
   const [renamingDocId,  setRenamingDocId]  = useState<string | null>(null);
   const [renameDocValue, setRenameDocValue] = useState("");
@@ -127,6 +128,7 @@ export default function LibraryPage() {
 
   const onPreviewMouseUp = useCallback(() => {
     previewDragRef.current = null;
+    setPreviewDragging(false);
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
   }, []);
@@ -143,6 +145,7 @@ export default function LibraryPage() {
   function startPreviewDrag(e: React.MouseEvent) {
     e.preventDefault();
     previewDragRef.current = { startX: e.clientX, startW: previewWidth };
+    setPreviewDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }
@@ -614,22 +617,22 @@ export default function LibraryPage() {
             </div>
           ) : (
             <div style={{ background: "white", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#FAFAFA" }}>
-                {["", "Name", "Type", "Pages", "Status"].map((h, i) => (
+              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#FAFAFA" }}>
+                {["", "Name", "Type", "Pages"].map((h, i) => (
                   <span key={i} style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{h}</span>
                 ))}
               </div>
 
               {uploading && (
-                <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px", gap: "0.5rem", padding: "0.8rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)", alignItems: "center" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px", gap: "0.5rem", padding: "0.8rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)", alignItems: "center" }}>
                   <div />
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
                     <DocTypeIcon name={uploadingName} />
                     <span style={{ fontSize: "0.875rem", color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{uploadingName}</span>
+                    <span style={{ fontSize: "0.72rem", color: "#9CA3AF", flexShrink: 0 }}>Processing…</span>
                   </div>
                   <span style={{ fontSize: "0.82rem", color: "#9CA3AF" }}>—</span>
                   <span style={{ fontSize: "0.82rem", color: "#9CA3AF" }}>—</span>
-                  <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>Processing…</span>
                 </div>
               )}
 
@@ -643,7 +646,7 @@ export default function LibraryPage() {
                     onDragEnd={() => { setDraggingDocId(null); setDragOverFolderId(null); }}
                     onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, doc }); }}
                     style={{
-                      display: "grid", gridTemplateColumns: "20px 1fr 120px 56px 72px",
+                      display: "grid", gridTemplateColumns: "20px 1fr 120px 56px",
                       gap: "0.5rem", padding: "0.8rem 1rem",
                       borderBottom: idx < visibleDocuments.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                       alignItems: "center",
@@ -694,9 +697,6 @@ export default function LibraryPage() {
                     </span>
                     <span style={{ fontSize: "0.82rem", color: "#374151" }}>
                       {doc.page_count != null ? doc.page_count : "—"}
-                    </span>
-                    <span style={{ fontSize: "0.78rem", textTransform: "capitalize" as const, color: doc.status === "ready" ? "#059669" : doc.status === "failed" ? "#DC2626" : "#9CA3AF" }}>
-                      {doc.status}
                     </span>
                   </div>
                 );
@@ -940,11 +940,16 @@ export default function LibraryPage() {
                 </svg>
               </button>
             </div>
-            <iframe
-              src={previewDoc.url}
-              style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
-              title={previewDoc.name}
-            />
+            <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+              <iframe
+                src={previewDoc.url}
+                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                title={previewDoc.name}
+              />
+              {previewDragging && (
+                <div style={{ position: "absolute", inset: 0, zIndex: 10 }} />
+              )}
+            </div>
           </div>
         </>
       )}

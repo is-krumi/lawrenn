@@ -196,7 +196,7 @@ You have access to:
 
 Rules:
 - Prioritize information from THIS MATTER section. Use RELATED CONTEXT to supplement.
-- Be specific and concise. Use bullet points where helpful.
+- Be specific and concise. Write in plain prose. Only use bullet points or lists when the answer is genuinely a list of items — not for general explanations or summaries.
 - Address questions about the client, case status, call history, and documents directly.
 - Do not preface answers with "based on". Just answer directly.
 - If the answer isn't in the data, say so clearly.`,

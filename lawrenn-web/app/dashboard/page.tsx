@@ -36,9 +36,11 @@ export default function Dashboard() {
   const router = useRouter();
 
   const { businessId, businessName, loading: bizLoading } = useBusiness();
-  const [jobs, setJobs]         = useState<Job[]>([]);
-  const [calls, setCalls]       = useState<Call[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [jobs, setJobs]               = useState<Job[]>([]);
+  const [calls, setCalls]             = useState<Call[]>([]);
+  const [mattersCount, setMattersCount] = useState(0);
+  const [callsTodayCount, setCallsTodayCount] = useState(0);
+  const [loading, setLoading]         = useState(true);
   const [greeting, setGreeting] = useState("Good morning");
 
   useEffect(() => {
@@ -55,43 +57,60 @@ export default function Dashboard() {
     async function load() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date();
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
 
-      const { data: jobsData } = await supabase
-        .from("jobs")
-        .select(`
-          id, type, status, slot_start, slot_end, amount, source,
-          customers (name, phone),
-          technicians (name, color)
-        `)
-        .eq("business_id", businessId)
-        .gte("slot_start", todayStart.toISOString())
-        .lte("slot_start", weekEnd.toISOString())
-        .order("slot_start", { ascending: true })
-        .limit(10);
+      const [
+        { data: jobsData },
+        { data: callsData },
+        { count: mattersThisWeek },
+        { count: callsToday },
+      ] = await Promise.all([
+        // Upcoming scheduled matters for the list
+        supabase
+          .from("jobs")
+          .select(`id, type, status, slot_start, slot_end, amount, source, customers (name, phone), technicians (name, color)`)
+          .eq("business_id", businessId)
+          .gte("slot_start", todayStart.toISOString())
+          .order("slot_start", { ascending: true })
+          .limit(10),
+        // Recent calls for the list
+        supabase
+          .from("calls")
+          .select(`id, caller_phone, outcome, duration_seconds, created_at, transcript, customers (name)`)
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: false })
+          .limit(6),
+        // Stat: all matters created this week (regardless of slot_start)
+        supabase
+          .from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId)
+          .gte("created_at", weekStart.toISOString()),
+        // Stat: calls today
+        supabase
+          .from("calls")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", businessId)
+          .gte("created_at", todayStart.toISOString())
+          .lte("created_at", todayEnd.toISOString()),
+      ]);
 
       setJobs((jobsData as any) ?? []);
-
-      const { data: callsData } = await supabase
-        .from("calls")
-        .select(`
-          id, caller_phone, outcome, duration_seconds, created_at, transcript,
-          customers (name)
-        `)
-        .eq("business_id", businessId)
-        .order("created_at", { ascending: false })
-        .limit(6);
-
       setCalls((callsData as any) ?? []);
+      setMattersCount(mattersThisWeek ?? 0);
+      setCallsTodayCount(callsToday ?? 0);
       setLoading(false);
     }
     load();
 
     const callsSub = supabase
       .channel(`dashboard-calls-${businessId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, (payload) => {
-        setCalls(prev => [payload.new as Call, ...prev].slice(0, 6));
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, () => {
+        load();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls", filter: `business_id=eq.${businessId}` }, (payload) => {
         setCalls(prev => prev.map(c => c.id === payload.new.id ? { ...c, ...payload.new as Call } : c));
@@ -199,9 +218,9 @@ export default function Dashboard() {
         {/* Stats row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "rgba(0,0,0,0.07)", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, overflow: "hidden", marginBottom: "2.5rem" }}>
           {[
-            { label: "Calls today",       value: todayCalls.length,  sub: "AI answered"        },
-            { label: "Matters this week", value: jobs.length,         sub: `${aiRate}% via AI`  },
-            { label: "Today's schedule",  value: todayJobs.length,    sub: "matters scheduled"  },
+            { label: "Calls today",       value: callsTodayCount,  sub: "AI answered"        },
+            { label: "Matters this week", value: mattersCount,      sub: `${aiRate}% via AI`  },
+            { label: "Today's schedule",  value: todayJobs.length, sub: "matters scheduled"  },
           ].map(({ label, value, sub }) => (
             <div key={label} style={{ background: "white", padding: "1.5rem 1.25rem" }}>
               <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "0.6rem" }}>{label}</p>

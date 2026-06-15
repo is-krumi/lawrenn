@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     }
 
     // 5. Send invite email via Resend
-    const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? "https://lawrenn.com";
+    const appUrl    = process.env.SITE_URL ?? "https://lawrenn.com";
     const inviteUrl = `${appUrl}/accept-invite?id=${invitation.id}`;
 
     const emailRes = await fetch("https://api.resend.com/emails", {
