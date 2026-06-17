@@ -568,7 +568,7 @@ export default function MatterDetailPage() {
   }
 
   function startEditMatterContact(c: MatterContact) {
-    setMatterContactEdit({ contactType: c.contact_type, firstName: c.first_name ?? "", lastName: c.last_name ?? "", phone: c.phone ?? "", email: c.email ?? "" });
+    setMatterContactEdit({ contactType: c.contact_type, firstName: c.first_name ?? "", lastName: c.last_name ?? "", phone: c.phone ?? "", email: c.email ?? "", address: "" });
     setEditingMatterContactId(c.id);
   }
 
