@@ -253,14 +253,14 @@ function CallsPageInner() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ maxWidth: selected ? 1400 : 900, margin: "0 auto", padding: "2rem", transition: "max-width 0.2s" }}>
 
         {/* Header */}
@@ -327,11 +327,11 @@ function CallsPageInner() {
                         padding: "0.85rem 1.25rem",
                         borderBottom: i < calls.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                         cursor: "pointer",
-                        background: isActive ? "#F5F5F0" : "white",
+                        background: isActive ? "#ffffff" : "white",
                         transition: "background 0.12s",
                         borderLeft: isActive ? "2px solid #111111" : "2px solid transparent",
                       }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#FAFAFA"; }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#ffffff"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "white"; }}>
 
                       {/* Status dot */}

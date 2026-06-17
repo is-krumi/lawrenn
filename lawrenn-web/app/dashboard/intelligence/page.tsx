@@ -563,7 +563,7 @@ export default function IntelligencePage() {
 
   if (bizLoading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading...</p>
       </div>
     );
@@ -575,7 +575,7 @@ export default function IntelligencePage() {
       onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
       onDrop={e => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFileDrop(file); }}
-      style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif", position: "relative" as const }}>
+      style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#ffffff", fontFamily: "'DM Sans', sans-serif", position: "relative" as const }}>
 
       {/* Drag overlay */}
       {isDragging && (
@@ -606,7 +606,7 @@ export default function IntelligencePage() {
           <div style={{ padding: "0.6rem 0.65rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
             <button
               onClick={startNewChat}
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem 0.65rem", background: "#F5F5F0", border: "none", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 500, cursor: "pointer" }}>
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem 0.65rem", background: "#ffffff", border: "none", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 500, cursor: "pointer" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Chat
             </button>
@@ -704,7 +704,7 @@ export default function IntelligencePage() {
                       <div style={{
                         maxWidth: "72%",
                         padding: "0.65rem 1rem",
-                        background: "#F5F5F0",
+                        background: "#EDE8DF",
                         borderRadius: "16px 16px 4px 16px",
                         color: "#111111",
                         fontSize: "0.875rem",

@@ -186,7 +186,7 @@ ${ragContext}
       method: "POST",
       headers: { "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1024,
         system: `You are an AI legal assistant helping an attorney with a specific client matter.
 

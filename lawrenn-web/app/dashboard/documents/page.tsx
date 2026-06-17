@@ -599,7 +599,7 @@ export default function DocumentsPage() {
                       <div style={{
                         maxWidth: "88%", padding: "0.5rem 0.7rem",
                         borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                        background: msg.role === "user" ? "#F5F5F0" : "#F3F4F6",
+                        background: msg.role === "user" ? "#ffffff" : "#F3F4F6",
                         color: "#111111",
                         fontSize: "0.78rem", lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif", whiteSpace: "pre-wrap",
                       }}>

@@ -435,7 +435,7 @@ export default function ProductPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'DM Sans', sans-serif; background: #F5F5F0; overflow-x: hidden; }
+        body { font-family: 'DM Sans', sans-serif; background: #ffffff; overflow-x: hidden; }
 .cta-btn { transition: all 0.2s; }
         .cta-btn:hover { opacity: 0.85; transform: translateY(-1px); }
         .feature-card { transition: all 0.2s; }
@@ -482,7 +482,7 @@ export default function ProductPage() {
       </section>
 
       {/* ── Intro ── */}
-      <section style={{ background: "#F5F5F0", padding: "6rem 8%" }}>
+      <section style={{ background: "#ffffff", padding: "6rem 8%" }}>
         <Reveal>
           <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
             <p style={{ fontFamily: "'DM Mono'", fontSize: "0.65rem", color: "rgba(0,0,0,0.35)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "1.25rem" }}>{name}</p>
@@ -514,7 +514,7 @@ export default function ProductPage() {
 
       {/* ── Deep sections ── */}
       {deep.map((d, i) => (
-        <section key={i} style={{ background: i % 2 === 0 ? "#0D1117" : "#F5F5F0", padding: "6rem 8%" }}>
+        <section key={i} style={{ background: i % 2 === 0 ? "#0D1117" : "#ffffff", padding: "6rem 8%" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5rem", alignItems: "center" }}>
             <Reveal delay={0}>
               <p style={{ fontFamily: "'DM Mono'", fontSize: "0.65rem", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "1rem", color: i % 2 === 0 ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }}>{d.eyebrow}</p>

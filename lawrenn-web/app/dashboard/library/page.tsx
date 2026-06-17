@@ -406,7 +406,7 @@ export default function LibraryPage() {
   }
 
   if (bizLoading) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <p style={{ color: "#6B7280" }}>Loading...</p>
     </div>
   );
@@ -417,7 +417,7 @@ export default function LibraryPage() {
         onDragOver={onPageDragOver}
         onDragLeave={onPageDragLeave}
         onDrop={onPageDrop}
-        style={{ minHeight: "calc(100vh - 52px)", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif", position: "relative", padding: "2rem" }}
+        style={{ minHeight: "calc(100vh - 52px)", background: "#ffffff", fontFamily: "'DM Sans', sans-serif", position: "relative", padding: "2rem" }}
       >
         {isDraggingFile && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(12,192,223,0.05)", border: "2px dashed rgba(12,192,223,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, pointerEvents: "none" }}>
@@ -617,7 +617,7 @@ export default function LibraryPage() {
             </div>
           ) : (
             <div style={{ background: "white", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#FAFAFA" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "20px 1fr 120px 56px", gap: "0.5rem", padding: "0.5rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.07)", background: "#ffffff" }}>
                 {["", "Name", "Type", "Pages"].map((h, i) => (
                   <span key={i} style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>{h}</span>
                 ))}

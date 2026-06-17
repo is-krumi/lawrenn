@@ -144,7 +144,7 @@ export default function OnboardingStep2() {
     return (
         <div style={{
             minHeight: "100vh",
-            background: "#F5F5F0",
+            background: "#ffffff",
             display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
             padding: "2rem 1rem",
@@ -204,7 +204,7 @@ export default function OnboardingStep2() {
                                 <button key={svc.name} onClick={() => toggleService(svc)}
                                     style={{
                                         padding: "0.65rem 0.9rem",
-                                        background: selected ? "rgba(17,17,17,0.06)" : "#F5F5F0",
+                                        background: selected ? "rgba(17,17,17,0.06)" : "#ffffff",
                                         border: `1.5px solid ${selected ? "#111111" : "rgba(0,0,0,0.1)"}`,
                                         borderRadius: 8,
                                         color: selected ? "#111111" : "#374151",
@@ -234,7 +234,7 @@ export default function OnboardingStep2() {
                             value={customSvc}
                             onChange={e => setCustomSvc(e.target.value)}
                             onKeyDown={e => { if (e.key === "Enter") addCustomService(); }}
-                            style={{ flex: 1, padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
+                            style={{ flex: 1, padding: "0.75rem 1rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none" }}
                         />
                         <button onClick={addCustomService}
                             style={{ padding: "0.75rem 1.25rem", background: "#111111", border: "none", borderRadius: 8, color: "white", fontFamily: "'DM Sans'", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer" }}>
@@ -272,11 +272,11 @@ export default function OnboardingStep2() {
                                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
                                         <input type="time" value={hours[day]!.start}
                                             onChange={e => updateHour(day, "start", e.target.value)}
-                                            style={{ padding: "0.35rem 0.5rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none" }} />
+                                            style={{ padding: "0.35rem 0.5rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none" }} />
                                         <span style={{ color: "#9CA3AF", fontSize: "0.85rem" }}>to</span>
                                         <input type="time" value={hours[day]!.end}
                                             onChange={e => updateHour(day, "end", e.target.value)}
-                                            style={{ padding: "0.35rem 0.5rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none" }} />
+                                            style={{ padding: "0.35rem 0.5rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.85rem", outline: "none" }} />
                                     </div>
                                 ) : (
                                     <span style={{ fontSize: "0.85rem", color: "#9CA3AF" }}>Closed</span>

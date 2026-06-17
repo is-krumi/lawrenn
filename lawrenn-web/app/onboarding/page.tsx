@@ -150,7 +150,7 @@ export default function OnboardingStep1() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F5F5F0",
+      background: "#ffffff",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
@@ -281,7 +281,7 @@ export default function OnboardingStep1() {
             onClick={() => { setJurisOpen(o => !o); setJurisSearch(""); }}
             style={{
               width: "100%", padding: "0.75rem 1rem",
-              background: "#F5F5F0",
+              background: "#ffffff",
               border: "1.5px solid rgba(0,0,0,0.1)",
               borderRadius: 8, color: jurisdictions.length ? "#111111" : "#9CA3AF",
               fontFamily: "'DM Sans'", fontSize: "0.95rem",
@@ -315,7 +315,7 @@ export default function OnboardingStep1() {
                   onChange={e => setJurisSearch(e.target.value)}
                   style={{
                     width: "100%", padding: "0.5rem 0.75rem",
-                    background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)",
+                    background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)",
                     borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.875rem",
                     color: "#111111", outline: "none", boxSizing: "border-box",
                   }}
@@ -342,7 +342,7 @@ export default function OnboardingStep1() {
                         color: "#111111",
                         display: "flex", alignItems: "center", justifyContent: "space-between",
                       }}
-                      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = "#F5F5F0"; }}
+                      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = "#ffffff"; }}
                       onMouseLeave={e => { if (!selected) e.currentTarget.style.background = "transparent"; }}
                     >
                       {j}
@@ -426,7 +426,7 @@ function inputStyle(hasError: boolean): React.CSSProperties {
   return {
     width: "100%",
     padding: "0.75rem 1rem",
-    background: "#F5F5F0",
+    background: "#ffffff",
     border: `1.5px solid ${hasError ? "#FCA5A5" : "rgba(0,0,0,0.1)"}`,
     borderRadius: 8,
     color: "#111111",

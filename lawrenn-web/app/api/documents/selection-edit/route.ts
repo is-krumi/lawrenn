@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 512,
       system: `You are an AI assistant for a law firm document editor.
 The user has selected a portion of text and wants you to rewrite it.

@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2500,
         system: `You are an expert legal research assistant. Analyze a legal matter and produce a structured research brief.
 
