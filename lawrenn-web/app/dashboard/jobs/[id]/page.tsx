@@ -23,7 +23,7 @@ interface Job {
   ai_notes: string | null;
   created_at: string;
   updated_at: string | null;
-  customers: { id: string; name: string; phone: string; address: string; email: string | null; contact_type: string | null } | null;
+  customers: { id: string; name: string; phone: string; address: string | null; email: string | null; contact_type: string | null } | null;
   technicians: { name: string; color: string } | null;
   technician_id: string | null;
 }
