@@ -18,6 +18,49 @@ interface ChatMessage {
   content: string;
 }
 
+interface TrackedChange {
+  id: string;
+  instruction: string;
+  rationale: string;
+  originalText: string;
+  proposedText: string;
+  status: "accepted" | "rejected";
+  timestamp: number;
+}
+
+interface InlineChange {
+  id: string;
+  delFrom: number;
+  delTo: number;
+  insFrom: number;
+  insTo: number;
+  originalText: string;
+  proposedText: string;
+  rationale: string;
+  instruction: string;
+  textblocks: Array<{ from: number; to: number; text: string }> | null;
+}
+
+type DiffPart = { v: string; t: "eq" | "del" | "ins" };
+
+function wordDiff(a: string, b: string): DiffPart[] {
+  const tok = (s: string) => s.match(/\S+|\s+/g) ?? [];
+  const aW = tok(a), bW = tok(b);
+  const m = aW.length, n = bW.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = aW[i-1] === bW[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const result: DiffPart[] = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && aW[i-1] === bW[j-1]) { result.unshift({ v: aW[i-1], t: "eq" }); i--; j--; }
+    else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) { result.unshift({ v: bW[j-1], t: "ins" }); j--; }
+    else { result.unshift({ v: aW[i-1], t: "del" }); i--; }
+  }
+  return result;
+}
+
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   if (diff < 60_000)          return "just now";
@@ -37,7 +80,7 @@ export default function DocumentsPage() {
   const [question, setQuestion]         = useState("");
   const [aiLoading, setAiLoading]       = useState(false);
   const [leftWidth, setLeftWidth]       = useState(300);
-  const [leftTab, setLeftTab]           = useState<"ai" | "docs">("ai");
+  const [leftTab, setLeftTab]           = useState<"ai" | "docs" | "changes">("ai");
   const [docList, setDocList]           = useState<DocMeta[]>([]);
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
 
@@ -45,16 +88,20 @@ export default function DocumentsPage() {
     x: number; y: number;
     text: string; before: string; paragraphText: string; paraId: string | null;
     pmFrom: number; pmTo: number;
+    textblocks: Array<{ from: number; to: number; text: string }> | null;
   } | null>(null);
   const [selLoading, setSelLoading] = useState(false);
   const [selPrompt, setSelPrompt]   = useState("");
   const [selAsk, setSelAsk]         = useState("");
+  const [inlineChange, setInlineChange]   = useState<InlineChange | null>(null);
+  const [changeHistory, setChangeHistory] = useState<TrackedChange[]>([]);
+  const inlineChangeRef = useRef<InlineChange | null>(null);
 
-  const editorRef     = useRef<DocxEditorRef>(null);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const dragState     = useRef<{ startX: number; startW: number } | null>(null);
-  const chatEndRef    = useRef<HTMLDivElement>(null);
-  const pendingSelPos = useRef<{ x: number; y: number } | null>(null);
+  const editorRef        = useRef<DocxEditorRef>(null);
+  const fileInputRef     = useRef<HTMLInputElement>(null);
+  const dragState        = useRef<{ startX: number; startW: number } | null>(null);
+  const chatEndRef       = useRef<HTMLDivElement>(null);
+  const pendingSelPos    = useRef<{ x: number; y: number } | null>(null);
 
   // ── Restore last doc + load list on mount ─────────────────────────────────
   useEffect(() => {
@@ -94,6 +141,10 @@ export default function DocumentsPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
+
+  useEffect(() => {
+    inlineChangeRef.current = inlineChange;
+  }, [inlineChange]);
 
   // ── IndexedDB helpers ──────────────────────────────────────────────────────
   async function persistCurrentDoc(idOverride?: string, nameOverride?: string) {
@@ -183,8 +234,10 @@ export default function DocumentsPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleEditorSelectionChange(state: any) {
+    if (inlineChangeRef.current) return; // freeze bubble while change is pending
     if (!state?.hasSelection) {
-      setSelBubble(null); setSelPrompt(""); setSelAsk(""); pendingSelPos.current = null;
+      setSelBubble(null); setSelPrompt(""); setSelAsk("");
+      pendingSelPos.current = null;
       return;
     }
     const editor = editorRef.current;
@@ -196,6 +249,19 @@ export default function DocumentsPage() {
     const view   = paged?.getView();
     const pmFrom = view?.state.selection.from ?? -1;
     const pmTo   = view?.state.selection.to   ?? -1;
+
+    // Collect textblocks in selection — multiple means list items or multi-paragraph
+    let textblocks: Array<{ from: number; to: number; text: string }> | null = null;
+    if (view && pmFrom !== -1 && pmTo !== -1) {
+      const blocks: Array<{ from: number; to: number; text: string }> = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      view.state.doc.nodesBetween(pmFrom, pmTo, (node: any, pos: number) => {
+        if (node.isTextblock && node.textContent.trim()) {
+          blocks.push({ from: pos + 1, to: pos + node.nodeSize - 1, text: node.textContent });
+        }
+      });
+      if (blocks.length > 1) textblocks = blocks;
+    }
 
     let pos = pendingSelPos.current;
     if (!pos) {
@@ -211,7 +277,7 @@ export default function DocumentsPage() {
       x: pos.x, y: pos.y,
       text: info.selectedText, before: info.before,
       paragraphText: info.paragraphText, paraId: info.paraId,
-      pmFrom, pmTo,
+      pmFrom, pmTo, textblocks,
     });
   }
 
@@ -363,39 +429,158 @@ export default function DocumentsPage() {
   async function applySelectionEdit(instruction: string) {
     if (!selBubble) return;
     setSelLoading(true);
-    const { text, paragraphText, pmFrom, pmTo } = selBubble;
+    const { text, paragraphText, pmFrom, pmTo, textblocks } = selBubble;
+
+    const selectedText = textblocks
+      ? textblocks.map(tb => `- ${tb.text}`).join("\n")
+      : text;
 
     try {
       const res = await fetch("/api/documents/selection-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedText: text, instruction, documentContext: paragraphText }),
+        body: JSON.stringify({ selectedText, instruction, documentContext: paragraphText }),
       });
       if (!res.ok) throw new Error(`API ${res.status}`);
-      const data        = await res.json();
-      const replacement = (data.replacement ?? text) as string;
+      const data      = await res.json();
+      const proposed  = (data.replacement ?? text) as string;
+      const rationale = (data.rationale   ?? "")   as string;
+      const originalText = textblocks ? textblocks.map(tb => tb.text).join("\n") : text;
 
       const editor = editorRef.current;
       const paged  = editor?.getEditorRef();
       const view   = paged?.getView();
-      if (!paged || !view) return;
 
-      if (pmFrom !== -1 && pmTo !== -1 && pmFrom < pmTo) {
-        paged.dispatch(view.state.tr.insertText(replacement, pmFrom, pmTo));
-        paged.relayout();
-      } else {
-        await applyEdits([{ type: "replace", search: text, replace_with: replacement }]);
+      if (textblocks && textblocks.length > 1) {
+        setInlineChange({
+          id: crypto.randomUUID(),
+          delFrom: pmFrom, delTo: pmTo,
+          insFrom: pmTo, insTo: pmTo,
+          originalText, proposedText: proposed,
+          rationale, instruction, textblocks,
+        });
+      } else if (view && pmFrom !== -1 && pmTo !== -1 && pmFrom < pmTo) {
+        const schema = view.state.schema;
+        const revisionId = Date.now();
+        const date = new Date().toISOString();
+        const deletionMark  = schema.marks.deletion?.create({ revisionId, author: "AI", date });
+        const insertionMark = schema.marks.insertion?.create({ revisionId, author: "AI", date });
+
+        if (deletionMark && insertionMark && proposed.length > 0) {
+          // Must create the text node with the mark PRE-ATTACHED (schema.text + insert),
+          // not via insertText + addMark afterward — the visual renderer only picks up
+          // marks that are on the node at insertion time. Dispatch directly to view;
+          // the RAF-scheduled Ge handles the visual relayout automatically.
+          const insNode = schema.text(proposed, [insertionMark]);
+          view.dispatch(
+            view.state.tr
+              .addMark(pmFrom, pmTo, deletionMark)
+              .insert(pmTo, insNode)
+          );
+        } else if (deletionMark && proposed.length === 0) {
+          // Pure deletion — only add deletion mark, no insertion
+          view.dispatch(view.state.tr.addMark(pmFrom, pmTo, deletionMark));
+        } else {
+          // Marks not in schema — fall back to plain text replacement
+          paged?.dispatch(view.state.tr.insertText(proposed, pmFrom, pmTo));
+          paged?.relayout();
+        }
+
+        setInlineChange({
+          id: String(revisionId),
+          delFrom: pmFrom, delTo: pmTo,
+          insFrom: pmTo,   insTo: pmTo + proposed.length,
+          originalText, proposedText: proposed,
+          rationale, instruction, textblocks: null,
+        });
       }
 
-      await persistCurrentDoc();
+      // Close bubble immediately — diff is visible in the document.
+      // Open the Changes tab so Accept/Reject is right there.
       setSelBubble(null);
       setSelPrompt("");
       setSelAsk("");
+      setLeftTab("changes");
     } catch (e) {
       console.error("[selectionEdit]", e);
     } finally {
       setSelLoading(false);
     }
+  }
+
+  // ── Accept ─────────────────────────────────────────────────────────────────
+  async function acceptInlineChange() {
+    const change = inlineChangeRef.current;
+    if (!change) return;
+
+    const editor = editorRef.current;
+    const paged  = editor?.getEditorRef();
+    const view   = paged?.getView();
+
+    if (change.textblocks && change.textblocks.length > 1) {
+      // List path: replace each item individually
+      if (paged && view) {
+        const lines = change.proposedText
+          .split("\n")
+          .map(l => l.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+          .filter(l => l.length > 0);
+        let tr = view.state.tr;
+        const count = Math.min(change.textblocks.length, lines.length);
+        for (let i = count - 1; i >= 0; i--) {
+          tr = tr.insertText(lines[i], change.textblocks[i].from, change.textblocks[i].to);
+        }
+        paged.dispatch(tr);
+        paged.relayout();
+      }
+    } else if (view) {
+      const schema = view.state.schema;
+      const proposedLen = change.insTo - change.insFrom;
+      // Delete original text; proposed text shifts left to delFrom..delFrom+proposedLen
+      let tr = view.state.tr.delete(change.delFrom, change.delTo);
+      if (schema.marks.insertion) {
+        tr = tr.removeMark(change.delFrom, change.delFrom + proposedLen, schema.marks.insertion);
+      }
+      view.dispatch(tr);
+    }
+
+    await persistCurrentDoc();
+    setChangeHistory(prev => [...prev, {
+      id: change.id, instruction: change.instruction, rationale: change.rationale,
+      originalText: change.originalText, proposedText: change.proposedText,
+      status: "accepted", timestamp: Date.now(),
+    }]);
+    setInlineChange(null);
+    setSelBubble(null); setSelPrompt(""); setSelAsk("");
+  }
+
+  // ── Reject ─────────────────────────────────────────────────────────────────
+  async function rejectInlineChange() {
+    const change = inlineChangeRef.current;
+    if (!change) return;
+
+    const paged = editorRef.current?.getEditorRef();
+    const view  = paged?.getView();
+
+    if (!change.textblocks && view && change.insFrom < change.insTo) {
+      const schema = view.state.schema;
+      // Delete proposed (insertion-marked) text first — it's after the original
+      // so original positions (delFrom..delTo) are unaffected by this deletion.
+      let tr = view.state.tr.delete(change.insFrom, change.insTo);
+      if (schema.marks.deletion) {
+        tr = tr.removeMark(change.delFrom, change.delTo, schema.marks.deletion);
+      }
+      view.dispatch(tr);
+      await persistCurrentDoc();
+    }
+    // Lists: nothing was inserted, nothing to undo
+
+    setChangeHistory(prev => [...prev, {
+      id: change.id, instruction: change.instruction, rationale: change.rationale,
+      originalText: change.originalText, proposedText: change.proposedText,
+      status: "rejected", timestamp: Date.now(),
+    }]);
+    setInlineChange(null);
+    setSelBubble(null); setSelPrompt(""); setSelAsk("");
   }
 
   // ── Selection bubble ask ──────────────────────────────────────────────────
@@ -537,20 +722,24 @@ export default function DocumentsPage() {
 
             {/* Tab bar */}
             <div style={{ flexShrink: 0, display: "flex", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              {(["ai", "docs"] as const).map(tab => (
+              {([
+                { id: "ai",      label: "AI" },
+                { id: "docs",    label: "Docs" },
+                { id: "changes", label: `Changes${changeHistory.length > 0 ? ` (${changeHistory.length})` : ""}` },
+              ] as const).map(tab => (
                 <button
-                  key={tab}
-                  onClick={() => setLeftTab(tab)}
+                  key={tab.id}
+                  onClick={() => setLeftTab(tab.id)}
                   style={{
                     flex: 1, padding: "0.55rem 0", background: "transparent", border: "none",
-                    borderBottom: leftTab === tab ? "2px solid #111111" : "2px solid transparent",
-                    fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem",
-                    fontWeight: leftTab === tab ? 700 : 500,
-                    color: leftTab === tab ? "#111111" : "#9CA3AF",
+                    borderBottom: leftTab === tab.id ? "2px solid #111111" : "2px solid transparent",
+                    fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem",
+                    fontWeight: leftTab === tab.id ? 700 : 500,
+                    color: leftTab === tab.id ? "#111111" : "#9CA3AF",
                     cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.06em",
                     transition: "color 0.15s",
                   }}>
-                  {tab === "ai" ? "AI" : "Documents"}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -730,6 +919,109 @@ export default function DocumentsPage() {
                 </div>
               </div>
             )}
+            {/* Changes tab */}
+            {leftTab === "changes" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+
+                {/* Pending change — Accept / Reject */}
+                {inlineChange && (
+                  <div style={{
+                    padding: "0.85rem 1rem",
+                    background: "rgba(251,191,36,0.06)",
+                    borderBottom: "2px solid rgba(251,191,36,0.25)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                      <span style={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", color: "#b45309", textTransform: "uppercase", fontFamily: "'DM Sans', sans-serif" }}>
+                        Pending Review
+                      </span>
+                    </div>
+
+                    {inlineChange.rationale && (
+                      <p style={{ fontSize: "0.73rem", color: "#374151", margin: "0 0 0.5rem", fontStyle: "italic", lineHeight: 1.45, fontFamily: "'DM Sans', sans-serif" }}>
+                        "{inlineChange.rationale}"
+                      </p>
+                    )}
+
+                    {/* Word diff preview for list selections */}
+                    {inlineChange.textblocks && inlineChange.textblocks.length > 1 && (
+                      <div style={{
+                        fontSize: "0.72rem", lineHeight: 1.6, marginBottom: "0.5rem",
+                        padding: "6px 8px", background: "rgba(0,0,0,0.03)", borderRadius: 5,
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}>
+                        {wordDiff(
+                          inlineChange.originalText,
+                          inlineChange.proposedText.replace(/^[-*•]\s*/gm, ""),
+                        ).map((part, i) => {
+                          if (part.t === "del") return <span key={i} style={{ textDecoration: "line-through", color: "#dc2626" }}>{part.v}</span>;
+                          if (part.t === "ins") return <span key={i} style={{ color: "#16a34a", fontWeight: 500 }}>{part.v}</span>;
+                          return <span key={i} style={{ color: "#374151" }}>{part.v}</span>;
+                        })}
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={acceptInlineChange}
+                        style={{
+                          flex: 1, padding: "5px 0", background: "#16a34a", border: "none",
+                          borderRadius: 5, color: "white", fontSize: "0.75rem",
+                          fontFamily: "'DM Sans', sans-serif", fontWeight: 600, cursor: "pointer",
+                        }}>
+                        Accept
+                      </button>
+                      <button
+                        onClick={rejectInlineChange}
+                        style={{
+                          flex: 1, padding: "5px 0", background: "white",
+                          border: "1px solid rgba(220,38,38,0.4)", borderRadius: 5,
+                          color: "#dc2626", fontSize: "0.75rem",
+                          fontFamily: "'DM Sans', sans-serif", fontWeight: 600, cursor: "pointer",
+                        }}>
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* History */}
+                {changeHistory.length === 0 && !inlineChange ? (
+                  <div style={{ padding: "2rem 1rem", textAlign: "center", color: "#9CA3AF", fontSize: "0.78rem", lineHeight: 1.6 }}>
+                    No AI edits yet.<br />Highlight text and give an instruction to propose a redline.
+                  </div>
+                ) : (
+                  [...changeHistory].reverse().map(ch => (
+                    <div key={ch.id} style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+                        <span style={{
+                          fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
+                          fontFamily: "'DM Sans', sans-serif",
+                          color: ch.status === "accepted" ? "#16a34a" : "#9CA3AF",
+                        }}>
+                          {ch.status}
+                        </span>
+                        <span style={{ fontSize: "0.65rem", color: "#9CA3AF", fontFamily: "'DM Sans', sans-serif" }}>{relativeTime(ch.timestamp)}</span>
+                      </div>
+                      {ch.rationale && (
+                        <p style={{ fontSize: "0.72rem", color: "#374151", margin: "0 0 0.35rem", fontStyle: "italic", lineHeight: 1.4, fontFamily: "'DM Sans', sans-serif" }}>
+                          "{ch.rationale}"
+                        </p>
+                      )}
+                      <p style={{ fontSize: "0.68rem", color: "#6B7280", margin: 0, lineHeight: 1.5, fontFamily: "'DM Sans', sans-serif" }}>
+                        <span style={{ textDecoration: "line-through", color: "#dc2626" }}>
+                          {ch.originalText.length > 55 ? ch.originalText.slice(0, 55) + "…" : ch.originalText}
+                        </span>
+                        {ch.status === "accepted" && (
+                          <> → <span style={{ color: "#16a34a" }}>
+                            {ch.proposedText.length > 55 ? ch.proposedText.slice(0, 55) + "…" : ch.proposedText}
+                          </span></>
+                        )}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           {/* Drag handle */}
@@ -807,105 +1099,107 @@ export default function DocumentsPage() {
             width: 0, height: 0,
             borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid #1a1a1a",
           }} />
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {[
-              { label: "Tighten",  instruction: "Make this clause more precise and legally airtight, removing ambiguity" },
-              { label: "Simplify", instruction: "Rewrite in plain English while preserving the full legal meaning" },
-              { label: "Qualify",  instruction: "Add appropriate qualifications, limitations, or carve-outs to this clause" },
-              { label: "Formalize", instruction: "Rewrite using formal legal language and standard legal drafting conventions" },
-            ].map(p => (
-              <button
-                key={p.label} type="button" disabled={selLoading}
-                onMouseDown={e => { e.preventDefault(); applySelectionEdit(p.instruction); }}
-                style={{
-                  background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 5, color: "rgba(255,255,255,0.9)",
-                  fontSize: "0.72rem", fontFamily: "'DM Sans', sans-serif",
-                  fontWeight: 500, padding: "3px 9px", cursor: selLoading ? "wait" : "pointer",
-                }}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            <input
-              type="text" value={selPrompt} placeholder="Custom instruction…"
-              disabled={selLoading}
-              autoFocus
-              onChange={e => setSelPrompt(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && selPrompt.trim()) { e.preventDefault(); applySelectionEdit(selPrompt.trim()); }
-                if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
-                if (e.key === "Backspace" && selPrompt === "") {
-                  // User wants to delete the selected text — apply it via PM and close bubble
-                  e.preventDefault();
-                  const paged = editorRef.current?.getEditorRef();
-                  const view  = paged?.getView();
-                  const f = selBubble?.pmFrom ?? -1;
-                  const t = selBubble?.pmTo   ?? -1;
-                  if (paged && view && f !== -1 && t !== -1 && f < t) {
-                    paged.dispatch(view.state.tr.insertText("", f, t));
-                    paged.relayout();
-                    persistCurrentDoc();
-                  }
-                  setSelBubble(null);
-                  setSelPrompt("");
-                  setSelAsk("");
-                }
-              }}
-              style={{
-                flex: 1, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 5, color: "white", fontSize: "0.72rem",
-                fontFamily: "'DM Sans', sans-serif", padding: "4px 8px", outline: "none",
-              }}
-            />
-            <button
-              type="button" disabled={selLoading || !selPrompt.trim()}
-              onMouseDown={e => { e.preventDefault(); if (selPrompt.trim()) applySelectionEdit(selPrompt.trim()); }}
-              style={{
-                background: selLoading || !selPrompt.trim() ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.18)",
-                border: "none", borderRadius: 5,
-                color: selLoading || !selPrompt.trim() ? "rgba(255,255,255,0.4)" : "white",
-                fontSize: "0.72rem", fontFamily: "'DM Sans', sans-serif", padding: "4px 10px",
-                cursor: selLoading || !selPrompt.trim() ? "default" : "pointer",
-              }}>
-              {selLoading ? "…" : "Go"}
-            </button>
-          </div>
 
-          {/* Ask divider */}
-          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px -2px 0" }} />
+          {(
+            /* ── Edit / ask form ──────────────────────────────────────────── */
+            <>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {[
+                  { label: "Tighten",   instruction: "Make this clause more precise and legally airtight, removing ambiguity" },
+                  { label: "Simplify",  instruction: "Rewrite in plain English while preserving the full legal meaning" },
+                  { label: "Qualify",   instruction: "Add appropriate qualifications, limitations, or carve-outs to this clause" },
+                  { label: "Formalize", instruction: "Rewrite using formal legal language and standard legal drafting conventions" },
+                ].map(p => (
+                  <button
+                    key={p.label} type="button" disabled={selLoading}
+                    onMouseDown={e => { e.preventDefault(); applySelectionEdit(p.instruction); }}
+                    style={{
+                      background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 5, color: "rgba(255,255,255,0.9)",
+                      fontSize: "0.72rem", fontFamily: "'DM Sans', sans-serif",
+                      fontWeight: 500, padding: "3px 9px", cursor: selLoading ? "wait" : "pointer",
+                    }}>
+                    {selLoading ? "…" : p.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* Ask row */}
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.07em", color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}>ASK</span>
-            <input
-              type="text" value={selAsk} placeholder="Ask about this…"
-              disabled={selLoading}
-              onChange={e => setSelAsk(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && selAsk.trim()) { e.preventDefault(); askAboutSelection(selAsk.trim()); }
-                if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
-              }}
-              style={{
-                flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: 5, color: "white", fontSize: "0.72rem",
-                fontFamily: "'DM Sans', sans-serif", padding: "4px 8px", outline: "none",
-              }}
-            />
-            <button
-              type="button" disabled={selLoading || !selAsk.trim()}
-              onMouseDown={e => { e.preventDefault(); if (selAsk.trim()) askAboutSelection(selAsk.trim()); }}
-              style={{
-                background: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.07)" : "rgba(99,102,241,0.8)",
-                border: "none", borderRadius: 5,
-                color: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.35)" : "white",
-                fontSize: "0.8rem", fontFamily: "'DM Sans', sans-serif", padding: "3px 10px",
-                cursor: selLoading || !selAsk.trim() ? "default" : "pointer",
-              }}>
-              &#8594;
-            </button>
-          </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <input
+                  type="text" value={selPrompt} placeholder="Custom instruction…"
+                  disabled={selLoading}
+                  autoFocus
+                  onChange={e => setSelPrompt(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && selPrompt.trim()) { e.preventDefault(); applySelectionEdit(selPrompt.trim()); }
+                    if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
+                    if (e.key === "Backspace" && selPrompt === "") {
+                      e.preventDefault();
+                      const paged = editorRef.current?.getEditorRef();
+                      const view  = paged?.getView();
+                      const f = selBubble?.pmFrom ?? -1;
+                      const t = selBubble?.pmTo   ?? -1;
+                      if (paged && view && f !== -1 && t !== -1 && f < t) {
+                        paged.dispatch(view.state.tr.insertText("", f, t));
+                        paged.relayout();
+                        persistCurrentDoc();
+                      }
+                      setSelBubble(null); setSelPrompt(""); setSelAsk("");
+                    }
+                  }}
+                  style={{
+                    flex: 1, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 5, color: "white", fontSize: "0.72rem",
+                    fontFamily: "'DM Sans', sans-serif", padding: "4px 8px", outline: "none",
+                  }}
+                />
+                <button
+                  type="button" disabled={selLoading || !selPrompt.trim()}
+                  onMouseDown={e => { e.preventDefault(); if (selPrompt.trim()) applySelectionEdit(selPrompt.trim()); }}
+                  style={{
+                    background: selLoading || !selPrompt.trim() ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.18)",
+                    border: "none", borderRadius: 5,
+                    color: selLoading || !selPrompt.trim() ? "rgba(255,255,255,0.4)" : "white",
+                    fontSize: "0.72rem", fontFamily: "'DM Sans', sans-serif", padding: "4px 10px",
+                    cursor: selLoading || !selPrompt.trim() ? "default" : "pointer",
+                  }}>
+                  {selLoading ? "…" : "Go"}
+                </button>
+              </div>
+
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px -2px 0" }} />
+
+              <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.07em", color: "rgba(255,255,255,0.35)", fontFamily: "'DM Sans', sans-serif", flexShrink: 0 }}>ASK</span>
+                <input
+                  type="text" value={selAsk} placeholder="Ask about this…"
+                  disabled={selLoading}
+                  onChange={e => setSelAsk(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && selAsk.trim()) { e.preventDefault(); askAboutSelection(selAsk.trim()); }
+                    if (e.key === "Escape") { setSelBubble(null); setSelPrompt(""); setSelAsk(""); }
+                  }}
+                  style={{
+                    flex: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 5, color: "white", fontSize: "0.72rem",
+                    fontFamily: "'DM Sans', sans-serif", padding: "4px 8px", outline: "none",
+                  }}
+                />
+                <button
+                  type="button" disabled={selLoading || !selAsk.trim()}
+                  onMouseDown={e => { e.preventDefault(); if (selAsk.trim()) askAboutSelection(selAsk.trim()); }}
+                  style={{
+                    background: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.07)" : "rgba(99,102,241,0.8)",
+                    border: "none", borderRadius: 5,
+                    color: selLoading || !selAsk.trim() ? "rgba(255,255,255,0.35)" : "white",
+                    fontSize: "0.8rem", fontFamily: "'DM Sans', sans-serif", padding: "3px 10px",
+                    cursor: selLoading || !selAsk.trim() ? "default" : "pointer",
+                  }}>
+                  &#8594;
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
