@@ -118,11 +118,14 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 function renderInline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((p, i) => {
-    if (p.startsWith("**") && p.endsWith("**")) {
-      return <strong key={i} style={{ fontWeight: 700, color: "#0D1B2A" }}>{p.slice(2, -2)}</strong>;
-    }
+    if (p.startsWith("**") && p.endsWith("**"))
+      return <strong key={i} style={{ fontWeight: 700, color: "#111111" }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("*") && p.endsWith("*"))
+      return <em key={i}>{p.slice(1, -1)}</em>;
+    if (p.startsWith("`") && p.endsWith("`"))
+      return <code key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.82em", background: "rgba(0,0,0,0.06)", borderRadius: 4, padding: "0.1em 0.35em", color: "#111111" }}>{p.slice(1, -1)}</code>;
     return p;
   });
 }
@@ -137,69 +140,100 @@ function renderContent(text: string): React.ReactNode {
 
     if (!line.trim()) { i++; continue; }
 
+    // Divider
+    if (line.match(/^---+$/)) {
+      nodes.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(0,0,0,0.08)", margin: "0.75rem 0" }} />);
+      i++; continue;
+    }
+
+    // H1
+    if (line.startsWith("# ")) {
+      nodes.push(
+        <p key={i} style={{ fontWeight: 700, fontSize: "1rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.4rem" : "0 0 0.4rem", lineHeight: 1.3 }}>
+          {renderInline(line.slice(2))}
+        </p>
+      );
+      i++; continue;
+    }
+
+    // H2
     if (line.startsWith("## ")) {
       nodes.push(
-        <p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#0D1B2A", margin: nodes.length > 0 ? "0.75rem 0 0.3rem" : "0 0 0.3rem" }}>
+        <p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.35rem" : "0 0 0.35rem", lineHeight: 1.3 }}>
           {renderInline(line.slice(3))}
         </p>
       );
       i++; continue;
     }
 
+    // H3
     if (line.startsWith("### ")) {
       nodes.push(
-        <p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.6rem 0 0.25rem" : "0 0 0.25rem" }}>
+        <p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.75rem 0 0.25rem" : "0 0 0.25rem" }}>
           {renderInline(line.slice(4))}
         </p>
       );
       i++; continue;
     }
 
+    // Blockquote
+    if (line.startsWith("> ")) {
+      nodes.push(
+        <div key={i} style={{ borderLeft: "3px solid rgba(0,0,0,0.15)", paddingLeft: "0.75rem", margin: "0.5rem 0", color: "#6B7280", fontSize: "0.875rem", fontStyle: "italic" }}>
+          {renderInline(line.slice(2))}
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Unordered list
     if (line.match(/^[-*] /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^[-*] /)) {
         items.push(
-          <li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>
+          <li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>
             {renderInline(lines[i].replace(/^[-*] /, ""))}
           </li>
         );
         i++;
       }
       nodes.push(
-        <ul key={`ul-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.2rem", listStyleType: "disc" }}>
+        <ul key={`ul-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.25rem", listStyleType: "disc" }}>
           {items}
         </ul>
       );
       continue;
     }
 
+    // Ordered list
     if (line.match(/^\d+\. /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^\d+\. /)) {
         items.push(
-          <li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>
+          <li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>
             {renderInline(lines[i].replace(/^\d+\. /, ""))}
           </li>
         );
         i++;
       }
       nodes.push(
-        <ol key={`ol-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.35rem" }}>
+        <ol key={`ol-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.35rem" }}>
           {items}
         </ol>
       );
       continue;
     }
 
+    // Paragraph
     nodes.push(
-      <p key={i} style={{ margin: "0 0 0.35rem 0", lineHeight: 1.7 }}>
+      <p key={i} style={{ margin: "0 0 0.5rem 0", lineHeight: 1.75 }}>
         {renderInline(line)}
       </p>
     );
     i++;
   }
 
-  return <div style={{ fontSize: "0.9rem", color: "#1F2937" }}>{nodes}</div>;
+  return <div style={{ fontSize: "0.875rem", color: "#374151" }}>{nodes}</div>;
 }
 
 interface DocRecord {
@@ -534,6 +568,7 @@ export default function IntelligencePage() {
           query,
           business_id: businessId,
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          document_ids: documents.length > 0 ? documents.map(d => d.id) : undefined,
         }),
       });
 

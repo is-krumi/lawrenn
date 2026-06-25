@@ -137,3 +137,13 @@ body {
   .demo-grid      { grid-template-columns: 1fr; gap: 2rem; }
   .demo-slot-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Hide eigenpal's built-in tracked-change UI (sidebar, toasts, cards) ── */
+/* PM marks are applied directly; eigenpal detects them and opens its sidebar.*/
+/* We hide all its UI since Lawrenn has its own Accept/Decline bar.           */
+.docx-tracked-change-card,
+.docx-notification-container,
+.docx-notification-toast,
+.docx-unified-sidebar {
+  display: none !important;
+}

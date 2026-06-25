@@ -4,7 +4,8 @@
       "Bash(powershell -Command \"\\(Get-Content 'emailPreview.html'\\) -replace 'RennOps', 'Lawrenn' -replace 'rennops\\\\.com', 'lawrenn.com' -replace '#0cc0df', '#111111' | Set-Content 'emailPreview.html' -Encoding utf8\")",
       "PowerShell($componentFiles = Get-ChildItem -Path \"c:\\\\Users\\\\Kabir\\\\Lawrenn\\\\lawrenn-web\\\\components\\\\\" -Recurse -File; $componentFiles | ForEach-Object { $_.FullName })",
       "Bash(cd /c/Users/Kabir/Lawrenn/lawrenn-web && grep -rn 'minHeight: \"100vh\".*background: \"#F5F5F0\"\\\\|background: \"#F5F5F0\".*minHeight: \"100vh\"' app/dashboard/ components/)",
-      "Read(//c/c/Users/Kabir/Lawrenn/lawrenn-web/app/**)"
+      "Read(//c/c/Users/Kabir/Lawrenn/lawrenn-web/app/**)",
+      "Bash(git push *)"
     ]
   }
 }
