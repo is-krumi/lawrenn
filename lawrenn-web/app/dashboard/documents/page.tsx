@@ -865,7 +865,7 @@ export default function DocumentsPage() {
     // Helper: find position of text in the PM document (first block that contains it).
     function findPMPos(text: string): { from: number; to: number } | null {
       let result: { from: number; to: number } | null = null;
-      view.state.doc.descendants((node, pos) => {
+      view!.state.doc.descendants((node, pos) => {
         if (result) return false;
         if (node.isBlock) {
           const idx = node.textContent.indexOf(text);
