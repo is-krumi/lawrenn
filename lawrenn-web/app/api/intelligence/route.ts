@@ -1,8 +1,8 @@
+import { createUserClient, verifyBusinessAccess } from "@/lib/api-auth";
+import { decryptContent } from "@/lib/encryption";
 import { getPlanFeatures } from "@/lib/plans";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
-import { decryptContent } from "@/lib/encryption";
 
 // Service role kept only for: plan check (businesses table), all RPCs, source document lookup.
 // documents listing and source metadata use the per-request user client.
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
     // Retrieve wide (25 candidates) so the reranker has enough to work with.
     // Falls back to pure vector search (match_embeddings) if hybrid_search hasn't
     // been created yet (migration not run).
-    let rawCandidates: any[] | null = null;
+    let rawCandidates: any[] = [];
     const { data: hybridData, error: hybridError } = await adminClient.rpc("hybrid_search", {
       query_text:      query,
       query_embedding: queryEmbedding,
