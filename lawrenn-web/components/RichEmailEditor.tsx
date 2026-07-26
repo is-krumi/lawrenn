@@ -300,7 +300,7 @@ const RichEmailEditor = forwardRef<RichEmailEditorHandle, Props>(
         </div>
 
         {/* ── Page area ───────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: "auto", background: "#F3F4F6", padding: "0.75rem 0.9rem" }}>
+        <div style={{ flex: 1, overflowY: "auto", background: "#F7F8F9", padding: "0.75rem 0.9rem" }}>
           <div
             ref={editorRef}
             contentEditable

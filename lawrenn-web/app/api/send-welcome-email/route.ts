@@ -103,7 +103,7 @@ export async function POST(request: Request) {
                   </div>
                 </div>
 
-                <div style="background:#F9FAFB;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+                <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:16px 20px;margin-bottom:24px;">
                   <p style="font-size:13px;font-weight:600;color:#374151;margin:0 0 12px;">Quick dial codes:</p>
                   <table style="width:100%;border-collapse:collapse;">
                     <tr><td style="padding:4px 0;font-size:13px;color:#374151;font-weight:500;">AT&T</td><td style="padding:4px 0;font-size:13px;color:#111111;font-weight:600;font-family:monospace;">*72 + ${twilioNumber} + #</td></tr>

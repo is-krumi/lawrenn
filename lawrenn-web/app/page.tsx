@@ -1,7 +1,7 @@
 "use client";
 
-import { PLAN_FEATURES } from "@/lib/plans";
 import MainNav from "@/components/MainNav";
+import { PLAN_FEATURES } from "@/lib/plans";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -136,6 +136,22 @@ function FormInput({ label, type = "text", placeholder, onChange, error }: { lab
         onBlur={e => e.currentTarget.style.borderColor = error ? "#EF4444" : "var(--border)"} />
       {error && <p style={{ fontSize: "0.75rem", color: "#EF4444", margin: "0.25rem 0 0" }}>{error}</p>}
     </div>
+  );
+}
+
+function SmsConsentCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", marginBottom: "1rem", cursor: "pointer" }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        style={{ marginTop: "0.2rem", flexShrink: 0, width: 16, height: 16, cursor: "pointer" }}
+      />
+      <span style={{ fontSize: "0.78rem", color: "rgba(17,17,17,0.55)", lineHeight: 1.55 }}>
+        I agree to receive text messages from Lawrenn related to my legal inquiry, consultation, intake request, appointment reminders, document requests, and follow-up communications. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not required to purchase services. Mobile opt-in data and consent are not shared with third parties or affiliates for marketing or promotional purposes. Terms: <a href="/terms" style={{ color: "rgba(17,17,17,0.7)" }}>lawrenn.com/terms</a>. Privacy Policy: <a href="/privacy" style={{ color: "rgba(17,17,17,0.7)" }}>lawrenn.com/privacy</a>.
+      </span>
+    </label>
   );
 }
 
@@ -438,6 +454,7 @@ export default function Home() {
   const [trialBiz,       setTrialBiz]         = useState("");
   const [trialPhone,     setTrialPhone]       = useState("");
   const [trialBizType,   setTrialBizType]     = useState("");
+  const [trialSmsConsent, setTrialSmsConsent] = useState(false);
   const [trialErrors,    setTrialErrors]      = useState<Record<string, string>>({});
 
   function validateTrial() {
@@ -465,6 +482,7 @@ export default function Home() {
         phone:         trialPhone || undefined,
         business_name: trialBiz   || undefined,
         business_type: trialBizType || undefined,
+        sms_consent:   trialSmsConsent,
         source:        "marketing_site",
       }),
     })
@@ -788,7 +806,7 @@ export default function Home() {
 
       {/* ── TRIAL MODAL ── */}
       {showTrial && (
-        <Modal title="REQUEST EARLY ACCESS" sub="Join leading law firms already using Lawrenn to draft faster and bill more. 14-day free trial — no credit card required." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialFirstName(""); setTrialLastName(""); setTrialEmail(""); setTrialBiz(""); setTrialPhone(""); setTrialBizType(""); setTrialErrors({}); }}>
+        <Modal title="REQUEST EARLY ACCESS" sub="Join leading law firms already using Lawrenn to draft faster and bill more. 14-day free trial — no credit card required." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialFirstName(""); setTrialLastName(""); setTrialEmail(""); setTrialBiz(""); setTrialPhone(""); setTrialBizType(""); setTrialSmsConsent(false); setTrialErrors({}); }}>
           {!trialDone ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -798,6 +816,7 @@ export default function Home() {
               <FormInput label="Work email *" type="email" placeholder="partner@yourfirm.com" onChange={v => { setTrialEmail(v); setTrialErrors(e => ({ ...e, email: "" })); }} error={trialErrors.email} />
               <FormInput label="Firm name *" placeholder="Smith & Associates LLP" onChange={v => { setTrialBiz(v); setTrialErrors(e => ({ ...e, biz: "" })); }} error={trialErrors.biz} />
               <FormInput label="Work phone *" type="tel" placeholder="+1 (212) 555-0100" onChange={v => { setTrialPhone(v); setTrialErrors(e => ({ ...e, phone: "" })); }} error={trialErrors.phone} />
+              <SmsConsentCheckbox checked={trialSmsConsent} onChange={setTrialSmsConsent} />
               <FormSelect label="Practice area" options={["Corporate / M&A", "Litigation", "Real Estate", "Employment", "Criminal Defense", "Family Law", "IP / Patent", "Bankruptcy", "In-House Legal", "Other"]} onChange={setTrialBizType} />
               <SubmitBtn label="Request access →" onClick={submitTrial} />
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(17,17,17,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>

@@ -110,7 +110,7 @@ export default function DemoPage() {
 
   const inputSt: React.CSSProperties = {
     width: "100%", padding: "0.75rem 1rem",
-    background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)",
+    background: "#FFFFFF", border: "1.5px solid rgba(0,0,0,0.1)",
     borderRadius: 8, color: "#0D1B2A",
     fontFamily: "'DM Sans'", fontSize: "0.95rem",
     outline: "none", boxSizing: "border-box",
@@ -223,7 +223,7 @@ export default function DemoPage() {
                               <button key={slot.start} onClick={() => { setSelectedSlot(slot); setError(""); }}
                                 style={{
                                   padding: "0.5rem 0.4rem",
-                                  background: "#F9FAFB",
+                                  background: "#FFFFFF",
                                   border: "1.5px solid rgba(0,0,0,0.08)",
                                   borderRadius: 8,
                                   color: "#374151",
@@ -235,7 +235,7 @@ export default function DemoPage() {
                                   textAlign: "center",
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#111111"; e.currentTarget.style.background = "rgba(17,17,17,0.04)"; e.currentTarget.style.color = "#111111"; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.color = "#374151"; }}>
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.color = "#374151"; }}>
                                 {new Date(slot.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })}
                               </button>
                             ))}

@@ -206,7 +206,7 @@ function LoginInner() {
         </div>
 
         {/* Mode tabs */}
-        <div style={{ display: "flex", background: "#EFEFED", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
+        <div style={{ display: "flex", background: "#F5F5F5", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
           {[
             { key: "login",  label: "Password" },
             { key: "magic",  label: "Email code" },

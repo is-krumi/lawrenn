@@ -163,7 +163,7 @@ export async function POST(request: Request) {
         html: `
           <!DOCTYPE html>
           <html>
-          <body style="margin:0;padding:0;background:#F5F5F0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <body style="margin:0;padding:0;background:#F5F5F5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
             <div style="max-width:520px;margin:40px auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
               <div style="background:#111111;padding:28px 40px;">
                 <div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:white;letter-spacing:0.06em;">

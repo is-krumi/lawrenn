@@ -268,7 +268,7 @@ export default function MessagesPage() {
                         background: isActive ? "#ffffff" : "white",
                         transition: "background 0.12s",
                       }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#FFFFFF"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "white"; }}>
 
                       <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>

@@ -1092,7 +1092,7 @@ export default function DocumentsPage() {
     <FeatureGate feature="intelligence">
       <input ref={fileInputRef} type="file" accept=".docx" style={{ display: "none" }} onChange={handleFileInput} />
 
-      <div style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#F9FAFB" }}>
+      <div style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#FFFFFF" }}>
 
         {/* Top bar */}
         <div style={{
@@ -1211,7 +1211,7 @@ export default function DocumentsPage() {
                       <div style={{
                         maxWidth: "88%", padding: "0.5rem 0.7rem",
                         borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                        background: msg.role === "user" ? "#ffffff" : "#F3F4F6",
+                        background: msg.role === "user" ? "#ffffff" : "#F7F8F9",
                         color: "#111111",
                         fontSize: "0.78rem", lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif", whiteSpace: "pre-wrap",
                       }}>
@@ -1232,7 +1232,7 @@ export default function DocumentsPage() {
                 <div style={{ flexShrink: 0, padding: "0.6rem 0.75rem", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                   <div style={{
                     display: "flex", alignItems: "flex-end", gap: "0.4rem",
-                    background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8,
+                    background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8,
                     padding: "0.4rem 0.4rem 0.4rem 0.6rem",
                   }}>
                     <textarea
@@ -1301,7 +1301,7 @@ export default function DocumentsPage() {
                         style={{
                           display: "flex", alignItems: "center",
                           padding: "0.6rem 0.75rem 0.6rem 1rem",
-                          background: isActive ? "#F3F4F6" : "transparent",
+                          background: isActive ? "#F7F8F9" : "transparent",
                           borderLeft: isActive ? "3px solid #111111" : "3px solid transparent",
                           borderBottom: "1px solid rgba(0,0,0,0.04)",
                           transition: "background 0.1s",
@@ -1405,7 +1405,7 @@ export default function DocumentsPage() {
                             if (next) applyTempDiff(ch);
                           }}
                           style={{
-                            width: "100%", textAlign: "left", background: isOpen ? "#F9FAFB" : "transparent",
+                            width: "100%", textAlign: "left", background: isOpen ? "#FFFFFF" : "transparent",
                             border: "none", padding: "0.7rem 1rem", cursor: "pointer", display: "block",
                           }}
                         >
@@ -1435,7 +1435,7 @@ export default function DocumentsPage() {
 
                         {/* Expanded: full diff + undo */}
                         {isOpen && (
-                          <div style={{ padding: "0 1rem 0.85rem", background: "#F9FAFB" }}>
+                          <div style={{ padding: "0 1rem 0.85rem", background: "#FFFFFF" }}>
                             <div style={{
                               fontSize: "0.72rem", lineHeight: 1.7,
                               padding: "8px 10px", background: "white",
@@ -1510,7 +1510,7 @@ export default function DocumentsPage() {
                   background: isDragOver ? "rgba(0,0,0,0.02)" : "transparent",
                   transition: "all 0.15s",
                 }}>
-                <div style={{ width: 52, height: 52, background: "#F3F4F6", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 52, height: 52, background: "#F7F8F9", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
                     <polyline points="13 2 13 9 20 9"/>

@@ -406,7 +406,7 @@ function MattersPageInner() {
         <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             {/* View tabs */}
-            <div style={{ display: "flex", background: "#F0F0EC", borderRadius: 8, padding: 3, gap: 2 }}>
+            <div style={{ display: "flex", background: "#F5F5F5", borderRadius: 8, padding: 3, gap: 2 }}>
               {([
                 { key: "all",       label: "All Matters"  },
                 { key: "mine",      label: "My Matters"   },

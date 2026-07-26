@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     console.log("[capture-trial-signup] received:", JSON.stringify(body));
-    const { name, email, phone, business_name, business_type, source, status } = body;
+    const { name, email, phone, business_name, business_type, source, status, sms_consent } = body;
 
     const record: Record<string, string> = { source: source ?? "marketing_site" };
     if (name)          record.name          = name;
@@ -48,7 +48,8 @@ export async function POST(request: Request) {
     }
 
     // ── Seed synthetic inbound message + send AI reply via Twilio ──
-    if (phone && source !== "onboarding" && RENNOPS_BUSINESS_ID) {
+    // Only text the lead if they checked the SMS consent box on the intake form (A2P 10DLC compliance).
+    if (phone && sms_consent === true && source !== "onboarding" && RENNOPS_BUSINESS_ID) {
       // Look up the business Twilio number from DB — same pattern as handle-inbound-sms
       const { data: rennopsBiz } = await supabase
         .from("businesses")

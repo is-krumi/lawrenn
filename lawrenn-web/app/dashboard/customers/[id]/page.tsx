@@ -445,13 +445,13 @@ export default function CustomerDetailPage() {
                   <div
                     key={j.id}
                     onClick={() => router.push(`/dashboard/jobs/${j.id}`)}
-                    style={{ padding: "0.6rem 0.75rem", background: "#F9FAFB", borderRadius: 8, cursor: "pointer", border: "1px solid rgba(0,0,0,0.06)" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"}
-                    onMouseLeave={e => e.currentTarget.style.background = "#F9FAFB"}
+                    style={{ padding: "0.6rem 0.75rem", background: "#FFFFFF", borderRadius: 8, cursor: "pointer", border: "1px solid rgba(0,0,0,0.06)" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F7F8F9"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#FFFFFF"}
                   >
                     <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>{j.name ?? j.type}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                      <span style={{ fontSize: "0.7rem", padding: "0.1rem 0.4rem", borderRadius: 4, background: j.status === "Completed" ? "#D1FAE5" : j.status === "Active" ? "#DBEAFE" : "#F3F4F6", color: j.status === "Completed" ? "#065F46" : j.status === "Active" ? "#1E40AF" : "#6B7280", fontWeight: 600 }}>{j.status}</span>
+                      <span style={{ fontSize: "0.7rem", padding: "0.1rem 0.4rem", borderRadius: 4, background: j.status === "Completed" ? "#D1FAE5" : j.status === "Active" ? "#DBEAFE" : "#F7F8F9", color: j.status === "Completed" ? "#065F46" : j.status === "Active" ? "#1E40AF" : "#6B7280", fontWeight: 600 }}>{j.status}</span>
                       {j.amount > 0 && <span style={{ fontSize: "0.7rem", color: "#9CA3AF" }}>${j.amount.toLocaleString()}</span>}
                     </div>
                   </div>
@@ -578,7 +578,7 @@ export default function CustomerDetailPage() {
                 const isOut = msg.direction === "outbound";
                 return (
                   <div key={`msg-${msg.id}`} style={{ display: "flex", flexDirection: "column", alignItems: isOut ? "flex-end" : "flex-start" }}>
-                    <div style={{ maxWidth: "72%", padding: "0.6rem 0.875rem", borderRadius: isOut ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isOut ? "#111111" : "#F3F4F6", color: isOut ? "white" : "#111111", fontSize: "0.85rem", lineHeight: "1.45" }}>
+                    <div style={{ maxWidth: "72%", padding: "0.6rem 0.875rem", borderRadius: isOut ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isOut ? "#111111" : "#F7F8F9", color: isOut ? "white" : "#111111", fontSize: "0.85rem", lineHeight: "1.45" }}>
                       {msg.body}
                     </div>
                     <span style={{ fontSize: "0.68rem", color: "#9CA3AF", marginTop: "0.2rem" }}>{timeLabel(msg.sent_at)}</span>
@@ -588,7 +588,7 @@ export default function CustomerDetailPage() {
                 const call = item.item as Call;
                 const expanded = expandedCallId === call.id;
                 return (
-                  <div key={`call-${call.id}`} style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "0.75rem 1rem" }}>
+                  <div key={`call-${call.id}`} style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "0.75rem 1rem" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: call.transcript ? "pointer" : "default" }} onClick={() => call.transcript && setExpandedCallId(expanded ? null : call.id)}>
                       <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <svg style={{ width: 14, height: 14, color: "white" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.85a16 16 0 0 0 6.17 6.17l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>

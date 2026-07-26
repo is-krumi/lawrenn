@@ -658,7 +658,7 @@ export default function IntelligencePage() {
                   <div
                     key={session.id}
                     className="chat-session-row"
-                    style={{ position: "relative" as const, display: "flex", alignItems: "center", borderRadius: 7, background: isActive ? "#F3F4F6" : "transparent", marginBottom: 1 }}>
+                    style={{ position: "relative" as const, display: "flex", alignItems: "center", borderRadius: 7, background: isActive ? "#F7F8F9" : "transparent", marginBottom: 1 }}>
                     <button
                       onClick={() => switchToChat(session)}
                       style={{ flex: 1, textAlign: "left" as const, padding: "0.45rem 0.55rem", background: "transparent", border: "none", borderRadius: 7, fontFamily: "'DM Sans'", cursor: "pointer", minWidth: 0, overflow: "hidden" }}>
@@ -810,7 +810,7 @@ export default function IntelligencePage() {
                   <div style={{
                     display: "flex", flexDirection: "column", gap: "0.4rem",
                     padding: "0.6rem 0.75rem",
-                    background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10,
+                    background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10,
                   }}>
                     <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 600, color: "#374151", fontFamily: "'DM Sans'" }}>
                       What is the purpose of this email?
@@ -1002,7 +1002,7 @@ export default function IntelligencePage() {
                       key={i}
                       onClick={() => setExpandedSource(isExpanded ? null : i)}
                       style={{
-                        background: isExpanded ? "#F0FAFE" : "#F9FAFB",
+                        background: isExpanded ? "#F0FAFE" : "#FFFFFF",
                         border: `1px solid ${isExpanded ? "rgba(12,192,223,0.25)" : "rgba(0,0,0,0.06)"}`,
                         borderRadius: 10, padding: "0.6rem 0.7rem",
                         cursor: truncated ? "pointer" : "default",
@@ -1224,7 +1224,7 @@ export default function IntelligencePage() {
           30% { transform: translateY(-5px); }
         }
         .chat-session-row:hover .chat-delete-btn { opacity: 1 !important; }
-        .chat-session-row:hover { background: #F9FAFB; }
+        .chat-session-row:hover { background: #FFFFFF; }
       `}</style>
     </div>
 

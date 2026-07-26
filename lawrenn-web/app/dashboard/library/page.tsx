@@ -468,7 +468,7 @@ export default function LibraryPage() {
                 <button
                   onClick={() => { newFolderCommittedRef.current = false; setCreatingFolder(true); setNewFolderName(""); }}
                   style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.45rem 0.9rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 7, color: "#374151", fontSize: "0.8rem", fontFamily: "'DM Sans'", cursor: "pointer", fontWeight: 500 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB"; }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "white"; }}>
                   <FolderSvg size={13} />
                   New Folder
@@ -530,7 +530,7 @@ export default function LibraryPage() {
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); setConfirmDeleteId(null); }}
-                            style={{ background: "#F3F4F6", border: "none", borderRadius: 4, cursor: "pointer", padding: "2px 6px", color: "#374151", fontSize: "0.62rem", fontFamily: "'DM Sans'", fontWeight: 600 }}>
+                            style={{ background: "#F7F8F9", border: "none", borderRadius: 4, cursor: "pointer", padding: "2px 6px", color: "#374151", fontSize: "0.62rem", fontFamily: "'DM Sans'", fontWeight: 600 }}>
                             No
                           </button>
                         </>
@@ -587,7 +587,7 @@ export default function LibraryPage() {
               })}
 
               {creatingFolder && (
-                <div style={{ width: 148, padding: "0.9rem 0.85rem 0.75rem", background: "#F9FAFB", border: "1.5px dashed #D1D5DB", borderRadius: 10 }}>
+                <div style={{ width: 148, padding: "0.9rem 0.85rem 0.75rem", background: "#FFFFFF", border: "1.5px dashed #D1D5DB", borderRadius: 10 }}>
                   <div style={{ color: "#9CA3AF", marginBottom: "0.5rem" }}><FolderSvg size={26} /></div>
                   <input ref={newFolderInputRef} value={newFolderName}
                     onChange={e => setNewFolderName(e.target.value)}
@@ -652,7 +652,7 @@ export default function LibraryPage() {
                       alignItems: "center",
                       opacity: isDraggingThis ? 0.4 : 1,
                       transition: "opacity 0.1s",
-                      background: isDraggingThis ? "#F9FAFB" : "transparent",
+                      background: isDraggingThis ? "#FFFFFF" : "transparent",
                       cursor: "default",
                     }}
                     onDoubleClick={() => openPreview(doc)}
@@ -732,7 +732,7 @@ export default function LibraryPage() {
           color: trashOpen ? "white" : "#374151",
           fontFamily: "'DM Sans'",
         }}
-        onMouseEnter={e => { if (!trashOpen) (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB"; }}
+        onMouseEnter={e => { if (!trashOpen) (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF"; }}
         onMouseLeave={e => { if (!trashOpen) (e.currentTarget as HTMLButtonElement).style.background = "white"; }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -893,7 +893,7 @@ export default function LibraryPage() {
             return (
               <button key={i} onClick={action}
                 style={{ display: "flex", alignItems: "center", gap: "0.55rem", width: "100%", padding: "0.55rem 0.85rem", background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans'", fontSize: "0.84rem", color: danger ? "#EF4444" : "#111111", textAlign: "left" as const }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "#FEF2F2" : "#F9FAFB"; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = danger ? "#FEF2F2" : "#FFFFFF"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
