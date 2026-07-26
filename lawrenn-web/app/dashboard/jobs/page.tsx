@@ -45,7 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 const inputSt: CSSProperties = {
   width: "100%",
   padding: "0.75rem 1rem",
-  background: "#F5F5F0",
+  background: "#ffffff",
   border: "1.5px solid rgba(0,0,0,0.1)",
   borderRadius: 8,
   color: "#111111",
@@ -252,7 +252,6 @@ function MattersPageInner() {
   async function addMatter() {
     setJobError("");
 
-    if (!newJob.job_type.trim()) { setJobError("Enter a practice area"); return; }
     if (!newJob.customer_id && !newJob.customer_phone) {
       setJobError("Select a client or enter a phone number");
       return;
@@ -263,30 +262,6 @@ function MattersPageInner() {
     try {
       const slotStart = newJob.slot_start ? new Date(newJob.slot_start) : new Date();
       const slotEnd   = new Date(slotStart.getTime() + newJob.duration_mins * 60 * 1000);
-
-      if (newJob.technician_id) {
-        const buffer       = 30 * 60 * 1000;
-        const bufferedStart = new Date(slotStart.getTime() - buffer).toISOString();
-        const bufferedEnd   = new Date(slotEnd.getTime() + buffer).toISOString();
-
-        const { data: conflicts } = await supabase
-          .from("jobs")
-          .select("id, slot_start, slot_end")
-          .eq("business_id", businessId)
-          .eq("technician_id", newJob.technician_id)
-          .in("status", ["booked", "in_progress"])
-          .lt("slot_start", bufferedEnd)
-          .gt("slot_end", bufferedStart);
-
-        if (conflicts && conflicts.length > 0) {
-          const conflictTime = new Date(conflicts[0].slot_start).toLocaleTimeString("en-US", {
-            hour: "numeric", minute: "2-digit",
-          });
-          setJobError(`Scheduling conflict with existing matter at ${conflictTime}. Choose a different time or attorney.`);
-          setAddingJob(false);
-          return;
-        }
-      }
 
       let customerId = newJob.customer_id;
       if (!customerId && newJob.customer_phone) {
@@ -417,25 +392,21 @@ function MattersPageInner() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading matters...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ padding: "2rem 2rem 2rem 1.5rem" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-            <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", letterSpacing: "0.02em", color: "#111111", marginBottom: "0.2rem" }}>Matters</h1>
-            <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>All scheduled and closed matters</p>
-          </div>
+        <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             {/* View tabs */}
-            <div style={{ display: "flex", background: "#F0F0EC", borderRadius: 8, padding: 3, gap: 2 }}>
+            <div style={{ display: "flex", background: "#F5F5F5", borderRadius: 8, padding: 3, gap: 2 }}>
               {([
                 { key: "all",       label: "All Matters"  },
                 { key: "mine",      label: "My Matters"   },
@@ -534,7 +505,7 @@ function MattersPageInner() {
                           alignItems: "center", cursor: "pointer",
                           background: "white", transition: "background 0.1s",
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "#F9F9F7"; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#F5F5F5"; }}
                         onMouseLeave={e => { e.currentTarget.style.background = "white"; }}
                       >
                         {/* Star */}
@@ -707,39 +678,6 @@ function MattersPageInner() {
                     <option value="">Select a client...</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name ?? c.phone} &mdash; {c.phone}</option>)}
                   </select>
-                )}
-              </div>
-
-              {/* Practice area */}
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Practice area</label>
-                <input
-                  type="text"
-                  value={newJob.job_type}
-                  onChange={e => setNewJob(prev => ({ ...prev, job_type: e.target.value }))}
-                  placeholder="Type or select below..."
-                  style={inputSt}
-                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)")}
-                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)")}
-                />
-                {services.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "0.35rem", marginTop: "0.5rem" }}>
-                    {services.map(s => (
-                      <button key={s.name} type="button"
-                        onClick={() => setNewJob(prev => ({ ...prev, job_type: s.name }))}
-                        style={{
-                          padding: "0.3rem 0.75rem",
-                          background: newJob.job_type === s.name ? "#111111" : "#F5F5F0",
-                          border: `1px solid ${newJob.job_type === s.name ? "#111111" : "rgba(0,0,0,0.12)"}`,
-                          borderRadius: 20,
-                          color: newJob.job_type === s.name ? "white" : "#374151",
-                          fontFamily: "'DM Sans'", fontSize: "0.78rem",
-                          cursor: "pointer", transition: "all 0.12s",
-                        }}>
-                        {s.name}
-                      </button>
-                    ))}
-                  </div>
                 )}
               </div>
 

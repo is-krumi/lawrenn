@@ -205,7 +205,7 @@ function AcceptInviteInner() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#F5F5F0",
+      minHeight: "100vh", background: "#ffffff",
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem", fontFamily: "'DM Sans', sans-serif",
     }}>
@@ -245,7 +245,7 @@ function AcceptInviteInner() {
           </div>
 
           {/* Tab switcher */}
-          <div style={{ display: "flex", background: "#F5F5F0", borderRadius: 8, padding: 3, marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", background: "#ffffff", borderRadius: 8, padding: 3, marginBottom: "1.5rem" }}>
             {(["create", "signin"] as const).map(m => (
               <button key={m} onClick={() => { setAuthMode(m); setAuthErr(""); setPassword(""); setConfirmPw(""); }}
                 style={{ flex: 1, padding: "0.5rem", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "'DM Sans'", fontWeight: 600, fontSize: "0.875rem",
@@ -262,7 +262,7 @@ function AcceptInviteInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
               <Label>Email</Label>
-              <input value={invite.invited_email} readOnly style={{ ...INPUT, background: "#F5F5F0", color: "#6B7280" }} />
+              <input value={invite.invited_email} readOnly style={{ ...INPUT, background: "#ffffff", color: "#6B7280" }} />
             </div>
 
             <div>
@@ -403,7 +403,7 @@ function AcceptInviteInner() {
 export default function AcceptInvitePage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#F5F5F0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading...</p>
       </div>
     }>

@@ -118,11 +118,14 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 function renderInline(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((p, i) => {
-    if (p.startsWith("**") && p.endsWith("**")) {
-      return <strong key={i} style={{ fontWeight: 700, color: "#0D1B2A" }}>{p.slice(2, -2)}</strong>;
-    }
+    if (p.startsWith("**") && p.endsWith("**"))
+      return <strong key={i} style={{ fontWeight: 700, color: "#111111" }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("*") && p.endsWith("*"))
+      return <em key={i}>{p.slice(1, -1)}</em>;
+    if (p.startsWith("`") && p.endsWith("`"))
+      return <code key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.82em", background: "rgba(0,0,0,0.06)", borderRadius: 4, padding: "0.1em 0.35em", color: "#111111" }}>{p.slice(1, -1)}</code>;
     return p;
   });
 }
@@ -137,69 +140,100 @@ function renderContent(text: string): React.ReactNode {
 
     if (!line.trim()) { i++; continue; }
 
+    // Divider
+    if (line.match(/^---+$/)) {
+      nodes.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(0,0,0,0.08)", margin: "0.75rem 0" }} />);
+      i++; continue;
+    }
+
+    // H1
+    if (line.startsWith("# ")) {
+      nodes.push(
+        <p key={i} style={{ fontWeight: 700, fontSize: "1rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.4rem" : "0 0 0.4rem", lineHeight: 1.3 }}>
+          {renderInline(line.slice(2))}
+        </p>
+      );
+      i++; continue;
+    }
+
+    // H2
     if (line.startsWith("## ")) {
       nodes.push(
-        <p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#0D1B2A", margin: nodes.length > 0 ? "0.75rem 0 0.3rem" : "0 0 0.3rem" }}>
+        <p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.35rem" : "0 0 0.35rem", lineHeight: 1.3 }}>
           {renderInline(line.slice(3))}
         </p>
       );
       i++; continue;
     }
 
+    // H3
     if (line.startsWith("### ")) {
       nodes.push(
-        <p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.6rem 0 0.25rem" : "0 0 0.25rem" }}>
+        <p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.75rem 0 0.25rem" : "0 0 0.25rem" }}>
           {renderInline(line.slice(4))}
         </p>
       );
       i++; continue;
     }
 
+    // Blockquote
+    if (line.startsWith("> ")) {
+      nodes.push(
+        <div key={i} style={{ borderLeft: "3px solid rgba(0,0,0,0.15)", paddingLeft: "0.75rem", margin: "0.5rem 0", color: "#6B7280", fontSize: "0.875rem", fontStyle: "italic" }}>
+          {renderInline(line.slice(2))}
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Unordered list
     if (line.match(/^[-*] /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^[-*] /)) {
         items.push(
-          <li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>
+          <li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>
             {renderInline(lines[i].replace(/^[-*] /, ""))}
           </li>
         );
         i++;
       }
       nodes.push(
-        <ul key={`ul-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.2rem", listStyleType: "disc" }}>
+        <ul key={`ul-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.25rem", listStyleType: "disc" }}>
           {items}
         </ul>
       );
       continue;
     }
 
+    // Ordered list
     if (line.match(/^\d+\. /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^\d+\. /)) {
         items.push(
-          <li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>
+          <li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>
             {renderInline(lines[i].replace(/^\d+\. /, ""))}
           </li>
         );
         i++;
       }
       nodes.push(
-        <ol key={`ol-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.35rem" }}>
+        <ol key={`ol-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.35rem" }}>
           {items}
         </ol>
       );
       continue;
     }
 
+    // Paragraph
     nodes.push(
-      <p key={i} style={{ margin: "0 0 0.35rem 0", lineHeight: 1.7 }}>
+      <p key={i} style={{ margin: "0 0 0.5rem 0", lineHeight: 1.75 }}>
         {renderInline(line)}
       </p>
     );
     i++;
   }
 
-  return <div style={{ fontSize: "0.9rem", color: "#1F2937" }}>{nodes}</div>;
+  return <div style={{ fontSize: "0.875rem", color: "#374151" }}>{nodes}</div>;
 }
 
 interface DocRecord {
@@ -534,6 +568,7 @@ export default function IntelligencePage() {
           query,
           business_id: businessId,
           history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          document_ids: documents.length > 0 ? documents.map(d => d.id) : undefined,
         }),
       });
 
@@ -563,7 +598,7 @@ export default function IntelligencePage() {
 
   if (bizLoading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading...</p>
       </div>
     );
@@ -575,7 +610,7 @@ export default function IntelligencePage() {
       onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
       onDrop={e => { e.preventDefault(); setIsDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFileDrop(file); }}
-      style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif", position: "relative" as const }}>
+      style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", background: "#ffffff", fontFamily: "'DM Sans', sans-serif", position: "relative" as const }}>
 
       {/* Drag overlay */}
       {isDragging && (
@@ -606,7 +641,7 @@ export default function IntelligencePage() {
           <div style={{ padding: "0.6rem 0.65rem", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
             <button
               onClick={startNewChat}
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem 0.65rem", background: "#F5F5F0", border: "none", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 500, cursor: "pointer" }}>
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", padding: "0.5rem 0.65rem", background: "#ffffff", border: "none", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.78rem", fontWeight: 500, cursor: "pointer" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Chat
             </button>
@@ -623,7 +658,7 @@ export default function IntelligencePage() {
                   <div
                     key={session.id}
                     className="chat-session-row"
-                    style={{ position: "relative" as const, display: "flex", alignItems: "center", borderRadius: 7, background: isActive ? "#F3F4F6" : "transparent", marginBottom: 1 }}>
+                    style={{ position: "relative" as const, display: "flex", alignItems: "center", borderRadius: 7, background: isActive ? "#F7F8F9" : "transparent", marginBottom: 1 }}>
                     <button
                       onClick={() => switchToChat(session)}
                       style={{ flex: 1, textAlign: "left" as const, padding: "0.45rem 0.55rem", background: "transparent", border: "none", borderRadius: 7, fontFamily: "'DM Sans'", cursor: "pointer", minWidth: 0, overflow: "hidden" }}>
@@ -704,7 +739,7 @@ export default function IntelligencePage() {
                       <div style={{
                         maxWidth: "72%",
                         padding: "0.65rem 1rem",
-                        background: "#F5F5F0",
+                        background: "#EDE8DF",
                         borderRadius: "16px 16px 4px 16px",
                         color: "#111111",
                         fontSize: "0.875rem",
@@ -775,7 +810,7 @@ export default function IntelligencePage() {
                   <div style={{
                     display: "flex", flexDirection: "column", gap: "0.4rem",
                     padding: "0.6rem 0.75rem",
-                    background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10,
+                    background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10,
                   }}>
                     <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 600, color: "#374151", fontFamily: "'DM Sans'" }}>
                       What is the purpose of this email?
@@ -967,7 +1002,7 @@ export default function IntelligencePage() {
                       key={i}
                       onClick={() => setExpandedSource(isExpanded ? null : i)}
                       style={{
-                        background: isExpanded ? "#F0FAFE" : "#F9FAFB",
+                        background: isExpanded ? "#F0FAFE" : "#FFFFFF",
                         border: `1px solid ${isExpanded ? "rgba(12,192,223,0.25)" : "rgba(0,0,0,0.06)"}`,
                         borderRadius: 10, padding: "0.6rem 0.7rem",
                         cursor: truncated ? "pointer" : "default",
@@ -1189,7 +1224,7 @@ export default function IntelligencePage() {
           30% { transform: translateY(-5px); }
         }
         .chat-session-row:hover .chat-delete-btn { opacity: 1 !important; }
-        .chat-session-row:hover { background: #F9FAFB; }
+        .chat-session-row:hover { background: #FFFFFF; }
       `}</style>
     </div>
 

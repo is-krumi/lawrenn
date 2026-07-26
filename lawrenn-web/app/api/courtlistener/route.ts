@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     ).join("\n\n");
 
     const aiRes = await anthropic.messages.create({
-      model:      "claude-sonnet-4-20250514",
+      model:      "claude-sonnet-4-6",
       max_tokens: 1500,
       system: `You are a legal research assistant. Analyze case law search results and organize them by key legal issues.
 Return ONLY a JSON object in this exact format, no markdown, no explanation:

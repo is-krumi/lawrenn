@@ -10,7 +10,7 @@ function UnsubscribeContent() {
   const error   = params.get("error");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F5F0", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column" }}>
 
       {/* Nav */}
       <nav style={{ padding: "0 5%", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.06)", background: "white" }}>

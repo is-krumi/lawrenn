@@ -6,9 +6,9 @@
   --navy:     #111111;
   --navy2:    #1a1a1a;
   --white:    #ffffff;
-  --off-white:#F5F5F0;
+  --off-white:#ffffff;
   --grey:     #6B7280;
-  --lgrey:    #EFEFED;
+  --lgrey:    #F5F5F5;
   --dgrey:    #374151;
   --border:   rgba(0,0,0,0.08);
   --border2:  rgba(0,0,0,0.14);
@@ -136,4 +136,14 @@ body {
   .demo-outer     { padding: 2rem 1.25rem; }
   .demo-grid      { grid-template-columns: 1fr; gap: 2rem; }
   .demo-slot-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Hide eigenpal's built-in tracked-change UI (sidebar, toasts, cards) ── */
+/* PM marks are applied directly; eigenpal detects them and opens its sidebar.*/
+/* We hide all its UI since Lawrenn has its own Accept/Decline bar.           */
+.docx-tracked-change-card,
+.docx-notification-container,
+.docx-notification-toast,
+.docx-unified-sidebar {
+  display: none !important;
 }

@@ -164,7 +164,7 @@ export default function DashboardNav() {
                   fontWeight: active ? 600 : 400,
                   letterSpacing: "0.01em",
                   transition: "background 0.12s, color 0.12s",
-                  background: active ? "#F5F5F0" : "transparent",
+                  background: active ? "#F5F5F5" : "transparent",
                   position: "relative",
                 }}
                 onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
@@ -189,7 +189,7 @@ export default function DashboardNav() {
                   color: "#111111", textDecoration: "none",
                   fontSize: "0.82rem", fontWeight: settingsActive ? 600 : 400,
                   letterSpacing: "0.01em", transition: "background 0.12s",
-                  background: settingsActive ? "#F5F5F0" : "transparent",
+                  background: settingsActive ? "#F5F5F5" : "transparent",
                 }}
                 onMouseEnter={e => { if (!settingsActive) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(0,0,0,0.04)"; }}
                 onMouseLeave={e => { if (!settingsActive) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}

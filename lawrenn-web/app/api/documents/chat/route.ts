@@ -29,6 +29,9 @@ Each edit must be one of these types:
 Text replacement:
 { "type": "replace", "search": "<exact current text from the document>", "replace_with": "<new text>" }
 
+Add a new bullet/list item after an existing one:
+{ "type": "insert_list_item", "search": "<exact text of the item to insert AFTER>", "text": "<text of the new item, no bullet character>" }
+
 Paragraph style change:
 { "type": "set_style", "search": "<text in the target paragraph>", "style_id": "<Heading1|Heading2|Heading3|Normal|Quote|ListParagraph>" }
 
@@ -40,6 +43,7 @@ RULES FOR EDITS:
 - For a title change: use "replace" with the current title text as "search"
 - For a style change (make heading): use "set_style" with the paragraph text as "search"
 - To DELETE or REMOVE text: use "replace" with replace_with set to "" (empty string)
+- To ADD a new bullet point or numbered list item: ALWAYS use "insert_list_item" — NEVER use "replace" to append list items. Set "search" to the text of the last existing item (the one to insert after), and "text" to the new item's text with no bullet character.
 - If the current text is unclear, make your best guess and say so in the reply
 - Never invent text that isn't in the document
 - For questions or summaries, return "edits": []
@@ -53,6 +57,9 @@ User: "Make the first paragraph a heading"
 
 User: "Remove the confidentiality clause"
 → { "reply": "Removed the confidentiality clause.", "edits": [{ "type": "replace", "search": "All information shared under this agreement shall remain confidential.", "replace_with": "" }] }
+
+User: "Add a bullet item for medical records after the last item"
+→ { "reply": "Added medical records as a new bullet item.", "edits": [{ "type": "insert_list_item", "search": "<exact text of last bullet item>", "text": "All medical records and reports related to the incident" }] }
 
 User: "Delete the last sentence in section 2"
 → { "reply": "Deleted the sentence.", "edits": [{ "type": "replace", "search": "<exact last sentence text>", "replace_with": "" }] }
@@ -71,7 +78,7 @@ Respond with JSON: { "reply": "your message here", "edits": [] }`;
     ];
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: systemPrompt,
       messages,

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 200,
         system: `You are a legal AI assistant generating a brief IQ Summary for an attorney's matter file.
 

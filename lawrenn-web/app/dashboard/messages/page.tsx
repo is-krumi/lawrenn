@@ -209,14 +209,14 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading messages...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem", height: "calc(100vh - 52px)", display: "flex", flexDirection: "column" }}>
 
         {/* Header */}
@@ -265,10 +265,10 @@ export default function MessagesPage() {
                         padding: "0.875rem 1rem",
                         borderBottom: i < filteredThreads.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                         cursor: "pointer",
-                        background: isActive ? "#F5F5F0" : "white",
+                        background: isActive ? "#ffffff" : "white",
                         transition: "background 0.12s",
                       }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#FFFFFF"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "white"; }}>
 
                       <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
@@ -338,7 +338,7 @@ export default function MessagesPage() {
                         maxWidth: "70%",
                         padding: "0.6rem 0.85rem",
                         borderRadius: msg.direction === "outbound" ? "12px 4px 12px 12px" : "4px 12px 12px 12px",
-                        background: msg.direction === "outbound" ? "#F5F5F0" : "transparent",
+                        background: msg.direction === "outbound" ? "#ffffff" : "transparent",
                         border: msg.direction === "outbound" ? "none" : "1px solid rgba(0,0,0,0.08)",
                       }}>
                         <p style={{ fontSize: "0.875rem", color: "#111111", lineHeight: 1.5, margin: 0 }}>

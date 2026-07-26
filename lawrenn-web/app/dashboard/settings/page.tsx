@@ -37,7 +37,7 @@ interface Business {
 const inputSt: React.CSSProperties = {
     width: "100%",
     padding: "0.75rem 1rem",
-    background: "#F5F5F0",
+    background: "#ffffff",
     border: "1.5px solid rgba(0,0,0,0.1)",
     borderRadius: 8,
     color: "#111111",
@@ -265,14 +265,14 @@ export default function SettingsPage() {
 
     if (loading) {
         return (
-            <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+            <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
                 <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading settings...</p>
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
             <div style={{ maxWidth: 720, margin: "0 auto", padding: "2.5rem 2rem" }}>
 
                 <div style={{ marginBottom: "2rem" }}>
@@ -316,7 +316,7 @@ export default function SettingsPage() {
                         {practiceAreas.length > 0 && (
                             <div style={{ display: "flex", flexDirection: "column" as const, gap: "0.4rem", marginBottom: "0.875rem" }}>
                                 {practiceAreas.map((area, i) => (
-                                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.9rem", background: "#F5F5F0", borderRadius: 8, border: "1px solid rgba(0,0,0,0.06)" }}>
+                                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.6rem 0.9rem", background: "#ffffff", borderRadius: 8, border: "1px solid rgba(0,0,0,0.06)" }}>
                                         <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111111" }}>{area.name}</span>
                                         <button
                                             type="button"
@@ -394,7 +394,7 @@ export default function SettingsPage() {
                                             onClick={() => { setSelectedVoice(voice); setAudioUrl(null); }}
                                             style={{
                                                 padding: "0.75rem 0.875rem",
-                                                background: active ? "rgba(17,17,17,0.06)" : "#F5F5F0",
+                                                background: active ? "rgba(17,17,17,0.06)" : "#ffffff",
                                                 border: `1.5px solid ${active ? "#111111" : "rgba(0,0,0,0.1)"}`,
                                                 borderRadius: 8,
                                                 cursor: "pointer",
@@ -430,7 +430,7 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Preview */}
-                        <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, padding: "1rem 1.25rem" }}>
+                        <div style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, padding: "1rem 1.25rem" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: audioUrl ? "0.75rem" : 0 }}>
                                 <div>
                                     <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#111111", marginBottom: "0.1rem" }}>Preview greeting</p>

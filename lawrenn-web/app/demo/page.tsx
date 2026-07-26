@@ -110,14 +110,14 @@ export default function DemoPage() {
 
   const inputSt: React.CSSProperties = {
     width: "100%", padding: "0.75rem 1rem",
-    background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)",
+    background: "#FFFFFF", border: "1.5px solid rgba(0,0,0,0.1)",
     borderRadius: 8, color: "#0D1B2A",
     fontFamily: "'DM Sans'", fontSize: "0.95rem",
     outline: "none", boxSizing: "border-box",
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F5F0", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* Nav */}
       <nav style={{ padding: "0 5%", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(0,0,0,0.08)", background: "rgba(245,245,240,0.97)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
@@ -145,7 +145,7 @@ export default function DemoPage() {
                 Join Google Meet
               </a>
             )}
-            <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "1.5rem", textAlign: "left" }}>
+            <div style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "1.5rem", textAlign: "left" }}>
               <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(17,17,17,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.75rem" }}>What to expect</p>
               {[
                 "We'll walk through a live Lawrenn session tailored to your practice area",
@@ -223,7 +223,7 @@ export default function DemoPage() {
                               <button key={slot.start} onClick={() => { setSelectedSlot(slot); setError(""); }}
                                 style={{
                                   padding: "0.5rem 0.4rem",
-                                  background: "#F9FAFB",
+                                  background: "#FFFFFF",
                                   border: "1.5px solid rgba(0,0,0,0.08)",
                                   borderRadius: 8,
                                   color: "#374151",
@@ -235,7 +235,7 @@ export default function DemoPage() {
                                   textAlign: "center",
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#111111"; e.currentTarget.style.background = "rgba(17,17,17,0.04)"; e.currentTarget.style.color = "#111111"; }}
-                                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.color = "#374151"; }}>
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.color = "#374151"; }}>
                                 {new Date(slot.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })}
                               </button>
                             ))}
@@ -248,7 +248,7 @@ export default function DemoPage() {
               ) : (
                 /* Details form */
                 <>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8 }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(17,17,17,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.15rem" }}>Selected time</p>
                       <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0D1B2A" }}>

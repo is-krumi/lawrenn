@@ -89,7 +89,7 @@ export default function OnboardingStep5() {
     return (
         <div style={{
             minHeight: "100vh",
-            background: "#F5F5F0",
+            background: "#ffffff",
             display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center",
             padding: "2rem 1rem",
@@ -200,7 +200,7 @@ export default function OnboardingStep5() {
                         </div>
 
                         {/* Carrier shortcuts */}
-                        <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
+                        <div style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1rem", marginBottom: "2rem" }}>
                             <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "0.75rem" }}>Quick dial codes (dial from your phone):</p>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.5rem" }}>
                                 {[

@@ -165,7 +165,7 @@ export default function DraftEmailModal({ messages, onClose }: Props) {
               </div>
 
               {draft?.disclaimer && (
-                <div style={{ marginBottom: "1rem", padding: "0.65rem 0.8rem", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 7 }}>
+                <div style={{ marginBottom: "1rem", padding: "0.65rem 0.8rem", background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 7 }}>
                   <p style={{ fontSize: "0.67rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.08em", margin: "0 0 0.3rem" }}>Disclaimer</p>
                   <p style={{ fontSize: "0.775rem", color: "#6B7280", margin: 0, lineHeight: 1.55 }}>{draft.disclaimer}</p>
                 </div>

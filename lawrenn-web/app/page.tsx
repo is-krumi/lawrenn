@@ -1,7 +1,7 @@
 "use client";
 
-import { PLAN_FEATURES } from "@/lib/plans";
 import MainNav from "@/components/MainNav";
+import { PLAN_FEATURES } from "@/lib/plans";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -42,19 +42,18 @@ function RevealSection({ children, style }: { children: React.ReactNode; style?:
 }
 
 function RoiCalc() {
-  const [hours, setHours] = useState(8);
-  const [rate, setRate] = useState(350);
-  const [recovery, setRecovery] = useState(60);
-  const annual = Math.round(hours * rate * (recovery / 100) * 52);
+  const [cases, setCases] = useState(20);
+  const [revenue, setRevenue] = useState(5000);
+  const captured = Math.round(cases * 0.25);
+  const annual = captured * revenue;
 
   return (
-    <div style={{ background: "rgba(0,0,0,0.03)", border: "1px solid var(--border)", borderRadius: 16, padding: "2rem" }}>
-      <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "rgba(17,17,17,0.5)", marginBottom: "1.5rem" }}>Calculate your billable recovery</p>
+    <div style={{ background: "white", border: "1px solid var(--border)", borderRadius: 16, padding: "2rem" }}>
+      <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "rgba(17,17,17,0.5)", marginBottom: "1.5rem" }}>Calculate your growth potential</p>
 
       {[
-        { label: "Unbilled hours per week", min: 1, max: 40, step: 1, val: hours, set: setHours, display: `${hours} hrs/week` },
-        { label: "Average hourly rate", min: 150, max: 1500, step: 50, val: rate, set: setRate, display: `$${rate.toLocaleString()}/hr` },
-        { label: "AI recovery rate", min: 20, max: 80, step: 5, val: recovery, set: setRecovery, display: `${recovery}%` },
+        { label: "Inquiries per month", min: 5, max: 200, step: 5, val: cases, set: setCases, display: `${cases} inquiries/mo` },
+        { label: "Average case revenue", min: 1000, max: 50000, step: 500, val: revenue, set: setRevenue, display: `$${revenue.toLocaleString()}` },
       ].map(({ label, min, max, step, val, set, display }) => (
         <div key={label} style={{ marginBottom: "1.25rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
@@ -67,11 +66,20 @@ function RoiCalc() {
         </div>
       ))}
 
-      <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem", textAlign: "center" }}>
-        <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3.5rem", color: "var(--navy)", letterSpacing: "0.02em", lineHeight: 1 }}>
-          ${annual.toLocaleString()}
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "0.75rem" }}>
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3.5rem", color: "var(--navy)", letterSpacing: "0.02em", lineHeight: 1 }}>
+              ${annual.toLocaleString()}
+            </div>
+            <p style={{ fontSize: "0.82rem", color: "rgba(17,17,17,0.35)", marginTop: "0.4rem" }}>estimated additional annual revenue</p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: "'Bebas Neue'", fontSize: "2rem", color: "#059669", letterSpacing: "0.02em", lineHeight: 1 }}>+{captured}</div>
+            <p style={{ fontSize: "0.75rem", color: "rgba(17,17,17,0.35)", marginTop: "0.4rem" }}>cases captured/mo</p>
+          </div>
         </div>
-        <p style={{ fontSize: "0.82rem", color: "rgba(17,17,17,0.35)", marginTop: "0.5rem" }}>estimated annual billable recovery</p>
+        <p style={{ fontSize: "0.75rem", color: "rgba(17,17,17,0.25)", margin: 0 }}>Based on capturing 25% of previously missed inquiries</p>
       </div>
     </div>
   );
@@ -128,6 +136,22 @@ function FormInput({ label, type = "text", placeholder, onChange, error }: { lab
         onBlur={e => e.currentTarget.style.borderColor = error ? "#EF4444" : "var(--border)"} />
       {error && <p style={{ fontSize: "0.75rem", color: "#EF4444", margin: "0.25rem 0 0" }}>{error}</p>}
     </div>
+  );
+}
+
+function SmsConsentCheckbox({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", marginBottom: "1rem", cursor: "pointer" }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        style={{ marginTop: "0.2rem", flexShrink: 0, width: 16, height: 16, cursor: "pointer" }}
+      />
+      <span style={{ fontSize: "0.78rem", color: "rgba(17,17,17,0.55)", lineHeight: 1.55 }}>
+        I agree to receive text messages from Lawrenn related to my legal inquiry, consultation, intake request, appointment reminders, document requests, and follow-up communications. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not required to purchase services. Mobile opt-in data and consent are not shared with third parties or affiliates for marketing or promotional purposes. Terms: <a href="/terms" style={{ color: "rgba(17,17,17,0.7)" }}>lawrenn.com/terms</a>. Privacy Policy: <a href="/privacy" style={{ color: "rgba(17,17,17,0.7)" }}>lawrenn.com/privacy</a>.
+      </span>
+    </label>
   );
 }
 
@@ -289,7 +313,7 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
                 top: cell.y * gridSize,
                 width: gridSize,
                 height: gridSize,
-                background: "rgba(0,0,0,0.04)",
+                background: "rgba(0,0,0,0.05)",
                 opacity: activeNeighbors.has(i) ? 1 : 0,
                 transition: "opacity 0.7s ease",
               }}
@@ -374,14 +398,14 @@ function LiveFeed() {
               onClick={() => setActive(i)}
               style={{
                 padding: "0.85rem 1rem",
-                background: isActive ? "rgba(0,0,0,0.03)" : "rgba(0,0,0,0.015)",
+                background: isActive ? "rgba(0,0,0,0.04)" : "white",
                 border: `1px solid ${isActive ? "rgba(0,0,0,0.18)" : "var(--border)"}`,
                 borderRadius: 10,
                 cursor: "pointer",
                 transition: "all 0.25s",
               }}
-              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(0,0,0,0.025)"; e.currentTarget.style.borderColor = "rgba(0,0,0,0.12)"; } }}
-              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "rgba(0,0,0,0.015)"; e.currentTarget.style.borderColor = "var(--border)"; } }}>
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = "rgba(0,0,0,0.02)"; e.currentTarget.style.borderColor = "rgba(0,0,0,0.12)"; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "var(--border)"; } }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -430,6 +454,7 @@ export default function Home() {
   const [trialBiz,       setTrialBiz]         = useState("");
   const [trialPhone,     setTrialPhone]       = useState("");
   const [trialBizType,   setTrialBizType]     = useState("");
+  const [trialSmsConsent, setTrialSmsConsent] = useState(false);
   const [trialErrors,    setTrialErrors]      = useState<Record<string, string>>({});
 
   function validateTrial() {
@@ -457,6 +482,7 @@ export default function Home() {
         phone:         trialPhone || undefined,
         business_name: trialBiz   || undefined,
         business_type: trialBizType || undefined,
+        sms_consent:   trialSmsConsent,
         source:        "marketing_site",
       }),
     })
@@ -513,7 +539,7 @@ export default function Home() {
         <InteractiveHeroGrid containerRef={heroRef} gridSize={HERO_GRID_SIZE} />
 
         {/* Badge */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 100, padding: "0.4rem 1rem", fontSize: "0.78rem", fontWeight: 600, color: "rgba(17,17,17,0.65)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1.5rem", width: "fit-content" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 100, padding: "0.4rem 1rem", fontSize: "0.78rem", fontWeight: 600, color: "rgba(17,17,17,0.65)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1.5rem", width: "fit-content" }}>
           <span style={{ width: 6, height: 6, background: "#111111", borderRadius: "50%" }} />
           The AI platform built for law.
         </div>
@@ -522,12 +548,12 @@ export default function Home() {
 
         <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(3.5rem, 9vw, 7.5rem)", lineHeight: 0.95, letterSpacing: "0.02em", marginBottom: "1.5rem", maxWidth: 900, color: "#0A0A0A" }}>
           THE AI PLATFORM<br />
-          BUILT FOR<br />
-          LAW.
+          THAT POWERS YOUR<br />
+          FIRM'S GROWTH.
         </h1>
 
         <p style={{ fontSize: "1.15rem", color: "rgba(17,17,17,0.55)", maxWidth: 540, lineHeight: 1.7, marginBottom: "2.5rem", fontWeight: 400 }}>
-          Lawrenn answers your calls 24/7, captures every client intake, and keeps your communications organized — so you never miss a potential client and can focus on practicing law.
+          Lawrenn captures every lead, manages every client conversation, and handles the busywork between — so your practice grows like it has a full support staff behind it.
         </p>
 
         <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "3.5rem" }}>
@@ -544,7 +570,7 @@ export default function Home() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", color: "rgba(17,17,17,0.35)", fontSize: "0.85rem", flexWrap: "wrap" }}>
-          {["SOC 2 Type II compliant", "Attorney-client privilege protected", "No credit card required"].map(t => (
+          {["Attorney-client privilege protected", "No credit card required"].map(t => (
             <span key={t} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <span style={{ color: "#374151" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg></span> {t}
             </span>
@@ -569,99 +595,56 @@ export default function Home() {
         ))}
       </div>
 
-      {/* ── HOW IT WORKS ── */}
-      <section id="how" style={{ padding: "6rem 5%", background: "var(--off-white)" }}>
-        <SL>{sectionLabel("How it works")}</SL>
-        <SL>{sectionTitle(["SET UP IN MINUTES.", "NEVER MISS A CLIENT AGAIN."])}</SL>
-        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Route your calls through Lawrenn and every inquiry is captured, qualified, and ready for your review — around the clock.</p></SL>
-
-        <div className="lp-how">
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {[
-              { n: "01", t: "Connect your phone number", d: "Route your firm's calls through Lawrenn in under 5 minutes. No hardware, no IT team required." },
-              { n: "02", t: "AI answers, qualifies, and captures", d: "Every caller gets a professional response. Lawrenn gathers the key facts and creates a structured intake memo." },
-              { n: "03", t: "Review intakes and reply to clients", d: "See new intake memos instantly. Respond to clients by SMS with AI-drafted messages — approved in one click." },
-              { n: "04", t: "Track every client interaction", d: "Every call, message, and follow-up is logged automatically so nothing falls through the cracks." },
-            ].map(({ n, t, d }, i) => (
-              <SL key={i} delay={i * 0.1}>
-                <div style={{
-                  display: "flex", gap: "1.25rem", alignItems: "flex-start",
-                  padding: "1.25rem 1.5rem",
-                  background: "white",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.06)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}>
-                  <div style={{
-                    minWidth: 40, height: 40,
-                    borderRadius: 10,
-                    background: "rgba(0,0,0,0.04)",
-                    border: "1px solid rgba(0,0,0,0.1)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: "'Bebas Neue'", fontSize: "1rem", color: "var(--navy)", letterSpacing: "0.05em",
-                  }}>{n}</div>
-                  <div>
-                    <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.3rem", color: "var(--navy)" }}>{t}</h3>
-                    <p style={{ fontSize: "0.85rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.65, margin: 0 }}>{d}</p>
-                  </div>
-                </div>
-              </SL>
-            ))}
-          </div>
-
-          <SL>
-            <LiveFeed />
-          </SL>
-        </div>
-      </section>
-
       {/* ── FEATURES ── */}
       <section id="features" style={{ padding: "6rem 5%", background: "white" }}>
-        <SL>{sectionLabel("Features")}</SL>
-        <SL>{sectionTitle(["EVERYTHING YOUR", "PRACTICE NEEDS."])}</SL>
-        <SL><p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", maxWidth: 520, lineHeight: 1.7, marginBottom: "4rem" }}>Built for law firms, not generic businesses. Every feature is designed around how attorneys actually work.</p></SL>
+        <SL>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div style={{ width: 24, height: 1, background: "#111111" }} />
+            <span style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(17,17,17,0.5)" }}>Platform</span>
+          </div>
+        </SL>
+        <SL>
+          <div style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2.5rem, 5vw, 4rem)", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "4rem", color: "var(--navy)" }}>
+            BUILT FOR HOW<br />ATTORNEYS WORK.
+          </div>
+        </SL>
 
-        <div className="lp-features">
+        {/* Top 3 cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem", marginBottom: "1.25rem" }}>
           {[
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
-              title: "AI Call Answering", body: "Never miss a potential client. Lawrenn answers every call 24/7 with a professional greeting, handles common questions, and captures caller information.", tag: "24/7 availability"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>,
-              title: "Automated Client Intake", body: "Every call describing a legal matter generates a structured intake memo — issue summary, key facts, urgency level, and recommended next steps.", tag: "Intake in 3 minutes"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
-              title: "Client Communication", body: "Reply to clients by SMS from your dashboard. Lawrenn drafts follow-up messages based on call context so you can respond thoughtfully in seconds.", tag: "Smart messaging"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
-              title: "Matter Management", body: "Every intake, call, and message is organized by client. Track the full history of every matter from first contact so nothing ever falls through the cracks.", tag: "Full client history"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
-              title: "Practice Intelligence", body: "Ask questions about your practice in plain English — how many calls this week, which clients haven't heard back, most common matter types, and more.", tag: "Ask your data"
-            },
-            {
-              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>,
-              title: "AI-Drafted Follow-Ups", body: "After every intake call, Lawrenn drafts a professional client follow-up email — personalized, on-point, and ready to send with one click.", tag: "Follow-up in one click"
-            },
-          ].map(({ icon, title, body, tag }, i) => (
-            <SL key={i} delay={(i % 3) * 0.1}>
-              <div style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--border)", borderRadius: 12, padding: "1.75rem", height: "100%", transition: "all 0.3s", cursor: "default" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"; e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.07)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
-                <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1.25rem" }}>{icon}</div>
-                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>{title}</h3>
-                <p style={{ fontSize: "0.875rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.65, marginBottom: "1rem" }}>{body}</p>
-                <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "rgba(17,17,17,0.6)", fontFamily: "'DM Mono'", letterSpacing: "0.08em", textTransform: "uppercase" }}>{tag}</span>
+            { tag: "AI Intake Agent", title: "Never miss another client.", body: "Lawrenn answers every call 24/7, qualifies leads with your firm's intake questions, and books consultations directly on your calendar — even after hours, even when you're in court." },
+            { tag: "Client Conversation Hub", title: "Every conversation, one place.", body: "Calls, texts, and emails live in a single dashboard with AI-generated summaries and case notes — so you walk into every consultation already up to speed." },
+            { tag: "Legal Research, Built In", title: "Precedent at your fingertips.", body: "Ask a legal question in plain language and Lawrenn searches federal and state case law, surfacing relevant opinions with citations — right inside the platform where you work your matters." },
+          ].map(({ tag, title, body }, i) => (
+            <SL key={i} delay={i * 0.08}>
+              <div
+                style={{ padding: "2rem", background: "white", height: "100%", border: "1px solid var(--border)", borderRadius: 12, transition: "border-color 0.2s", cursor: "default", boxSizing: "border-box" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; }}
+              >
+                <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7A6A52", background: "#EDE8DF", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>{tag}</div>
+                <h3 style={{ fontSize: "clamp(1.25rem, 2vw, 1.6rem)", fontWeight: 600, color: "var(--navy)", lineHeight: 1.25, marginBottom: "1rem", letterSpacing: "-0.01em" }}>{title}</h3>
+                <p style={{ fontSize: "0.9rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.75, margin: 0 }}>{body}</p>
               </div>
             </SL>
           ))}
         </div>
+
+        {/* Practice Intelligence — full row with image */}
+        <SL>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ padding: "2.5rem", background: "white", boxSizing: "border-box" }}>
+              <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7A6A52", background: "#EDE8DF", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>Practice Intelligence</div>
+              <h3 style={{ fontSize: "clamp(1.6rem, 2.5vw, 2.2rem)", fontWeight: 600, color: "var(--navy)", lineHeight: 1.2, marginBottom: "1.25rem", letterSpacing: "-0.02em" }}>Ask anything about your firm.</h3>
+              <p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.75, margin: 0 }}>Lawrenn turns every call, message, and document into searchable knowledge. Ask a question in plain language — &ldquo;What did we discuss with the Rivera family?&rdquo; or &ldquo;Which clients are waiting on documents?&rdquo; — and get instant answers drawn from across your firm&rsquo;s data.</p>
+            </div>
+            <div style={{ background: "#F9F8F6", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", overflow: "hidden" }}>
+              <video autoPlay muted loop playsInline style={{ width: "100%", maxWidth: 400, borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.1)", display: "block" }}>
+                <source src="/videos/practiceIntelligence1.mp4" type="video/mp4" />
+              </video>
+            </div>
+          </div>
+        </SL>
       </section>
 
       {/* ── ROI ── */}
@@ -670,12 +653,12 @@ export default function Home() {
           <SL>
             {sectionLabel("ROI Calculator")}
             <div style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(2rem, 4vw, 3.2rem)", letterSpacing: "0.02em", lineHeight: 1.05, marginBottom: "1.25rem" }}>
-              HOW MANY CLIENTS<br />ARE YOU MISSING<br />RIGHT NOW?
+              CLOSE CASES FASTER.<br />INTAKE MORE CLIENTS.
             </div>
             <p style={{ color: "rgba(17,17,17,0.5)", lineHeight: 1.7, marginBottom: "1.5rem", fontSize: "0.95rem" }}>
-              The average law firm misses 42% of inbound calls. Each missed call is a potential matter worth thousands. Lawrenn answers every call, captures every intake, and converts inquiries into clients.
+              Most firms lose 25–40% of potential clients to missed calls and slow follow-up. Lawrenn captures every inquiry, qualifies leads instantly, and keeps your pipeline moving — so you close more cases without adding overhead.
             </p>
-            {["Lawrenn answers every call 24/7 — even nights and weekends", "Most firms see new matter volume increase 20–30% within 30 days", "One new matter per month more than covers the annual cost"].map((b, i) => (
+            {["Every missed call is a missed case — Lawrenn answers 24/7", "Faster intake means faster decisions and higher conversion", "More clients in, less time spent on admin"].map((b, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", fontSize: "0.9rem", color: "rgba(17,17,17,0.65)", marginBottom: "0.75rem" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> {b}
               </div>
@@ -698,7 +681,7 @@ export default function Home() {
             { tier: "Enterprise", price: PLAN_FEATURES.growth.price, desc: "Firm-wide AI client management for practices that need maximum capacity, deep insights, and scalable deployment.", features: [`Up to ${PLAN_FEATURES.growth.monthlyCallCap} AI-answered calls/mo`, "Everything in Firm", "Unlimited team members", "Multi-location support", "Advanced reporting & analytics", "Custom AI voice & persona", "Priority support", "API access", "Early feature access"], featured: false },
           ].map(({ tier, price, desc, features, featured }, i) => (
             <SL key={i} delay={i * 0.1}>
-              <div style={{ background: featured ? "rgba(0,0,0,0.04)" : "rgba(0,0,0,0.02)", border: `1px solid ${featured ? "rgba(0,0,0,0.2)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>
+              <div style={{ background: "white", border: `1px solid ${featured ? "rgba(0,0,0,0.2)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>
                 {featured && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#111111", color: "white", fontSize: "0.72rem", fontWeight: 700, padding: "0.25rem 0.9rem", borderRadius: 100, letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Most popular</div>}
                 <div style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(17,17,17,0.5)", marginBottom: "0.75rem" }}>{tier}</div>
                 <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3.5rem", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "0.25rem" }}>
@@ -800,7 +783,7 @@ export default function Home() {
         <div className="lp-footer-links">
           {[
             { title: "Product", links: [["#how", "How it works"], ["#features", "Features"], ["#pricing", "Pricing"], ["#faq", "FAQ"]] },
-            { title: "Company", links: [["#", "About"], ["#", "Blog"], ["mailto:hello@lawrenn.com", "Contact"]] },
+            { title: "Company", links: [["#", "About"], ["/blog", "Blog"], ["mailto:hello@lawrenn.com", "Contact"]] },
             { title: "Legal", links: [["/privacy", "Privacy Policy"], ["/terms", "Terms of Service"]] },].map(({ title, links }) => (
               <div key={title}>
                 <h4 style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(17,17,17,0.35)", marginBottom: "1rem" }}>{title}</h4>
@@ -823,7 +806,7 @@ export default function Home() {
 
       {/* ── TRIAL MODAL ── */}
       {showTrial && (
-        <Modal title="REQUEST EARLY ACCESS" sub="Join leading law firms already using Lawrenn to draft faster and bill more. 14-day free trial — no credit card required." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialFirstName(""); setTrialLastName(""); setTrialEmail(""); setTrialBiz(""); setTrialPhone(""); setTrialBizType(""); setTrialErrors({}); }}>
+        <Modal title="REQUEST EARLY ACCESS" sub="Join leading law firms already using Lawrenn to draft faster and bill more. 14-day free trial — no credit card required." onClose={() => { setShowTrial(false); setTrialDone(false); setTrialFirstName(""); setTrialLastName(""); setTrialEmail(""); setTrialBiz(""); setTrialPhone(""); setTrialBizType(""); setTrialSmsConsent(false); setTrialErrors({}); }}>
           {!trialDone ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -833,6 +816,7 @@ export default function Home() {
               <FormInput label="Work email *" type="email" placeholder="partner@yourfirm.com" onChange={v => { setTrialEmail(v); setTrialErrors(e => ({ ...e, email: "" })); }} error={trialErrors.email} />
               <FormInput label="Firm name *" placeholder="Smith & Associates LLP" onChange={v => { setTrialBiz(v); setTrialErrors(e => ({ ...e, biz: "" })); }} error={trialErrors.biz} />
               <FormInput label="Work phone *" type="tel" placeholder="+1 (212) 555-0100" onChange={v => { setTrialPhone(v); setTrialErrors(e => ({ ...e, phone: "" })); }} error={trialErrors.phone} />
+              <SmsConsentCheckbox checked={trialSmsConsent} onChange={setTrialSmsConsent} />
               <FormSelect label="Practice area" options={["Corporate / M&A", "Litigation", "Real Estate", "Employment", "Criminal Defense", "Family Law", "IP / Patent", "Bankruptcy", "In-House Legal", "Other"]} onChange={setTrialBizType} />
               <SubmitBtn label="Request access →" onClick={submitTrial} />
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(17,17,17,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>

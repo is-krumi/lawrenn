@@ -23,7 +23,7 @@ interface Job {
   ai_notes: string | null;
   created_at: string;
   updated_at: string | null;
-  customers: { id: string; name: string; phone: string; address: string; email: string | null; contact_type: string | null } | null;
+  customers: { id: string; name: string; phone: string; address: string | null; email: string | null; contact_type: string | null } | null;
   technicians: { name: string; color: string } | null;
   technician_id: string | null;
 }
@@ -55,6 +55,7 @@ interface ContactDraft {
   lastName: string;
   phone: string;
   email: string;
+  address: string;
 }
 
 interface MatterDoc {
@@ -152,11 +153,16 @@ interface ResearchAnalysis {
 }
 
 function renderInline(text: string): React.ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-    p.startsWith("**") && p.endsWith("**")
-      ? <strong key={i} style={{ fontWeight: 700, color: "#0D1B2A" }}>{p.slice(2, -2)}</strong>
-      : p
-  );
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**"))
+      return <strong key={i} style={{ fontWeight: 700, color: "#111111" }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("*") && p.endsWith("*"))
+      return <em key={i}>{p.slice(1, -1)}</em>;
+    if (p.startsWith("`") && p.endsWith("`"))
+      return <code key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: "0.82em", background: "rgba(0,0,0,0.06)", borderRadius: 4, padding: "0.1em 0.35em", color: "#111111" }}>{p.slice(1, -1)}</code>;
+    return p;
+  });
 }
 
 function renderContent(text: string): React.ReactNode {
@@ -166,36 +172,48 @@ function renderContent(text: string): React.ReactNode {
   while (i < lines.length) {
     const line = lines[i];
     if (!line.trim()) { i++; continue; }
+    if (line.match(/^---+$/)) {
+      nodes.push(<hr key={i} style={{ border: "none", borderTop: "1px solid rgba(0,0,0,0.08)", margin: "0.75rem 0" }} />);
+      i++; continue;
+    }
+    if (line.startsWith("# ")) {
+      nodes.push(<p key={i} style={{ fontWeight: 700, fontSize: "1rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.4rem" : "0 0 0.4rem", lineHeight: 1.3 }}>{renderInline(line.slice(2))}</p>);
+      i++; continue;
+    }
     if (line.startsWith("## ")) {
-      nodes.push(<p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#0D1B2A", margin: nodes.length > 0 ? "0.75rem 0 0.3rem" : "0 0 0.3rem" }}>{renderInline(line.slice(3))}</p>);
+      nodes.push(<p key={i} style={{ fontWeight: 700, fontSize: "0.92rem", color: "#111111", margin: nodes.length > 0 ? "1rem 0 0.35rem" : "0 0 0.35rem", lineHeight: 1.3 }}>{renderInline(line.slice(3))}</p>);
       i++; continue;
     }
     if (line.startsWith("### ")) {
-      nodes.push(<p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.6rem 0 0.25rem" : "0 0 0.25rem" }}>{renderInline(line.slice(4))}</p>);
+      nodes.push(<p key={i} style={{ fontWeight: 600, fontSize: "0.875rem", color: "#374151", margin: nodes.length > 0 ? "0.75rem 0 0.25rem" : "0 0 0.25rem" }}>{renderInline(line.slice(4))}</p>);
+      i++; continue;
+    }
+    if (line.startsWith("> ")) {
+      nodes.push(<div key={i} style={{ borderLeft: "3px solid rgba(0,0,0,0.15)", paddingLeft: "0.75rem", margin: "0.5rem 0", color: "#6B7280", fontSize: "0.875rem", fontStyle: "italic" }}>{renderInline(line.slice(2))}</div>);
       i++; continue;
     }
     if (line.match(/^[-*•] /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^[-*•] /)) {
-        items.push(<li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>{renderInline(lines[i].replace(/^[-*•] /, ""))}</li>);
+        items.push(<li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>{renderInline(lines[i].replace(/^[-*•] /, ""))}</li>);
         i++;
       }
-      nodes.push(<ul key={`ul-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.2rem", listStyleType: "disc" }}>{items}</ul>);
+      nodes.push(<ul key={`ul-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.25rem", listStyleType: "disc" }}>{items}</ul>);
       continue;
     }
     if (line.match(/^\d+\. /)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && lines[i].match(/^\d+\. /)) {
-        items.push(<li key={i} style={{ marginBottom: "0.2rem", paddingLeft: "0.15rem" }}>{renderInline(lines[i].replace(/^\d+\. /, ""))}</li>);
+        items.push(<li key={i} style={{ marginBottom: "0.3rem", lineHeight: 1.65 }}>{renderInline(lines[i].replace(/^\d+\. /, ""))}</li>);
         i++;
       }
-      nodes.push(<ol key={`ol-${i}`} style={{ margin: "0.35rem 0", paddingLeft: "1.35rem" }}>{items}</ol>);
+      nodes.push(<ol key={`ol-${i}`} style={{ margin: "0.4rem 0 0.5rem", paddingLeft: "1.35rem" }}>{items}</ol>);
       continue;
     }
-    nodes.push(<p key={i} style={{ margin: "0 0 0.35rem 0", lineHeight: 1.7 }}>{renderInline(line)}</p>);
+    nodes.push(<p key={i} style={{ margin: "0 0 0.5rem 0", lineHeight: 1.75 }}>{renderInline(line)}</p>);
     i++;
   }
-  return <div style={{ fontSize: "0.875rem", color: "#1F2937" }}>{nodes}</div>;
+  return <div style={{ fontSize: "0.875rem", color: "#374151" }}>{nodes}</div>;
 }
 
 export default function MatterDetailPage() {
@@ -213,6 +231,8 @@ export default function MatterDetailPage() {
   const [confirmOverride, setConfirmOverride] = useState<string | null>(null);
   const [notesValue,      setNotesValue]      = useState("");
   const [notesSaving,     setNotesSaving]     = useState(false);
+  const [editingTitle,    setEditingTitle]    = useState(false);
+  const [titleValue,      setTitleValue]      = useState("");
   const [activeTab,       setActiveTab]       = useState<Tab>("chat");
 
   // Chat state
@@ -232,8 +252,9 @@ export default function MatterDetailPage() {
   const [attachedDoc,      setAttachedDoc]      = useState<{ id: string; name: string } | null>(null);
   const [isDraggingToChat, setIsDraggingToChat] = useState(false);
   const fileInputRef   = useRef<HTMLInputElement>(null);
-  const [previewDoc,   setPreviewDoc]   = useState<{ url: string; name: string } | null>(null);
-  const [previewWidth, setPreviewWidth] = useState(480);
+  const [previewDoc,      setPreviewDoc]      = useState<{ url: string; name: string } | null>(null);
+  const [previewWidth,    setPreviewWidth]    = useState(480);
+  const [previewDragging, setPreviewDragging] = useState(false);
   const previewDragRef = useRef<{ startX: number; startW: number } | null>(null);
 
   // Research state
@@ -248,12 +269,12 @@ export default function MatterDetailPage() {
 
   // Contacts state
   const [editingContact,        setEditingContact]        = useState(false);
-  const [contactEdit,           setContactEdit]           = useState<ContactDraft>({ contactType: "", firstName: "", lastName: "", phone: "", email: "" });
+  const [contactEdit,           setContactEdit]           = useState<ContactDraft>({ contactType: "", firstName: "", lastName: "", phone: "", email: "", address: "" });
   const [matterContacts,        setMatterContacts]        = useState<MatterContact[]>([]);
   const [editingMatterContactId, setEditingMatterContactId] = useState<string | null>(null);
-  const [matterContactEdit,     setMatterContactEdit]     = useState<ContactDraft>({ contactType: "", firstName: "", lastName: "", phone: "", email: "" });
+  const [matterContactEdit,     setMatterContactEdit]     = useState<ContactDraft>({ contactType: "", firstName: "", lastName: "", phone: "", email: "", address: "" });
   const [addingContact,         setAddingContact]         = useState(false);
-  const [newContact,            setNewContact]            = useState<ContactDraft>({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "" });
+  const [newContact,            setNewContact]            = useState<ContactDraft>({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "", address: "" });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -261,6 +282,12 @@ export default function MatterDetailPage() {
 
   useEffect(() => {
     if (activeTab === "research" && job && !researchSearched && !researchLoading) {
+      const cached = (job as any).research_cache;
+      if (cached) {
+        setResearchAnalysis(cached);
+        setResearchSearched(true);
+        return;
+      }
       runResearch();
     }
   }, [activeTab, job]);
@@ -281,7 +308,7 @@ export default function MatterDetailPage() {
         .from("jobs")
         .select(`
           id, name, type, status, slot_start, slot_end, amount, source,
-          notes, ai_notes, created_at, updated_at, technician_id,
+          notes, ai_notes, research_cache, created_at, updated_at, technician_id,
           customers (id, name, phone, address, email, contact_type),
           technicians (name, color)
         `)
@@ -291,6 +318,16 @@ export default function MatterDetailPage() {
       if (data) {
         setJob(data as any);
         setNotesValue((data as any).notes ?? "");
+
+        // Track recent visit
+        if (businessId) {
+          const d = data as any;
+          const matterName = d.name || `${d.customers?.name ?? "Unknown"} — ${d.type}`;
+          const key = `lawrenn-recent-${businessId}`;
+          const existing = JSON.parse(localStorage.getItem(key) ?? "[]");
+          const deduped = existing.filter((i: any) => !(i.type === "matter" && i.id === d.id));
+          localStorage.setItem(key, JSON.stringify([{ type: "matter", id: d.id, name: matterName, subtitle: d.type, status: d.status, visitedAt: Date.now() }, ...deduped].slice(0, 12)));
+        }
 
         // Auto-generate IQ Summary if none exists
         if (!(data as any).ai_notes) {
@@ -449,6 +486,7 @@ export default function MatterDetailPage() {
 
   const onPreviewMouseUp = useCallback(() => {
     previewDragRef.current = null;
+    setPreviewDragging(false);
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
   }, []);
@@ -465,6 +503,7 @@ export default function MatterDetailPage() {
   function startPreviewDrag(e: React.MouseEvent) {
     e.preventDefault();
     previewDragRef.current = { startX: e.clientX, startW: previewWidth };
+    setPreviewDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }
@@ -525,6 +564,7 @@ export default function MatterDetailPage() {
       lastName:    parts.slice(1).join(" "),
       phone:       job.customers.phone ?? "",
       email:       job.customers.email ?? "",
+      address:     job.customers.address ?? "",
     });
     setEditingContact(true);
   }
@@ -537,6 +577,7 @@ export default function MatterDetailPage() {
       name:         fullName || job.customers.name,
       phone:        contactEdit.phone.trim(),
       email:        contactEdit.email.trim() || null,
+      address:      contactEdit.address.trim() || null,
     };
     await supabase.from("customers").update(updates).eq("id", job.customers.id);
     setJob(prev => prev ? { ...prev, customers: { ...prev.customers!, ...updates } } : null);
@@ -544,7 +585,7 @@ export default function MatterDetailPage() {
   }
 
   function startEditMatterContact(c: MatterContact) {
-    setMatterContactEdit({ contactType: c.contact_type, firstName: c.first_name ?? "", lastName: c.last_name ?? "", phone: c.phone ?? "", email: c.email ?? "" });
+    setMatterContactEdit({ contactType: c.contact_type, firstName: c.first_name ?? "", lastName: c.last_name ?? "", phone: c.phone ?? "", email: c.email ?? "", address: "" });
     setEditingMatterContactId(c.id);
   }
 
@@ -567,7 +608,7 @@ export default function MatterDetailPage() {
     const { data } = await supabase.from("matter_contacts").insert(row).select("id, contact_type, first_name, last_name, phone, email").single();
     if (data) setMatterContacts(prev => [...prev, data as MatterContact]);
     setAddingContact(false);
-    setNewContact({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "" });
+    setNewContact({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "", address: "" });
   }
 
   async function saveNotes() {
@@ -576,6 +617,14 @@ export default function MatterDetailPage() {
     await supabase.from("jobs").update({ notes: notesValue }).eq("id", job.id);
     setJob(prev => prev ? { ...prev, notes: notesValue } : null);
     setNotesSaving(false);
+  }
+
+  async function saveTitle() {
+    if (!job) return;
+    const val = titleValue.trim() || null;
+    await supabase.from("jobs").update({ name: val }).eq("id", job.id);
+    setJob(prev => prev ? { ...prev, name: val } : null);
+    setEditingTitle(false);
   }
 
   const [researchError, setResearchError] = useState<string | null>(null);
@@ -608,6 +657,7 @@ export default function MatterDetailPage() {
         return;
       }
       setResearchAnalysis(data);
+      supabase.from("jobs").update({ research_cache: data }).eq("id", job.id).then(() => {});
     } catch (err: any) {
       setResearchError(err.message ?? "Network error");
     } finally {
@@ -727,13 +777,13 @@ export default function MatterDetailPage() {
   }
 
   if (loading || bizLoading) return (
-    <div style={{ height: "calc(100vh - 52px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ height: "calc(100vh - 52px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading matter…</p>
     </div>
   );
 
   if (!job) return (
-    <div style={{ height: "calc(100vh - 52px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ height: "calc(100vh - 52px)", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Matter not found.</p>
     </div>
   );
@@ -750,23 +800,43 @@ export default function MatterDetailPage() {
   ];
 
   const MATTER_SUGGESTED = [
-    "Summarize this matter",
-    "What has the client called about?",
-    "What documents are on file?",
-    "What are the key dates and deadlines?",
-    "Draft a status update for this client",
-    "What is the current status?",
+    { label: "Summarize this matter",             color: "#4F46E5", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
+    { label: "What has the client called about?", color: "#0891B2", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> },
+    { label: "What documents are on file?",       color: "#D97706", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> },
+    { label: "Key dates and deadlines?",          color: "#DC2626", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+    { label: "Draft a client status update",      color: "#059669", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> },
+    { label: "What is the current status?",       color: "#7C3AED", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
   ];
 
   return (
-    <div style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", background: "#FAFAFA", overflow: "hidden" }}>
+    <div style={{ height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", fontFamily: "'DM Sans', sans-serif", background: "#ffffff", overflow: "hidden" }}>
 
       {/* Header */}
-      <div style={{ padding: "1.5rem 2rem 0 1.5rem", flexShrink: 0, background: "#FAFAFA" }}>
+      <div style={{ padding: "1.5rem 2rem 0 1.5rem", flexShrink: 0, background: "#ffffff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-          <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.02em", color: "#111111", margin: 0 }}>
-            {matterTitle.toUpperCase()}
-          </h1>
+          {editingTitle ? (
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <span style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.02em", whiteSpace: "pre", visibility: "hidden", display: "block", minWidth: 40 }}>
+                {titleValue || " "}
+              </span>
+              <input
+                autoFocus
+                value={titleValue}
+                onChange={e => setTitleValue(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={e => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.02em", color: "#111111", border: "none", borderBottom: "2px solid #111111", background: "transparent", outline: "none", padding: 0, margin: 0 }}
+              />
+            </div>
+          ) : (
+            <h1
+              onClick={() => { setTitleValue(job.name ?? matterTitle); setEditingTitle(true); }}
+              title="Click to edit"
+              style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.02em", color: "#111111", margin: 0, cursor: "text" }}
+            >
+              {matterTitle.toUpperCase()}
+            </h1>
+          )}
           <span style={{ fontSize: "0.7rem", fontWeight: 700, padding: "0.22rem 0.55rem", borderRadius: 5, background: cfg.bg, color: cfg.color, letterSpacing: "0.04em", flexShrink: 0 }}>
             {cfg.label}
           </span>
@@ -877,7 +947,7 @@ export default function MatterDetailPage() {
                     }}
                     onClick={() => openPreview(doc)}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = "#FAFAFA";
+                      e.currentTarget.style.background = "#ffffff";
                       const btn = e.currentTarget.querySelector(".file-del-btn") as HTMLElement | null;
                       if (btn) btn.style.opacity = "1";
                     }}
@@ -930,24 +1000,17 @@ export default function MatterDetailPage() {
               <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
                 {messages.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1.5rem", minHeight: "60%", padding: "2rem 0" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,0.04)", border: "1.5px solid rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 0.9rem" }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
-                      </div>
-                      <h3 style={{ fontFamily: "'Bebas Neue'", fontSize: "1.1rem", letterSpacing: "0.06em", color: "#111111", margin: "0 0 0.4rem" }}>ASK ABOUT THIS MATTER</h3>
-                      <p style={{ fontSize: "0.8rem", color: "#9CA3AF", lineHeight: 1.6, margin: 0 }}>
-                        Questions are answered using this matter's info and your firm's knowledge base.
-                      </p>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", width: "100%", maxWidth: 520 }}>
+                    <p style={{ fontSize: "0.8rem", color: "#9CA3AF", lineHeight: 1.6, margin: 0, textAlign: "center" }}>
+                      Questions are answered using this matter's info and your firm's knowledge base.
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", width: "100%", maxWidth: 520 }}>
                       {MATTER_SUGGESTED.map((q, i) => (
-                        <button key={i} onClick={() => sendMessage(q)}
-                          style={{ padding: "0.6rem 0.85rem", background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.78rem", textAlign: "left", cursor: "pointer", lineHeight: 1.45, transition: "border-color 0.12s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; }}>
-                          {q}
+                        <button key={i} onClick={() => sendMessage(q.label)}
+                          style={{ padding: "0.85rem 0.75rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, color: "#374151", fontFamily: "'DM Sans'", fontSize: "0.82rem", textAlign: "left", cursor: "pointer", lineHeight: 1.45, transition: "all 0.12s", display: "flex", flexDirection: "column", gap: "0.6rem", aspectRatio: "1.2" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.18)"; e.currentTarget.style.background = "white"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.08)"; e.currentTarget.style.background = "#ffffff"; }}>
+                          <span style={{ color: q.color }}>{q.icon}</span>
+                          <span style={{ fontWeight: 800, color: "#111111" }}>{q.label}</span>
                         </button>
                       ))}
                     </div>
@@ -957,7 +1020,7 @@ export default function MatterDetailPage() {
                     {messages.map((msg, i) => (
                       <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                         {msg.role === "user" ? (
-                          <div style={{ maxWidth: "72%", padding: "0.6rem 1rem", background: "#F5F5F0", borderRadius: "14px 14px 4px 14px", color: "#111111", fontSize: "0.875rem", lineHeight: 1.6 }}>
+                          <div style={{ maxWidth: "72%", padding: "0.6rem 1rem", background: "#EDE8DF", borderRadius: "14px 14px 4px 14px", color: "#111111", fontSize: "0.875rem", lineHeight: 1.6 }}>
                             {msg.content}
                           </div>
                         ) : (
@@ -999,7 +1062,7 @@ export default function MatterDetailPage() {
               >
                 {attachedDoc && (
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.45rem 0.2rem 0.4rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 5 }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.2rem 0.45rem 0.2rem 0.4rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 5 }}>
                       <DocTypeIcon name={attachedDoc.name} />
                       <span style={{ fontSize: "0.75rem", color: "#374151", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attachedDoc.name}</span>
                       <button
@@ -1012,7 +1075,7 @@ export default function MatterDetailPage() {
                     </div>
                   </div>
                 )}
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", background: isDraggingToChat ? "rgba(0,0,0,0.025)" : "#FAFAFA", border: isDraggingToChat ? "1.5px dashed rgba(0,0,0,0.18)" : "1px solid rgba(0,0,0,0.09)", borderRadius: 12, padding: "0.65rem 0.6rem 0.65rem 1rem", transition: "all 0.12s" }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem", background: isDraggingToChat ? "rgba(0,0,0,0.025)" : "#ffffff", border: isDraggingToChat ? "1.5px dashed rgba(0,0,0,0.18)" : "1px solid rgba(0,0,0,0.09)", borderRadius: 12, padding: "0.65rem 0.6rem 0.65rem 1rem", transition: "all 0.12s" }}>
                   <textarea
                     ref={chatInputRef}
                     value={chatInput}
@@ -1082,7 +1145,7 @@ export default function MatterDetailPage() {
                 placeholder="Add notes about this matter…"
                 style={{
                   flex: 1, resize: "none",
-                  padding: "0.75rem", background: "#FAFAFA",
+                  padding: "0.75rem", background: "#ffffff",
                   border: "1.5px solid rgba(0,0,0,0.08)", borderRadius: 8,
                   color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem",
                   lineHeight: 1.6, outline: "none", boxSizing: "border-box",
@@ -1163,7 +1226,7 @@ export default function MatterDetailPage() {
                         <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start" }}>
                           <div style={{
                             maxWidth: "88%", padding: "0.55rem 0.8rem", borderRadius: m.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                            background: m.role === "user" ? "#F5F5F0" : "transparent",
+                            background: m.role === "user" ? "#EDE8DF" : "transparent",
                             color: "#111111",
                             fontSize: "0.8rem", lineHeight: 1.65,
                           }}>
@@ -1192,7 +1255,7 @@ export default function MatterDetailPage() {
                         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendResearchChat(); } }}
                         placeholder="Ask a research question&#8230;"
                         rows={1}
-                        style={{ flex: 1, resize: "none", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "0.5rem 0.75rem", fontFamily: "'DM Sans'", fontSize: "0.82rem", color: "#111111", outline: "none", lineHeight: 1.5, background: "#FAFAFA", maxHeight: 100, overflowY: "auto" }}
+                        style={{ flex: 1, resize: "none", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, padding: "0.5rem 0.75rem", fontFamily: "'DM Sans'", fontSize: "0.82rem", color: "#111111", outline: "none", lineHeight: 1.5, background: "#ffffff", maxHeight: 100, overflowY: "auto" }}
                         onFocus={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.25)"; }}
                         onBlur={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"; }}
                       />
@@ -1471,7 +1534,7 @@ export default function MatterDetailPage() {
                           <td style={{ padding: "0.85rem 0", verticalAlign: "middle", whiteSpace: "nowrap" as const }}>
                             <div style={{ display: "flex", gap: "0.5rem" }}>
                               <button onClick={addMatterContact} style={{ background: "#111111", color: "white", border: "none", borderRadius: 6, padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
-                              <button onClick={() => { setAddingContact(false); setNewContact({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "" }); }} style={{ background: "rgba(0,0,0,0.06)", color: "#374151", border: "none", borderRadius: 6, padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                              <button onClick={() => { setAddingContact(false); setNewContact({ contactType: "Client", firstName: "", lastName: "", phone: "", email: "", address: "" }); }} style={{ background: "rgba(0,0,0,0.06)", color: "#374151", border: "none", borderRadius: 6, padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                             </div>
                           </td>
                         </tr>
@@ -1499,11 +1562,63 @@ export default function MatterDetailPage() {
           {/* Client */}
           {job.customers && (
             <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "1.25rem" }}>
-              <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 0.75rem" }}>Client</p>
-              <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", margin: "0 0 0.2rem" }}>{job.customers.name}</p>
-              <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: "0 0 0.15rem" }}>{job.customers.phone}</p>
-              {job.customers.address && (
-                <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: 0 }}>{job.customers.address}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Client</p>
+                {!editingContact ? (
+                  <button onClick={startEditContact} style={{ background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, padding: "0.25rem", cursor: "pointer", display: "flex", alignItems: "center", color: "#6B7280" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <button onClick={saveContact} style={{ background: "#111111", color: "white", border: "none", borderRadius: 6, padding: "0.2rem 0.6rem", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
+                    <button onClick={() => setEditingContact(false)} style={{ background: "rgba(0,0,0,0.06)", color: "#374151", border: "none", borderRadius: 6, padding: "0.2rem 0.6rem", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                  </div>
+                )}
+              </div>
+              {editingContact ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <input
+                      placeholder="First name"
+                      value={contactEdit.firstName}
+                      onChange={e => setContactEdit(p => ({ ...p, firstName: e.target.value }))}
+                      style={{ flex: 1, border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem", fontFamily: "inherit", outline: "none" }}
+                    />
+                    <input
+                      placeholder="Last name"
+                      value={contactEdit.lastName}
+                      onChange={e => setContactEdit(p => ({ ...p, lastName: e.target.value }))}
+                      style={{ flex: 1, border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem", fontFamily: "inherit", outline: "none" }}
+                    />
+                  </div>
+                  <input
+                    placeholder="Phone"
+                    value={contactEdit.phone}
+                    onChange={e => setContactEdit(p => ({ ...p, phone: e.target.value }))}
+                    style={{ border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem", fontFamily: "inherit", outline: "none" }}
+                  />
+                  <input
+                    placeholder="Email"
+                    value={contactEdit.email}
+                    onChange={e => setContactEdit(p => ({ ...p, email: e.target.value }))}
+                    style={{ border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem", fontFamily: "inherit", outline: "none" }}
+                  />
+                  <input
+                    placeholder="Address"
+                    value={contactEdit.address}
+                    onChange={e => setContactEdit(p => ({ ...p, address: e.target.value }))}
+                    style={{ border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.4rem 0.6rem", fontSize: "0.82rem", fontFamily: "inherit", outline: "none" }}
+                  />
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", margin: "0 0 0.2rem" }}>{job.customers.name}</p>
+                  <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: "0 0 0.15rem" }}>{job.customers.phone}</p>
+                  {job.customers.email && <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: "0 0 0.15rem" }}>{job.customers.email}</p>}
+                  {job.customers.address && <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: 0 }}>{job.customers.address}</p>}
+                </>
               )}
             </div>
           )}
@@ -1620,7 +1735,7 @@ export default function MatterDetailPage() {
                 const tech = technicians.find(t => t.id === techId);
                 setJob(prev => prev ? { ...prev, technician_id: techId, technicians: tech ? { name: tech.name, color: tech.color } : null } : null);
               }}
-              style={{ width: "100%", padding: "0.6rem 0.75rem", background: "#FAFAFA", border: "1.5px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}>
+              style={{ width: "100%", padding: "0.6rem 0.75rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.08)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.875rem", outline: "none" }}>
               <option value="">Unassigned</option>
               {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -1683,11 +1798,16 @@ export default function MatterDetailPage() {
                 </svg>
               </button>
             </div>
-            <iframe
-              src={previewDoc.url}
-              style={{ flex: 1, minHeight: 0, border: "none", width: "100%", display: "block" }}
-              title={previewDoc.name}
-            />
+            <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+              <iframe
+                src={previewDoc.url}
+                style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                title={previewDoc.name}
+              />
+              {previewDragging && (
+                <div style={{ position: "absolute", inset: 0, zIndex: 10 }} />
+              )}
+            </div>
           </div>
         </>
       )}

@@ -253,14 +253,14 @@ function CallsPageInner() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#9CA3AF", fontSize: "0.875rem" }}>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ maxWidth: selected ? 1400 : 900, margin: "0 auto", padding: "2rem", transition: "max-width 0.2s" }}>
 
         {/* Header */}
@@ -327,11 +327,11 @@ function CallsPageInner() {
                         padding: "0.85rem 1.25rem",
                         borderBottom: i < calls.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none",
                         cursor: "pointer",
-                        background: isActive ? "#F5F5F0" : "white",
+                        background: isActive ? "#ffffff" : "white",
                         transition: "background 0.12s",
                         borderLeft: isActive ? "2px solid #111111" : "2px solid transparent",
                       }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#FAFAFA"; }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#ffffff"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "white"; }}>
 
                       {/* Status dot */}
@@ -471,7 +471,7 @@ function CallsPageInner() {
                   <div style={{ padding: "1rem 1.5rem" }}>
                     <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.65rem" }}>Call Summary</p>
                     {selected.ai_summary ? (
-                      <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderLeft: "3px solid #111111", borderRadius: "0 6px 6px 0", padding: "0.75rem 1rem" }}>
+                      <div style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", borderLeft: "3px solid #111111", borderRadius: "0 6px 6px 0", padding: "0.75rem 1rem" }}>
                         <p style={{ fontSize: "0.84rem", color: "#1F2937", lineHeight: 1.85, margin: 0, fontStyle: "normal" }}>
                           {selected.ai_summary.replace(/^\*\*[^*]+\*\*\s*/g, "").trim()}
                         </p>
@@ -522,7 +522,7 @@ function CallsPageInner() {
                           )}
                         </div>
                         {selected.client_followup ? (
-                          <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, padding: "0.9rem 1rem" }}>
+                          <div style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, padding: "0.9rem 1rem" }}>
                             <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: 1.8, margin: 0, whiteSpace: "pre-wrap" }}>
                               {selected.client_followup}
                             </p>

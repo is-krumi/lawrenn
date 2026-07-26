@@ -197,7 +197,7 @@ export default function OnboardingStep3() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F5F5F0",
+      background: "#ffffff",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
@@ -254,7 +254,7 @@ export default function OnboardingStep3() {
         )}
 
         {/* Solo toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: isSolo ? "rgba(17,17,17,0.04)" : "#F5F5F0", border: `1px solid ${isSolo ? "rgba(17,17,17,0.15)" : "rgba(0,0,0,0.08)"}`, borderRadius: 10, marginBottom: "1rem", transition: "all 0.2s" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: isSolo ? "rgba(17,17,17,0.04)" : "#ffffff", border: `1px solid ${isSolo ? "rgba(17,17,17,0.15)" : "rgba(0,0,0,0.08)"}`, borderRadius: 10, marginBottom: "1rem", transition: "all 0.2s" }}>
           <div>
             <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Solo practitioner</p>
             <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>No team members — just you</p>
@@ -277,7 +277,7 @@ export default function OnboardingStep3() {
 
         {!isSolo && (<>
         {/* Use business hours toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, marginBottom: "1.5rem" }}>
           <div>
             <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Everyone works the same hours</p>
             <p style={{ fontSize: "0.8rem", color: "#6B7280" }}>Use your office hours for all team members</p>
@@ -304,7 +304,7 @@ export default function OnboardingStep3() {
             <div key={member.id} style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, overflow: "hidden" }}>
 
               {/* Member header */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem", background: "#F5F5F0", cursor: "pointer" }}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem", background: "#ffffff", cursor: "pointer" }}
                 onClick={() => setExpanded(expanded === member.id ? null : member.id)}>
 
                 {/* Color dot */}
@@ -333,7 +333,7 @@ export default function OnboardingStep3() {
                     <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "#374151", marginBottom: "0.4rem" }}>Name</label>
                     <input type="text" placeholder="Jane Smith" value={member.name}
                       onChange={e => updateMember(member.id, "name", e.target.value)}
-                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
+                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
                       onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
                       onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                   </div>
@@ -345,7 +345,7 @@ export default function OnboardingStep3() {
                     </label>
                     <input type="tel" placeholder="(716) 555-0100" value={member.phone}
                       onChange={e => updateMember(member.id, "phone", e.target.value)}
-                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
+                      style={{ width: "100%", padding: "0.7rem 0.9rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", boxSizing: "border-box" }}
                       onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
                       onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
                   </div>
@@ -393,11 +393,11 @@ export default function OnboardingStep3() {
                               <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
                                 <input type="time" value={member.schedule[day]!.start}
                                   onChange={e => updateMemberHour(member.id, day, "start", e.target.value)}
-                                  style={{ padding: "0.25rem 0.4rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
+                                  style={{ padding: "0.25rem 0.4rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
                                 <span style={{ color: "#9CA3AF", fontSize: "0.78rem" }}>to</span>
                                 <input type="time" value={member.schedule[day]!.end}
                                   onChange={e => updateMemberHour(member.id, day, "end", e.target.value)}
-                                  style={{ padding: "0.25rem 0.4rem", background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
+                                  style={{ padding: "0.25rem 0.4rem", background: "#ffffff", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 6, fontFamily: "'DM Sans'", fontSize: "0.78rem", outline: "none" }} />
                               </div>
                             ) : (
                               <span style={{ fontSize: "0.78rem", color: "#9CA3AF" }}>Off</span>

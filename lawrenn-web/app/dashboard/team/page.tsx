@@ -173,25 +173,30 @@ export default function TeamPage() {
   async function deleteMember(memberId: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await fetch("/api/team-members", {
+    const res = await fetch("/api/team-members", {
       method:  "DELETE",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body:    JSON.stringify({ member_id: memberId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "Failed to remove member. Please try again.");
+      return;
+    }
     setMembers(prev => prev.filter(m => m.id !== memberId));
     setMemberCount(c => Math.max(0, c - 1));
   }
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading team...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
         {/* ── Header ── */}
@@ -298,14 +303,14 @@ export default function TeamPage() {
               <input type="email" placeholder="colleague@yourfirm.com" value={inviteEmail}
                 onChange={e => { setInviteEmail(e.target.value); setInviteError(""); setInviteSuccess(""); setCanResend(false); }}
                 onKeyDown={e => { if (e.key === "Enter") sendInvite(false); }}
-                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#FFFFFF", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
               />
             </div>
 
             <div style={{ marginBottom: "1.5rem" }}>
               <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "rgba(17,17,17,0.5)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.4rem" }}>Role</label>
               <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F9FAFB", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box", cursor: "pointer" }}>
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#FFFFFF", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box", cursor: "pointer" }}>
                 <option value="attorney">Attorney</option>
                 <option value="paralegal">Paralegal</option>
                 <option value="admin">Admin</option>
@@ -385,7 +390,7 @@ function MemberRow({
           onClick={() => canInvite && !isPending && !isOwnerSyntheticRow && setPickerOpen(p => !p)}
           style={{
             width: 42, height: 42, borderRadius: "50%",
-            background: isPending ? "#F3F4F6" : activeColor,
+            background: isPending ? "#F7F8F9" : activeColor,
             border: isPending ? "2px dashed rgba(0,0,0,0.15)" : canInvite && !isOwnerSyntheticRow ? "2px solid transparent" : "none",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: isPending ? "#9CA3AF" : "white",

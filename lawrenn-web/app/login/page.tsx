@@ -139,7 +139,7 @@ function LoginInner() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F5F5F0",
+      background: "#ffffff",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
@@ -188,7 +188,7 @@ function LoginInner() {
             justifyContent: "center", gap: "0.75rem",
             marginBottom: "1.25rem", transition: "all 0.2s",
           }}
-          onMouseEnter={e => e.currentTarget.style.background = "#F5F5F0"}
+          onMouseEnter={e => e.currentTarget.style.background = "#ffffff"}
           onMouseLeave={e => e.currentTarget.style.background = "white"}>
           <svg width="18" height="18" viewBox="0 0 18 18">
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
@@ -206,7 +206,7 @@ function LoginInner() {
         </div>
 
         {/* Mode tabs */}
-        <div style={{ display: "flex", background: "#EFEFED", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
+        <div style={{ display: "flex", background: "#F5F5F5", borderRadius: 8, padding: 4, marginBottom: "1.5rem", gap: 4 }}>
           {[
             { key: "login",  label: "Password" },
             { key: "magic",  label: "Email code" },
@@ -251,7 +251,7 @@ function LoginInner() {
                 onKeyDown={e => { if (e.key === "Enter") handleVerifyOtp(); }}
                 style={{
                   width: "100%", padding: "0.9rem 1rem",
-                  background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)",
+                  background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)",
                   borderRadius: 8, color: "#111111",
                   fontFamily: "'DM Mono'", fontSize: "1.5rem",
                   letterSpacing: "0.3em", textAlign: "center",
@@ -287,7 +287,7 @@ function LoginInner() {
               <input type="email" placeholder="partner@yourfirm.com" value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") mode === "magic" ? handleMagicLink() : handleSubmit(); }}
-                style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "0.75rem 1rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
                 onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                 onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
             </div>
@@ -299,7 +299,7 @@ function LoginInner() {
                 <input type="password" placeholder="••••••••" value={password}
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
-                  style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "0.75rem 1rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
                   onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)"}
                   onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"} />
               </div>
@@ -331,7 +331,7 @@ function LoginInner() {
 export default function Login() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#F5F5F0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
         <p style={{ color: "#6B7280" }}>Loading...</p>
       </div>
     }>

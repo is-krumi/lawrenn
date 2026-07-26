@@ -156,7 +156,7 @@ async function handlePreview() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F5F5F0",
+      background: "#ffffff",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "2rem 1rem",
@@ -225,7 +225,7 @@ async function handlePreview() {
             placeholder="Alex"
             value={agentName}
             onChange={e => handleAgentNameChange(e.target.value)}
-            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "0.75rem 1rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
             onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
           />
@@ -243,7 +243,7 @@ async function handlePreview() {
             value={greeting}
             onChange={e => { setGreeting(e.target.value); setAudioUrl(null); }}
             rows={3}
-            style={{ width: "100%", padding: "0.75rem 1rem", background: "#F5F5F0", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
+            style={{ width: "100%", padding: "0.75rem 1rem", background: "#ffffff", border: "1.5px solid rgba(0,0,0,0.1)", borderRadius: 8, color: "#111111", fontFamily: "'DM Sans'", fontSize: "0.9rem", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }}
             onFocus={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.4)"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"}
           />
@@ -262,7 +262,7 @@ async function handlePreview() {
               <button key={voice.elevenLabsId} onClick={() => { setSelectedVoice(voice); setAudioUrl(null); }}
                 style={{
                   padding: "0.75rem 1rem",
-                  background: selectedVoice.elevenLabsId === voice.elevenLabsId ? "rgba(17,17,17,0.06)" : "#F5F5F0",
+                  background: selectedVoice.elevenLabsId === voice.elevenLabsId ? "rgba(17,17,17,0.06)" : "#ffffff",
                   border: `1.5px solid ${selectedVoice.elevenLabsId === voice.elevenLabsId ? "#111111" : "rgba(0,0,0,0.1)"}`,
                   borderRadius: 8,
                   cursor: "pointer",
@@ -279,7 +279,7 @@ async function handlePreview() {
         </div>
 
         {/* Audio preview */}
-        <div style={{ background: "#F5F5F0", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
+        <div style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: "1.25rem", marginBottom: "2rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: audioUrl ? "0.75rem" : 0 }}>
             <div>
               <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111111", marginBottom: "0.15rem" }}>Preview your greeting</p>
