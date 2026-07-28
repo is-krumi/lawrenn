@@ -131,7 +131,7 @@ async function getAvailableSlots(businessId: string): Promise<string[]> {
 
 function buildSystemPrompt(business: any, slots: string[], isAfterHours: boolean): string {
   if (business.system_prompt) {
-    const services = Array.isArray(business.settings?.services)
+    const services = Array.isArray(business.settings?.services) && business.settings.services.length > 0
       ? business.settings.services.map((s: any) =>
           `- ${s.name ?? s}${s.description ? `: ${s.description}` : ""}`
         ).join("\n")
@@ -146,7 +146,7 @@ function buildSystemPrompt(business: any, slots: string[], isAfterHours: boolean
       .replace("{{slots}}", slotsText);
   }
 
-  const services  = Array.isArray(business.settings?.services)
+  const services  = Array.isArray(business.settings?.services) && business.settings.services.length > 0
     ? business.settings.services.map((s: any) => s.name ?? s).join(", ")
     : "general legal services";
   const agentName = business.settings?.ai_persona?.name ?? "Alex";

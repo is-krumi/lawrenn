@@ -127,7 +127,8 @@ async function generateAIReply(
               hour: "numeric", minute: "2-digit", timeZone: business.settings?.timezone ?? "America/New_York"
             })
           : "time TBD";
-        return `${j.type} (${j.status}) scheduled for ${slot}`;
+        const noteSuffix = j.notes ? ` — notes: ${j.notes}` : "";
+        return `${j.type} (${j.status}) scheduled for ${slot}${noteSuffix}`;
       }).join(", ")}`
     : "No prior matters on file";
 
@@ -139,6 +140,10 @@ async function generateAIReply(
     ? `\nRelevant context from client history:\n${ragContext}\n`
     : "";
 
+  const notesBlock = customer?.notes
+    ? `\nInternal attorney notes on this client (for background context only — these are NOT confirmed appointments or scheduled times, do not tell the client anything is "scheduled" based on this alone):\n${customer.notes}\n`
+    : "";
+
   const services = Array.isArray(business.settings?.services)
     ? business.settings.services.map((s: any) => s.name ?? s).join(", ")
     : "general legal services";
@@ -146,6 +151,7 @@ async function generateAIReply(
   const clientContext = [
     `Client: ${customer?.name ?? "Unknown"}`,
     jobContext,
+    notesBlock,
     contextBlock,
     `Recent conversation:\n${messageHistory}`,
   ].filter(Boolean).join("\n");
@@ -157,6 +163,7 @@ SMS RULES (override everything else for this channel):
 - Reply in the same language the client used
 - Never give legal advice or quote specific fees
 - For scheduling — offer to have someone call them
+- Only treat something as a confirmed scheduled appointment if it appears in "Recent matters" below — internal attorney notes are background context only and must never be presented to the client as a scheduled time or confirmed appointment
 - Only reply ESCALATE (exactly, nothing else) for: active threats of malpractice claims, bar complaints, or court emergencies with imminent deadlines — nothing else qualifies
 
 ${clientContext}`;
@@ -176,30 +183,53 @@ Practice areas: ${services}
 ${smsRules}`;
   }
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key":         ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "Content-Type":      "application/json",
-    },
-    body: JSON.stringify({
-      model:      "claude-sonnet-4-20250514",
-      max_tokens: 300,
-      messages: [{
-        role:    "user",
-        content: `Client SMS: "${message}"\n\nGenerate a reply. If this requires escalation to an attorney, respond with exactly: ESCALATE`,
-      }],
-      system: systemPrompt,
-    }),
+  let res: Response;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key":         ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type":      "application/json",
+      },
+      body: JSON.stringify({
+        model:      "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        messages: [{
+          role:    "user",
+          content: `Client SMS: "${message}"\n\nGenerate a reply. If this requires escalation to an attorney, respond with exactly: ESCALATE`,
+        }],
+        system: systemPrompt,
+      }),
+    });
+  } catch (err) {
+    console.error("generateAIReply fetch failed (non-critical, falling back to owner escalation):", err);
+    return null;
+  }
+
+  const data = await res.json().catch((err) => {
+    console.error("generateAIReply JSON parse failed:", err);
+    return null;
   });
 
-  const data = await res.json();
-  const reply = data.content?.[0]?.text?.trim() ?? null;
+  if (!res.ok) {
+    console.error("generateAIReply Anthropic API error:", res.status, JSON.stringify(data));
+    return null;
+  }
 
-  if (!reply || reply === "ESCALATE") return null;
+  const reply = data?.content?.[0]?.text?.trim() ?? null;
+
+  if (!reply) {
+    console.log("generateAIReply: Claude returned an empty reply — escalating to owner");
+    return null;
+  }
+  if (reply === "ESCALATE") {
+    console.log("generateAIReply: Claude explicitly returned ESCALATE — escalating to owner");
+    return null;
+  }
   return reply;
 }
+
 
 serve(async (req) => {
   try {
@@ -243,6 +273,17 @@ serve(async (req) => {
       if (customer) {
         await supabase.from("customers").update({ sms_opted_out: true }).eq("id", customer.id);
       }
+      await supabase.from("messages").insert({
+        business_id: business.id,
+        customer_id: customer?.id ?? null,
+        direction:   "inbound",
+        channel:     "sms",
+        body,
+        from_number: fromNumber,
+        to_number:   toNumber,
+        twilio_sid:  messageSid,
+        read:        true,
+      });
       return new Response(
         `<?xml version="1.0" encoding="UTF-8"?><Response><Message>You have been unsubscribed from ${business.name} messages. Reply START to resubscribe.</Message></Response>`,
         { headers: { "Content-Type": "text/xml" } }
@@ -255,25 +296,48 @@ serve(async (req) => {
         await supabase.from("customers").update({ sms_opted_out: false }).eq("id", customer.id);
       }
 
+      await supabase.from("messages").insert({
+        business_id: business.id,
+        customer_id: customer?.id ?? null,
+        direction:   "inbound",
+        channel:     "sms",
+        body,
+        from_number: fromNumber,
+        to_number:   toNumber,
+        twilio_sid:  messageSid,
+        read:        true,
+      });
+
       // If they were pending opt-in (sms_opted_out = true), send the welcome AI message now
       if (wasOptedOut) {
-        const welcomeReply = await generateAIReply(
-          `The client just opted in to receive messages from ${business.name}. Send them a short, warm welcome — 1-2 sentences max.`,
-          business, customer, [], [], ""
-        );
-        if (welcomeReply) {
-          await sendSMS(fromNumber, toNumber, welcomeReply);
-          await supabase.from("messages").insert({
-            business_id: business.id,
-            customer_id: customer?.id ?? null,
-            direction:   "outbound",
-            channel:     "sms",
-            body:        welcomeReply,
-            from_number: toNumber,
-            to_number:   fromNumber,
-            read:        true,
-          });
+        const defaultWelcome = business.settings?.sms_welcome_message
+          ?? `You're all set! Thanks for confirming — feel free to text us anytime and we'll get back to you as soon as we can.`;
+
+        let welcomeReply: string | null = null;
+        try {
+          welcomeReply = await generateAIReply(
+            `The client just opted in to receive messages from ${business.name}. Send them a short, warm welcome — 1-2 sentences max.`,
+            business, customer, [], [], ""
+          );
+        } catch (err) {
+          console.error("Welcome AI reply generation failed (non-critical):", err);
         }
+
+        // Always send a confirmation, falling back to a deterministic message
+        // so the customer never opts in and hears nothing back.
+        const finalWelcome = welcomeReply ?? defaultWelcome;
+
+        await sendSMS(fromNumber, toNumber, finalWelcome);
+        await supabase.from("messages").insert({
+          business_id: business.id,
+          customer_id: customer?.id ?? null,
+          direction:   "outbound",
+          channel:     "sms",
+          body:        finalWelcome,
+          from_number: toNumber,
+          to_number:   fromNumber,
+          read:        true,
+        });
         return new Response(
           `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
           { headers: { "Content-Type": "text/xml" } }

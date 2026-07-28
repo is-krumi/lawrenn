@@ -95,7 +95,7 @@ function FaqAccordion() {
           <button onClick={() => setOpen(open === i ? null : i)}
             style={{ width: "100%", background: "none", border: "none", color: "var(--navy)", textAlign: "left", padding: "1.4rem 0", fontFamily: "'DM Sans'", fontSize: "1rem", fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", transition: "color 0.2s" }}>
             {f.q}
-            <span style={{ width: 24, height: 24, border: `1px solid ${open === i ? "#111111" : "var(--border)"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0, background: open === i ? "#111111" : "transparent", color: open === i ? "white" : "var(--navy)", transform: open === i ? "rotate(45deg)" : "none", transition: "all 0.3s" }}>+</span>
+            <span style={{ width: 24, height: 24, border: `1px solid ${open === i ? "var(--secondary)" : "var(--border)"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0, background: open === i ? "var(--secondary)" : "transparent", color: open === i ? "white" : "var(--navy)", transform: open === i ? "rotate(45deg)" : "none", transition: "all 0.3s" }}>+</span>
           </button>
           <div style={{ maxHeight: open === i ? 300 : 0, overflow: "hidden", transition: "max-height 0.4s ease" }}>
             <p style={{ paddingBottom: "1.4rem", fontSize: "0.9rem", color: "rgba(17,17,17,0.55)", lineHeight: 1.7 }}>{f.a}</p>
@@ -300,7 +300,7 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
             style={{
               position: "absolute",
               inset: 0,
-              background: "rgba(0,0,0,0.07)",
+              background: "var(--secondary-light)",
             }}
           />
 
@@ -313,7 +313,7 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
                 top: cell.y * gridSize,
                 width: gridSize,
                 height: gridSize,
-                background: "rgba(0,0,0,0.05)",
+                background: "rgba(84,176,99,0.18)",
                 opacity: activeNeighbors.has(i) ? 1 : 0,
                 transition: "opacity 0.7s ease",
               }}
@@ -328,9 +328,9 @@ function InteractiveHeroGrid({ containerRef, gridSize }: { containerRef: React.R
 // ── LiveFeed ───────────────────────────────────────────────────────────────
 const FEED_ITEMS = [
   {
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
-    color: "rgba(16,185,129,0.1)", title: "New intake — Marcus J. Chen (Personal Injury)", sub: "Call answered · Intake memo generated · Matter opened",
-    badge: "Intake", bc: "#10b981", bbg: "rgba(16,185,129,0.1)",
+    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.88 9.1 19.79 19.79 0 01.82.47 2 2 0 012.81 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>,
+    color: "var(--secondary-light)", title: "New intake — Marcus J. Chen (Personal Injury)", sub: "Call answered · Intake memo generated · Matter opened",
+    badge: "Intake", bc: "var(--secondary-dark)", bbg: "var(--secondary-light)",
     detail: "Lawrenn answered the call at 11:42 PM, captured the key facts of the accident, ran a conflict check, and opened a new matter — all before the attorney woke up.",
     ago: "2 min ago",
   },
@@ -384,7 +384,7 @@ function LiveFeed() {
     <div style={{ background: "white", border: "1px solid var(--border)", borderRadius: 16, padding: "1.75rem", position: "relative", overflow: "hidden", boxShadow: "0 4px 32px rgba(0,0,0,0.06)" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 3px rgba(16,185,129,0.2)", display: "inline-block", animation: "pulse 2s infinite" }} />
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--secondary)", boxShadow: "0 0 0 3px var(--secondary-light)", display: "inline-block", animation: "pulse 2s infinite" }} />
         <p style={{ fontFamily: "'DM Mono'", fontSize: "0.7rem", color: "rgba(17,17,17,0.4)", letterSpacing: "0.1em", textTransform: "uppercase", margin: 0 }}>Live activity feed</p>
       </div>
 
@@ -512,7 +512,7 @@ export default function Home() {
 
   const sectionLabel = (text: string, center = false) => (
     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: center ? "center" : "flex-start", marginBottom: "1rem" }}>
-      {!center && <div style={{ width: 24, height: 1, background: "#111111" }} />}
+      {!center && <div style={{ width: 24, height: 1, background: "var(--secondary)" }} />}
       <span style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(17,17,17,0.5)" }}>{text}</span>
     </div>
   );
@@ -540,13 +540,13 @@ export default function Home() {
 
         {/* Badge */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 100, padding: "0.4rem 1rem", fontSize: "0.78rem", fontWeight: 600, color: "rgba(17,17,17,0.65)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1.5rem", width: "fit-content" }}>
-          <span style={{ width: 6, height: 6, background: "#111111", borderRadius: "50%" }} />
+          <span style={{ width: 6, height: 6, background: "var(--secondary)", borderRadius: "50%" }} />
           The AI platform built for law.
         </div>
 
         <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }`}</style>
 
-        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(3.5rem, 9vw, 7.5rem)", lineHeight: 0.95, letterSpacing: "0.02em", marginBottom: "1.5rem", maxWidth: 900, color: "#0A0A0A" }}>
+        <h1 style={{ fontFamily: "'Bebas Neue'", fontSize: "clamp(3.5rem, 9vw, 7.5rem)", lineHeight: 0.95, letterSpacing: "0.02em", marginBottom: "1.5rem", maxWidth: 900, background: "linear-gradient(90deg, #0A0A0A 0%, var(--secondary-dark) 55%, var(--secondary) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", color: "transparent" }}>
           THE AI PLATFORM<br />
           THAT POWERS YOUR<br />
           FIRM'S GROWTH.
@@ -572,7 +572,7 @@ export default function Home() {
         <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", color: "rgba(17,17,17,0.35)", fontSize: "0.85rem", flexWrap: "wrap" }}>
           {["Attorney-client privilege protected", "No credit card required"].map(t => (
             <span key={t} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ color: "#374151" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg></span> {t}
+              <span style={{ color: "var(--secondary-dark)" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg></span> {t}
             </span>
           ))}
         </div>
@@ -599,7 +599,7 @@ export default function Home() {
       <section id="features" style={{ padding: "6rem 5%", background: "white" }}>
         <SL>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-            <div style={{ width: 24, height: 1, background: "#111111" }} />
+            <div style={{ width: 24, height: 1, background: "var(--secondary)" }} />
             <span style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(17,17,17,0.5)" }}>Platform</span>
           </div>
         </SL>
@@ -619,10 +619,10 @@ export default function Home() {
             <SL key={i} delay={i * 0.08}>
               <div
                 style={{ padding: "2rem", background: "white", height: "100%", border: "1px solid var(--border)", borderRadius: 12, transition: "border-color 0.2s", cursor: "default", boxSizing: "border-box" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--secondary)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; }}
               >
-                <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7A6A52", background: "#EDE8DF", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>{tag}</div>
+                <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--secondary-dark)", background: "var(--secondary-light)", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>{tag}</div>
                 <h3 style={{ fontSize: "clamp(1.25rem, 2vw, 1.6rem)", fontWeight: 600, color: "var(--navy)", lineHeight: 1.25, marginBottom: "1rem", letterSpacing: "-0.01em" }}>{title}</h3>
                 <p style={{ fontSize: "0.9rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.75, margin: 0 }}>{body}</p>
               </div>
@@ -634,7 +634,7 @@ export default function Home() {
         <SL>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
             <div style={{ padding: "2.5rem", background: "white", boxSizing: "border-box" }}>
-              <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7A6A52", background: "#EDE8DF", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>Practice Intelligence</div>
+              <div style={{ display: "inline-block", fontFamily: "'DM Sans'", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--secondary-dark)", background: "var(--secondary-light)", borderRadius: 4, padding: "0.3rem 0.75rem", marginBottom: "1.5rem" }}>Practice Intelligence</div>
               <h3 style={{ fontSize: "clamp(1.6rem, 2.5vw, 2.2rem)", fontWeight: 600, color: "var(--navy)", lineHeight: 1.2, marginBottom: "1.25rem", letterSpacing: "-0.02em" }}>Ask anything about your firm.</h3>
               <p style={{ fontSize: "1.05rem", color: "rgba(17,17,17,0.5)", lineHeight: 1.75, margin: 0 }}>Lawrenn turns every call, message, and document into searchable knowledge. Ask a question in plain language — &ldquo;What did we discuss with the Rivera family?&rdquo; or &ldquo;Which clients are waiting on documents?&rdquo; — and get instant answers drawn from across your firm&rsquo;s data.</p>
             </div>
@@ -660,7 +660,7 @@ export default function Home() {
             </p>
             {["Every missed call is a missed case — Lawrenn answers 24/7", "Faster intake means faster decisions and higher conversion", "More clients in, less time spent on admin"].map((b, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", fontSize: "0.9rem", color: "rgba(17,17,17,0.65)", marginBottom: "0.75rem" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> {b}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-dark)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg> {b}
               </div>
             ))}
           </SL>
@@ -681,8 +681,8 @@ export default function Home() {
             { tier: "Enterprise", price: PLAN_FEATURES.growth.price, desc: "Firm-wide AI client management for practices that need maximum capacity, deep insights, and scalable deployment.", features: [`Up to ${PLAN_FEATURES.growth.monthlyCallCap} AI-answered calls/mo`, "Everything in Firm", "Unlimited team members", "Multi-location support", "Advanced reporting & analytics", "Custom AI voice & persona", "Priority support", "API access", "Early feature access"], featured: false },
           ].map(({ tier, price, desc, features, featured }, i) => (
             <SL key={i} delay={i * 0.1}>
-              <div style={{ background: "white", border: `1px solid ${featured ? "rgba(0,0,0,0.2)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>
-                {featured && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#111111", color: "white", fontSize: "0.72rem", fontWeight: 700, padding: "0.25rem 0.9rem", borderRadius: 100, letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Most popular</div>}
+              <div style={{ background: "white", border: `1px solid ${featured ? "var(--secondary)" : "var(--border)"}`, borderRadius: 16, padding: "2rem", position: "relative", transform: featured ? "scale(1.03)" : "none", height: "100%" }}>
+                {featured && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--secondary)", color: "white", fontSize: "0.72rem", fontWeight: 700, padding: "0.25rem 0.9rem", borderRadius: 100, letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Most popular</div>}
                 <div style={{ fontFamily: "'DM Mono'", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(17,17,17,0.5)", marginBottom: "0.75rem" }}>{tier}</div>
                 <div style={{ fontFamily: "'Bebas Neue'", fontSize: "3.5rem", letterSpacing: "0.02em", lineHeight: 1, marginBottom: "0.25rem" }}>
                   <sup style={{ fontSize: "1.5rem", fontFamily: "'DM Sans'", fontWeight: 600, verticalAlign: "top", marginTop: "0.5rem", display: "inline-block" }}>$</sup>{price}
@@ -692,7 +692,7 @@ export default function Home() {
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.7rem", marginBottom: "2rem" }}>
                   {features.map(f => (
                     <li key={f} style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", fontSize: "0.875rem", color: "rgba(17,17,17,0.7)" }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><polyline points="20 6 9 17 4 12" /></svg> {f}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--secondary-dark)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><polyline points="20 6 9 17 4 12" /></svg> {f}
                     </li>
                   ))}
                 </ul>
@@ -775,7 +775,7 @@ export default function Home() {
       <footer className="lp-footer" style={{ borderTop: "1px solid var(--border)", padding: "3rem 5%", background: "white" }}>
         <div>
           <div style={{ fontFamily: "'Bebas Neue'", fontSize: "1.8rem", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
-            LAW<span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
+            <span style={{ color: "var(--secondary-dark)" }}>LAW</span><span style={{ color: "rgba(17,17,17,0.35)" }}>RENN</span>
           </div>
           <p style={{ fontSize: "0.85rem", color: "rgba(17,17,17,0.35)", maxWidth: 260, lineHeight: 1.6 }}>AI client intake and communication for law firms.</p>
         </div>
@@ -822,7 +822,7 @@ export default function Home() {
               <p style={{ textAlign: "center", fontSize: "0.78rem", color: "rgba(17,17,17,0.3)", marginTop: "0.75rem" }}>No credit card required · Cancel anytime</p>
             </>
           ) : (
-            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>} title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
+            <SuccessMsg icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>} title="YOU'RE IN!" body="We'll reach out within 24 hours to get you set up. Check your email for next steps." />
           )}
         </Modal>
       )}

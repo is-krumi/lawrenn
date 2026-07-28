@@ -1,8 +1,8 @@
+import { createUserClient, verifyBusinessAccess } from "@/lib/api-auth";
+import { encryptContent } from "@/lib/encryption";
+import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { verifyBusinessAccess, createUserClient } from "@/lib/api-auth";
-import { encryptContent } from "@/lib/encryption";
 
 // Service role kept only for: storage upload, embeddings insert.
 // documents INSERT/UPDATE use the per-request user client so RLS is enforced.
@@ -234,6 +234,18 @@ export async function POST(request: Request) {
       .single();
     if (docError) throw docError;
 
+    // Derive customer_id via the linked job (documents have no direct customer_id)
+    // so document embeddings can be surfaced in customer-scoped RAG retrieval (SMS/calls).
+    let customerId: string | null = null;
+    if (jobId) {
+      const { data: linkedJob } = await db
+        .from("jobs")
+        .select("customer_id")
+        .eq("id", jobId)
+        .single();
+      customerId = linkedJob?.customer_id ?? null;
+    }
+
     // ── Extract text (preserving paragraph breaks for structure-aware chunking)
     let text      = "";
     let pageCount: number | null = null;
@@ -293,6 +305,7 @@ export async function POST(request: Request) {
         p_doc_type:       docType ?? null,
         p_chunk_index:    chunk.index,
         p_section_header: chunk.section || null,
+        p_customer_id:    customerId,
       });
 
       if (embErr) {
@@ -326,6 +339,7 @@ export async function POST(request: Request) {
         p_doc_type:       docType ?? null,
         p_chunk_index:    -1,   // sentinel: metadata chunk
         p_section_header: null,
+        p_customer_id:    customerId,
       });
     }
 
