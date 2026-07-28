@@ -92,6 +92,21 @@ export default function CustomerDetailPage() {
   const [aiIntelligence, setAiIntelligence] = useState<AiIntelligence | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [aiError, setAiError]             = useState<string | null>(null);
+  const [showIntelligence, setShowIntelligence] = useState(true);
+
+  // Restore the user's collapsed/expanded preference for Lawrenn Intelligence
+  useEffect(() => {
+    const stored = localStorage.getItem("lawrenn-intelligence-visible");
+    if (stored !== null) setShowIntelligence(stored === "true");
+  }, []);
+
+  const toggleIntelligence = () => {
+    setShowIntelligence(prev => {
+      const next = !prev;
+      localStorage.setItem("lawrenn-intelligence-visible", String(next));
+      return next;
+    });
+  };
 
   // Editing
   const [editNotes, setEditNotes]           = useState(false);
@@ -648,57 +663,73 @@ export default function CustomerDetailPage() {
           {/* Lawrenn Intelligence */}
           <div style={{ borderTop: "1px solid rgba(0,0,0,0.07)", padding: "0.875rem 1.5rem", background: "#ffffff" }}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showIntelligence ? "0.75rem" : 0, transition: "margin-bottom 0.25s ease" }}>
+              <button
+                onClick={toggleIntelligence}
+                aria-expanded={showIntelligence}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+              >
                 <svg style={{ width: 14, height: 14, color: "#111111" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 <span style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", color: "#111111", textTransform: "uppercase" }}>Lawrenn Intelligence</span>
-              </div>
-              <button
-                onClick={regenerateSummary}
-                disabled={loadingSummary}
-                style={{ background: "none", border: "none", cursor: loadingSummary ? "default" : "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.72rem", fontFamily: "'DM Sans'" }}
-              >
-                <svg style={{ width: 12, height: 12, animation: loadingSummary ? "spin 1s linear infinite" : "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                {loadingSummary ? "Generating..." : "Refresh"}
+                <svg
+                  style={{ width: 13, height: 13, color: "#9CA3AF", transform: showIntelligence ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.25s ease" }}
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
+              {showIntelligence && (
+                <button
+                  onClick={regenerateSummary}
+                  disabled={loadingSummary}
+                  style={{ background: "none", border: "none", cursor: loadingSummary ? "default" : "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.72rem", fontFamily: "'DM Sans'" }}
+                >
+                  <svg style={{ width: 12, height: 12, animation: loadingSummary ? "spin 1s linear infinite" : "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                  {loadingSummary ? "Generating..." : "Refresh"}
+                </button>
+              )}
             </div>
 
-            {loadingSummary && !aiSummary && (
-              <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>Generating intelligence briefing...</p>
-            )}
-            {aiError && (
-              <p style={{ fontSize: "0.8rem", color: "#EF4444" }}>{aiError}</p>
-            )}
-            {!loadingSummary && !aiSummary && !aiError && (
-              <p style={{ fontSize: "0.8rem", color: "#D1D5DB" }}>No intelligence available yet — add messages, calls, or matters to generate a briefing.</p>
-            )}
+            <div style={{ display: "grid", gridTemplateRows: showIntelligence ? "1fr" : "0fr", transition: "grid-template-rows 0.3s ease" }}>
+              <div style={{ overflow: "hidden", minHeight: 0 }}>
+                {loadingSummary && !aiSummary && (
+                  <p style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>Generating intelligence briefing...</p>
+                )}
+                {aiError && (
+                  <p style={{ fontSize: "0.8rem", color: "#EF4444" }}>{aiError}</p>
+                )}
+                {!loadingSummary && !aiSummary && !aiError && (
+                  <p style={{ fontSize: "0.8rem", color: "#D1D5DB" }}>No intelligence available yet — add messages, calls, or matters to generate a briefing.</p>
+                )}
 
-            {aiSummary && (
-              <div style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
-                {/* Left: summary + recommended action */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: "1.65" }}>{aiSummary}</p>
-                  {aiAction && (
-                    <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-                      <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Recommended Action</p>
-                      <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: "1.55" }}>{aiAction}</p>
+                {aiSummary && (
+                  <div style={{ display: "flex", gap: "1.25rem", alignItems: "flex-start" }}>
+                    {/* Left: summary + recommended action */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: "1.65" }}>{aiSummary}</p>
+                      {aiAction && (
+                        <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>Recommended Action</p>
+                          <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: "1.55" }}>{aiAction}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Right: intelligence cards */}
-                {aiIntelligence && Object.entries(aiIntelligence).some(([, v]) => v && v !== "Unknown") && (
-                  <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                    {Object.entries(aiIntelligence).map(([k, v]) => v && v !== "Unknown" && (
-                      <div key={k} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 7, padding: "0.35rem 0.6rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
-                        <p style={{ fontSize: "0.65rem", color: "#9CA3AF", whiteSpace: "nowrap" }}>{k}</p>
-                        <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111111", textAlign: "right" }}>{v}</p>
+                    {/* Right: intelligence cards */}
+                    {aiIntelligence && Object.entries(aiIntelligence).some(([, v]) => v && v !== "Unknown") && (
+                      <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                        {Object.entries(aiIntelligence).map(([k, v]) => v && v !== "Unknown" && (
+                          <div key={k} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 7, padding: "0.35rem 0.6rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+                            <p style={{ fontSize: "0.65rem", color: "#9CA3AF", whiteSpace: "nowrap" }}>{k}</p>
+                            <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#111111", textAlign: "right" }}>{v}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

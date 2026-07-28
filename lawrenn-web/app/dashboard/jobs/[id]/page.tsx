@@ -1401,7 +1401,7 @@ export default function MatterDetailPage() {
                               style={{ width: "100%", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.8rem", fontFamily: "inherit", outline: "none", background: "white" }}
                             />
                           ) : (
-                            <span style={{ color: "#111111" }}>{job.customers.name.split(" ")[0] ?? "—"}</span>
+                            <span style={{ color: "#111111" }}>{job.customers.name?.split(" ")[0] ?? "—"}</span>
                           )}
                         </td>
                         {/* Last Name */}
@@ -1413,7 +1413,7 @@ export default function MatterDetailPage() {
                               style={{ width: "100%", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.8rem", fontFamily: "inherit", outline: "none", background: "white" }}
                             />
                           ) : (
-                            <span style={{ color: "#111111" }}>{job.customers.name.split(" ").slice(1).join(" ") || "—"}</span>
+                            <span style={{ color: "#111111" }}>{job.customers.name?.split(" ").slice(1).join(" ") || "—"}</span>
                           )}
                         </td>
                         {/* Phone */}

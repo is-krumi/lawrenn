@@ -12,6 +12,10 @@
   --dgrey:    #374151;
   --border:   rgba(0,0,0,0.08);
   --border2:  rgba(0,0,0,0.14);
+
+  --secondary:       #54B063;
+  --secondary-dark:  #3C8A49;
+  --secondary-light: rgba(84,176,99,0.12);
 }
 
 @keyframes spin {
